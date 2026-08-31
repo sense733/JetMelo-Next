@@ -115,7 +115,7 @@ fun UserPlaylistScreen(
                                     .clip(JetMeloShapes.medium)
                             ) {
                                 AsyncImage(
-                                    model = playlist.picUrl,
+                                    model = playlist.cover,
                                     contentDescription = playlist.name,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier

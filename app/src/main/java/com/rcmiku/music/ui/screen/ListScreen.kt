@@ -110,7 +110,7 @@ fun ListScreen(
                                     .clip(JetMeloShapes.medium)
                             ) {
                                 AsyncImage(
-                                    model = chart.picUrl,
+                                    model = chart.cover,
                                     contentDescription = chart.name,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier

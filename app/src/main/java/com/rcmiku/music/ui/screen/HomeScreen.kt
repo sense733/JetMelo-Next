@@ -219,7 +219,7 @@ fun HomeScreen(
                                     Column(
                                         modifier = Modifier
                                             .width(160.dp)
-                                            .clip(JetMeloShapes.large)
+                                            .clip(JetMeloShapes.medium)
                                             .clickable {
                                                 navController.navigate(PlaylistNav(playlistId = playlist.id))
                                             }
@@ -231,7 +231,7 @@ fun HomeScreen(
                                                 .clip(JetMeloShapes.large)
                                         ) {
                                             AsyncImage(
-                                                model = playlist.picUrl,
+                                                model = playlist.cover,
                                                 contentDescription = playlist.name,
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier
@@ -257,6 +257,7 @@ fun HomeScreen(
                                         )
 
                                         Text(
+                                            modifier = Modifier.padding(bottom = 8.dp),
                                             text = playlist.playCount?.let { formatPlayCount(it) } ?: "",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -285,7 +286,7 @@ fun HomeScreen(
                                     Column(
                                         modifier = Modifier
                                             .width(160.dp)
-                                            .clip(JetMeloShapes.large)
+                                            .clip(JetMeloShapes.medium)
                                             .clickable {
                                                 navController.navigate(
                                                     PlaylistNav(
@@ -302,7 +303,7 @@ fun HomeScreen(
                                                 .clip(JetMeloShapes.large)
                                         ) {
                                             AsyncImage(
-                                                model = playlist.picUrl,
+                                                model = playlist.cover,
                                                 contentDescription = playlist.name,
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier
@@ -328,6 +329,7 @@ fun HomeScreen(
                                         )
 
                                         Text(
+                                            modifier = Modifier.padding(bottom = 8.dp),
                                             text = stringResource(R.string.song_size, playlist.trackCount ?: 0),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,

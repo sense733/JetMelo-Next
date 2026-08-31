@@ -321,7 +321,7 @@ fun PlaylistListItem(
     },
     thumbnailContent = {
         AsyncImage(
-            model = playlist.picUrl,
+            model = playlist.cover,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier

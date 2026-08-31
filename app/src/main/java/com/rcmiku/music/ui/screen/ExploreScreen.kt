@@ -140,7 +140,7 @@ fun ExploreScreen(
                                     modifier = Modifier.width(280.dp)
                                 ) {
                                     HeroBannerCard(
-                                        imageUrl = chart.picUrl,
+                                        imageUrl = chart.cover,
                                         badgeText = stringResource(R.string.top_list),
                                         title = chart.name,
                                         subtitle = chart.description ?: stringResource(R.string.song_size, chart.trackCount ?: 0),
@@ -214,6 +214,7 @@ fun ExploreScreen(
                                     )
 
                                     Text(
+                                        modifier = Modifier.padding(bottom = 8.dp),
                                         text = album.artist.name,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -280,6 +281,7 @@ fun ExploreScreen(
                                     )
 
                                     Text(
+                                        modifier = Modifier.padding(bottom = 8.dp),
                                         text = album.artist.name,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
