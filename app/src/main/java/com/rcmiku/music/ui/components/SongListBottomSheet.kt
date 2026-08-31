@@ -3,6 +3,7 @@ package com.rcmiku.music.ui.components
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,10 +35,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.rcmiku.music.R
-import com.rcmiku.music.constants.userIdKye
+import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.api.account.AccountApi
-import com.rcmiku.ncmapi.api.account.PlayManipulateType
+import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.model.Song
 import com.rcmiku.ncmapi.model.UserPlaylistV1Response
 import kotlinx.coroutines.launch
@@ -46,149 +47,162 @@ import kotlinx.coroutines.launch
 @Composable
 fun SongListBottomSheet(
     song: Song?,
-    openBottomSheet: Boolean,
     onDismiss: () -> Unit,
+    openBottomSheet: Boolean,
 ) {
-    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val userId by rememberPreference(userIdKye, 0)
-    var playlist by remember { mutableStateOf<UserPlaylistV1Response?>(null) }
-    var removeSong by rememberSaveable { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    var playlistResponse by remember { mutableStateOf<UserPlaylistV1Response?>(null) }
+    val userId by rememberPreference(userIdKey, 0L)
     val selectedPlaylistId = remember { mutableStateOf<Long?>(null) }
     val selectedRemovePlaylistId = remember { mutableStateOf<Long?>(null) }
-
-    LaunchedEffect(openBottomSheet) {
-        if (openBottomSheet) {
-            bottomSheetState.show()
-        } else {
-            bottomSheetState.hide()
-        }
-    }
+    var removeSong by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(song) {
-        song?.id?.let {
-            if (userId != 0L) {
-                playlist = AccountApi.userPlaylistV1(
-                    userId = userId,
-                    trackIds = listOf(it)
-                ).getOrNull()
-            }
+        if (song != null) {
+            AccountApi.userPlaylistV1(userId = userId, trackIds = listOf(song.id))
+                .onSuccess {
+                    playlistResponse = it
+                }
         }
     }
 
     if (openBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
-            sheetState = bottomSheetState,
+            sheetState = sheetState,
         ) {
+            Column {
+                Text(
+                    text = stringResource(R.string.add_to_songList),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                )
 
-            LazyColumn(
-                Modifier.padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                playlist?.playlist?.let { items ->
-                    items(items) {
-                        val isSelected = selectedPlaylistId.value == it.id
-                        Card(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable {
-                                    if (!it.containsTracks)
-                                        selectedPlaylistId.value = it.id
-                                    else {
-                                        selectedRemovePlaylistId.value = it.id
-                                        removeSong = true
-                                    }
-
-                                },
-                            colors = if (isSelected) CardDefaults.cardColors()
-                                .copy(containerColor = MaterialTheme.colorScheme.primaryContainer) else CardDefaults.cardColors()
-                                .copy(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                        ) {
-                            PlaylistV1ListItem(playlist = it, trailingContent = {
-                                if (it.containsTracks)
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.tertiary,
-                                        modifier = Modifier.padding(end = 6.dp)
-                                    ) {
-                                        Text(text = stringResource(R.string.collected))
-                                    }
-                            })
-                        }
-                    }
-
-                    item {
-                        Row(
-                            Modifier
-                                .padding(horizontal = 12.dp)
-                                .padding(top = 12.dp)
-                                .fillMaxWidth(), horizontalArrangement = Arrangement.End
-                        ) {
-                            Button(
-                                onClick = {
-                                    onDismiss()
-                                },
+                playlistResponse?.playlist?.let { playlist ->
+                    LazyColumn(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(playlist) { item ->
+                            val isSelected = selectedPlaylistId.value == item.id
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (item.containsTracks) {
+                                            selectedRemovePlaylistId.value = item.id
+                                            removeSong = true
+                                        } else {
+                                            selectedPlaylistId.value = if (isSelected) null else item.id
+                                        }
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.surfaceContainer
+                                )
                             ) {
-                                Text(text = stringResource(R.string.cancel))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = item.name,
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    if (item.containsTracks) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                        ) {
+                                            Text(stringResource(R.string.collected))
+                                        }
+                                    }
+                                }
                             }
+                        }
 
-                            Spacer(Modifier.width(12.dp))
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Button(
+                                    onClick = {
+                                        selectedPlaylistId.value = null
+                                        onDismiss()
+                                    },
+                                ) {
+                                    Text(text = stringResource(R.string.cancel))
+                                }
 
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        val selectedId = selectedPlaylistId.value
-                                        val songId = song?.id
-                                        if (selectedId != null && songId != null) {
-                                            AccountApi.playlistManipulate(
-                                                playlistId = selectedId,
-                                                songIds = listOf(songId)
-                                            ).onSuccess {
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getText(R.string.add_success),
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }.onFailure {
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getText(R.string.add_fail),
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                Spacer(Modifier.width(12.dp))
+
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            val selectedId = selectedPlaylistId.value
+                                            val songId = song?.id
+                                            if (selectedId != null && songId != null) {
+                                                PlaylistApi.playlistTracksManipulate(
+                                                    op = "add",
+                                                    pid = selectedId,
+                                                    trackIds = listOf(songId)
+                                                ).onSuccess {
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getText(R.string.add_success),
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }.onFailure {
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getText(R.string.add_fail),
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                                onDismiss()
                                             }
-                                            onDismiss()
                                         }
-                                    }
-                                },
-                                enabled = selectedPlaylistId.value != null,
-                            ) {
-                                Text(text = stringResource(R.string.confirm))
+                                    },
+                                    enabled = selectedPlaylistId.value != null,
+                                ) {
+                                    Text(text = stringResource(R.string.confirm))
+                                }
                             }
-                        }
 
-                        if (removeSong) {
-                            Dialog(
-                                onConfirmation = {
-                                    removeSong = false
-                                    scope.launch {
-                                        val selectedId = selectedRemovePlaylistId.value
-                                        val songId = song?.id
-                                        if (selectedId != null && songId != null) {
-                                            AccountApi.playlistManipulate(
-                                                playlistId = selectedId,
-                                                songIds = listOf(songId),
-                                                manipulateType = PlayManipulateType.DEL
-                                            )
-                                            onDismiss()
+                            if (removeSong) {
+                                Dialog(
+                                    onConfirmation = {
+                                        removeSong = false
+                                        scope.launch {
+                                            val selectedId = selectedRemovePlaylistId.value
+                                            val songId = song?.id
+                                            if (selectedId != null && songId != null) {
+                                                PlaylistApi.playlistTracksManipulate(
+                                                    op = "del",
+                                                    pid = selectedId,
+                                                    trackIds = listOf(songId)
+                                                )
+                                                onDismiss()
+                                            }
                                         }
-                                    }
-                                },
-                                onDismissRequest = {
-                                    removeSong = false
-                                },
-                                dialogTitle = stringResource(R.string.remove_from_songList),
-                            )
+                                    },
+                                    onDismissRequest = {
+                                        removeSong = false
+                                    },
+                                    dialogTitle = stringResource(R.string.remove_from_songList),
+                                )
+                            }
                         }
                     }
                 }

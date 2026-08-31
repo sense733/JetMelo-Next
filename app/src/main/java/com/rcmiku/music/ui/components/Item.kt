@@ -417,12 +417,6 @@ fun SongListItem(
                     .padding(end = 4.dp)
             )
         }
-        if (song.fee == 1 || song.fee == 4) {
-            com.rcmiku.music.ui.design.QualityBadge(
-                qualityText = "VIP",
-                modifier = Modifier.padding(end = 4.dp)
-            )
-        }
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,

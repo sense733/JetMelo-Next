@@ -59,7 +59,7 @@ import com.rcmiku.music.constants.use40DpIconKey
 import com.rcmiku.music.ui.components.Dialog
 import com.rcmiku.music.ui.components.SongQualityDialog
 import com.rcmiku.music.ui.icons.DarkMode
-import com.rcmiku.music.ui.icons.Github
+
 import com.rcmiku.music.ui.icons.GraphicEq
 import com.rcmiku.music.ui.icons.Login
 import com.rcmiku.music.ui.icons.Logout
@@ -191,7 +191,7 @@ fun SettingsScreen(navController: NavHostController) {
         ),
         SettingItemData(
             title = stringResource(R.string.source_code),
-            imageVector = Github,
+            imageVector = com.rcmiku.music.ui.icons.Code,
             onClick = { uriHandler.openUri("https://github.com/rcmiku/JetMelo") }
         )
     )

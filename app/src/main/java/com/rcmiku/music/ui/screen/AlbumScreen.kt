@@ -250,7 +250,7 @@ fun AlbumScreen(
                                             .weight(1f)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Filled.PlayArrow,
+                                            imageVector = com.rcmiku.music.ui.icons.PlayArrowFill,
                                             contentDescription = null,
                                             modifier = Modifier.size(24.dp)
                                         )

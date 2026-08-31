@@ -66,7 +66,7 @@ import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
-import com.rcmiku.music.constants.userIdKye
+import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.playMediaAt
 import com.rcmiku.music.extensions.playMediaAtId
@@ -76,6 +76,7 @@ import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.icons.LibraryAdd
 import com.rcmiku.music.ui.icons.LibraryAddCheck
+import com.rcmiku.music.ui.icons.PlayArrowFill
 import com.rcmiku.music.ui.icons.Remove
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.formatPlayCount
@@ -107,7 +108,7 @@ fun PlaylistScreen(
     val context = LocalContext.current
     val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
         .collectAsState(emptyList())
-    val currentUserId by rememberPreference(userIdKye, 0L)
+    val currentUserId by rememberPreference(userIdKey, 0L)
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -260,7 +261,7 @@ fun PlaylistScreen(
                                             .weight(1f)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Filled.PlayArrow,
+                                            imageVector = PlayArrowFill,
                                             contentDescription = null,
                                             modifier = Modifier.size(24.dp)
                                         )

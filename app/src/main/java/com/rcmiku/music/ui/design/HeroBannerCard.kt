@@ -132,7 +132,7 @@ fun HeroBannerCard(
                             .clickable(onClick = onPlayClick)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.PlayArrow,
+                            imageVector = com.rcmiku.music.ui.icons.PlayArrowFill,
                             contentDescription = "Play",
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(28.dp)

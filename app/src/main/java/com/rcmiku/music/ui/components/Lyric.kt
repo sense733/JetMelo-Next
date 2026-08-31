@@ -61,7 +61,6 @@ import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
-import com.rcmiku.music.ui.design.QualityBadge
 import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.parseLrc
@@ -161,19 +160,13 @@ fun Lyric(
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.basicMarquee()
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = mediaMetadata.artist?.toString() ?: "",
-                                maxLines = 1,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.basicMarquee()
-                            )
-                            QualityBadge(qualityText = "HI-RES")
-                        }
+                        Text(
+                            text = mediaMetadata.artist?.toString() ?: "",
+                            maxLines = 1,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.basicMarquee()
+                        )
                     }
                 }
             }

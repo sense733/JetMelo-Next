@@ -67,7 +67,6 @@ import com.rcmiku.music.constants.MediaSessionConstants
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
-import com.rcmiku.music.ui.design.QualityBadge
 import com.rcmiku.music.ui.icons.Album
 import com.rcmiku.music.ui.icons.Artist
 import com.rcmiku.music.ui.icons.AudioLines
@@ -282,13 +281,7 @@ fun Player(
                     }
                 }
 
-                // Audio Quality Badge
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    QualityBadge(qualityText = "Hi-Res Lossless")
-                }
+
 
                 // Progress Slider Section
                 Column(
@@ -395,7 +388,7 @@ fun Player(
                             }
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) PauseFill else Icons.Filled.PlayArrow,
+                            imageVector = if (isPlaying) PauseFill else com.rcmiku.music.ui.icons.PlayArrowFill,
                             contentDescription = null,
                             tint = artworkColors.onAccentColor,
                             modifier = Modifier.size(40.dp)

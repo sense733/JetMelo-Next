@@ -42,7 +42,7 @@ import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.MiniPlayerHeight
 import com.rcmiku.music.constants.currentPlayMediaIdKey
 import com.rcmiku.music.constants.ncmCookieKey
-import com.rcmiku.music.constants.userIdKye
+import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.ui.components.tabs
 import com.rcmiku.music.ui.navigation.NavGraph
 import com.rcmiku.music.utils.rememberPreference
@@ -60,7 +60,7 @@ fun MainScreen() {
     val showNavigationBar =
         currentDestination?.hierarchy?.any { tabs.any { tab -> it.route == tab.route } } == true
     val ncmCookie by rememberPreference(ncmCookieKey, "")
-    var userId by rememberPreference(userIdKye, 0)
+    var userId by rememberPreference(userIdKey, 0L)
     val playerState = LocalPlayerState.current
     var position by rememberSaveable(playerState) {
         mutableLongStateOf(playerState?.player?.currentPosition ?: 0)
