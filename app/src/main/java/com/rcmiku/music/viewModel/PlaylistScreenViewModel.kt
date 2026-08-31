@@ -87,4 +87,19 @@ class PlaylistScreenViewModel @Inject constructor(
         }
     }
 
+    fun deleteTrack(trackId: Long, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val pid = playlistId
+            if (pid != null) {
+                val result = PlaylistApi.playlistTracksManipulate(
+                    op = "del",
+                    pid = pid,
+                    trackIds = listOf(trackId)
+                )
+                onResult(result.isSuccess)
+            } else {
+                onResult(false)
+            }
+        }
+    }
 }

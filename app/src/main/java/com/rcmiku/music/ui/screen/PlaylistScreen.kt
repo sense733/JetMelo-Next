@@ -1,5 +1,6 @@
 package com.rcmiku.music.ui.screen
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -32,9 +33,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -62,6 +66,7 @@ import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
+import com.rcmiku.music.constants.userIdKye
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.playMediaAt
 import com.rcmiku.music.extensions.playMediaAtId
@@ -71,9 +76,11 @@ import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.icons.LibraryAdd
 import com.rcmiku.music.ui.icons.LibraryAddCheck
+import com.rcmiku.music.ui.icons.Remove
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.formatPlayCount
 import com.rcmiku.music.utils.formatTimestamp
+import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.music.viewModel.PlaylistScreenViewModel
 import com.rcmiku.ncmapi.model.Song
 import kotlinx.coroutines.flow.map
@@ -100,6 +107,7 @@ fun PlaylistScreen(
     val context = LocalContext.current
     val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
         .collectAsState(emptyList())
+    val currentUserId by rememberPreference(userIdKye, 0L)
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -133,6 +141,9 @@ fun PlaylistScreen(
         ) { padding ->
             playlistDetailState?.let { detail ->
                 playlistTitle = detail.playlist.name
+                val isOwner = detail.playlist.userId == currentUserId && currentUserId != 0L
+                var tracks by remember(detail.playlist.tracks) { mutableStateOf(detail.playlist.tracks) }
+
                 val pageArtworkColors = rememberArtworkColors(
                     artworkUri = detail.playlist.coverImgUrl,
                     songId = detail.playlist.id.toString()
@@ -235,7 +246,7 @@ fun PlaylistScreen(
                                     // Play All Button (CTA bound to page Artwork Accent Color)
                                     Button(
                                         onClick = {
-                                            mediaController?.setPlaylist(detail.playlist.tracks)
+                                            mediaController?.setPlaylist(tracks)
                                             mediaController?.playMediaAt(0)
                                         },
                                         shape = JetMeloShapes.full,
@@ -294,7 +305,7 @@ fun PlaylistScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = stringResource(R.string.song_size, detail.playlist.tracks.size),
+                                text = stringResource(R.string.song_size, tracks.size),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.SemiBold
@@ -302,32 +313,106 @@ fun PlaylistScreen(
                         }
                     }
 
-                    // 3. Track Items (Read-only for public playlists)
-                    itemsIndexed(detail.playlist.tracks, key = { _, song -> song.id }) { index, song ->
-                        SongListItem(
-                            song = song,
-                            isPlaying = isPlaying,
-                            showLikedIcon = song.id in songIds,
-                            isActive = currentMediaId == song.id,
-                            songIndex = index + 1,
-                            modifier = Modifier
-                                .clip(JetMeloShapes.small)
-                                .clickable {
-                                    mediaController?.setPlaylist(detail.playlist.tracks)
-                                    mediaController?.playMediaAtId(song.id)
-                                },
-                            trailingContent = {
-                                IconButton(onClick = {
-                                    selectSong = song
-                                    openBottomSheet = true
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreVert,
-                                        contentDescription = stringResource(R.string.more)
-                                    )
+                    // 3. Track Items (Swipe to dismiss enabled only when user is playlist creator)
+                    itemsIndexed(tracks, key = { _, song -> song.id }) { index, song ->
+                        if (isOwner) {
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                confirmValueChange = { dismissValue ->
+                                    if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                        val removedSong = song
+                                        val removedIndex = index
+                                        tracks = tracks.toMutableList().apply { removeAt(index) }
+                                        playlistScreenViewModel.deleteTrack(song.id) { success ->
+                                            if (!success) {
+                                                tracks = tracks.toMutableList().apply {
+                                                    add(minOf(removedIndex, size), removedSong)
+                                                }
+                                                Toast.makeText(
+                                                    context,
+                                                    context.getString(R.string.delete_track_failed),
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                        true
+                                    } else {
+                                        false
+                                    }
                                 }
+                            )
+
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                enableDismissFromStartToEnd = false,
+                                backgroundContent = {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                                            .clip(JetMeloShapes.small)
+                                            .background(MaterialTheme.colorScheme.errorContainer),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Icon(
+                                            imageVector = Remove,
+                                            contentDescription = stringResource(R.string.delete),
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.padding(end = 16.dp)
+                                        )
+                                    }
+                                }
+                            ) {
+                                SongListItem(
+                                    song = song,
+                                    isPlaying = isPlaying,
+                                    showLikedIcon = song.id in songIds,
+                                    isActive = currentMediaId == song.id,
+                                    songIndex = index + 1,
+                                    modifier = Modifier
+                                        .clip(JetMeloShapes.small)
+                                        .clickable {
+                                            mediaController?.setPlaylist(tracks)
+                                            mediaController?.playMediaAtId(song.id)
+                                        },
+                                    trailingContent = {
+                                        IconButton(onClick = {
+                                            selectSong = song
+                                            openBottomSheet = true
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Default.MoreVert,
+                                                contentDescription = stringResource(R.string.more)
+                                            )
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        } else {
+                            SongListItem(
+                                song = song,
+                                isPlaying = isPlaying,
+                                showLikedIcon = song.id in songIds,
+                                isActive = currentMediaId == song.id,
+                                songIndex = index + 1,
+                                modifier = Modifier
+                                    .clip(JetMeloShapes.small)
+                                    .clickable {
+                                        mediaController?.setPlaylist(tracks)
+                                        mediaController?.playMediaAtId(song.id)
+                                    },
+                                trailingContent = {
+                                    IconButton(onClick = {
+                                        selectSong = song
+                                        openBottomSheet = true
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = stringResource(R.string.more)
+                                        )
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
