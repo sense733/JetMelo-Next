@@ -95,7 +95,7 @@ fun PlayerTransform(
                         duration = duration,
                         position = position,
                         imageModifier = Modifier.sharedElement(
-                            state = rememberSharedContentState(
+                            sharedContentState = rememberSharedContentState(
                                 key = mediaMetadata.artist.toString()
                             ),
                             animatedVisibilityScope = this,
@@ -135,7 +135,7 @@ fun PlayerTransform(
                     PlayerQueue(
                         mediaMetadata = mediaMetadata,
                         imageModifier = Modifier.sharedElement(
-                            state = rememberSharedContentState(
+                            sharedContentState = rememberSharedContentState(
                                 key = mediaMetadata.artist.toString()
                             ),
                             animatedVisibilityScope = this,
@@ -165,7 +165,7 @@ fun PlayerTransform(
                         position = position,
                         mediaMetadata = mediaMetadata,
                         imageModifier = Modifier.sharedElement(
-                            state = rememberSharedContentState(
+                            sharedContentState = rememberSharedContentState(
                                 key = mediaMetadata.artist.toString()
                             ),
                             animatedVisibilityScope = this,
@@ -200,7 +200,7 @@ fun PlayerTransform(
                             onClick()
                         },
                         imageModifier = Modifier.sharedElement(
-                            state = rememberSharedContentState(
+                            sharedContentState = rememberSharedContentState(
                                 key = mediaMetadata.artist.toString()
                             ),
                             animatedVisibilityScope = this,
