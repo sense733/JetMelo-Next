@@ -55,9 +55,13 @@ fun HeroBannerCard(
             .clip(shape)
             .clickable(onClick = onClick),
         shape = shape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+        ) {
             AsyncImage(
                 model = imageUrl,
                 contentDescription = title,

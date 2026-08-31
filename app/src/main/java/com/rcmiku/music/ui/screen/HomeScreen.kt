@@ -1,8 +1,14 @@
 package com.rcmiku.music.ui.screen
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -60,6 +66,8 @@ import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
+import com.rcmiku.music.constants.DURATION_ENTER
+import com.rcmiku.music.constants.DURATION_EXIT_SHORT
 import com.rcmiku.music.constants.ListItemHeight
 import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.data.favoriteSongIdsDatastore
@@ -180,221 +188,194 @@ fun HomeScreen(
                     contentPadding = PaddingValues(bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // 1. Featured Daily Hero Card (Fixed Slot)
+                    // 1. Featured Daily Hero Card (Fixed Slot with Crossfade)
                     item {
-                        if (dailyData != null) {
-                            val songs = dailyData.data.dailySongs
-                            val firstSong = songs.firstOrNull()
-                            if (firstSong != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                                ) {
-                                    HeroBannerCard(
-                                        imageUrl = firstSong.al.picUrl,
-                                        badgeText = stringResource(R.string.featured_today),
-                                        title = stringResource(R.string.recommend_songs),
-                                        subtitle = stringResource(R.string.daily_recommend_subtitle, songs.size),
-                                        aspectRatio = 1.8f,
-                                        onClick = {
-                                            mediaController?.setPlaylist(songs)
-                                            mediaController?.playMediaAtId(firstSong.id)
-                                        },
-                                        onPlayClick = {
-                                            mediaController?.setPlaylist(songs)
-                                            mediaController?.playMediaAtId(firstSong.id)
-                                        }
-                                    )
+                        AnimatedContent(
+                            targetState = dailyData,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(DURATION_ENTER)) togetherWith fadeOut(animationSpec = tween(DURATION_EXIT_SHORT))
+                            },
+                            label = "hero_banner_crossfade"
+                        ) { data ->
+                            if (data != null) {
+                                val songs = data.data.dailySongs
+                                val firstSong = songs.firstOrNull()
+                                if (firstSong != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    ) {
+                                        HeroBannerCard(
+                                            imageUrl = firstSong.al.picUrl,
+                                            badgeText = stringResource(R.string.featured_today),
+                                            title = stringResource(R.string.recommend_songs),
+                                            subtitle = stringResource(R.string.daily_recommend_subtitle, songs.size),
+                                            aspectRatio = 1.8f,
+                                            onClick = {
+                                                mediaController?.setPlaylist(songs)
+                                                mediaController?.playMediaAtId(firstSong.id)
+                                            },
+                                            onPlayClick = {
+                                                mediaController?.setPlaylist(songs)
+                                                mediaController?.playMediaAtId(firstSong.id)
+                                            }
+                                        )
+                                    }
+                                } else {
+                                    HeroBannerSkeleton(brush = shimmerBrush)
                                 }
                             } else {
                                 HeroBannerSkeleton(brush = shimmerBrush)
                             }
-                        } else {
-                            HeroBannerSkeleton(brush = shimmerBrush)
                         }
                     }
 
-                    // 2. Recommended Playlists Horizontal Carousel (Fixed Slot)
+                    // 2. Recommended Playlists Horizontal Carousel (Fixed Slot with Crossfade)
                     item {
                         SectionHeader(
                             title = stringResource(R.string.personalized_playlist)
                         )
 
-                        if (recommendData != null) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(recommendData.recommend, key = { it.id }) { playlist ->
-                                    Column(
-                                        modifier = Modifier
-                                            .width(160.dp)
-                                            .clip(JetMeloShapes.medium)
-                                            .clickable {
-                                                navController.navigate(PlaylistNav(playlistId = playlist.id))
-                                            }
-                                    ) {
-                                        Box(
+                        val playlistTarget = recommendData?.recommend ?: personalizedData?.result
+
+                        AnimatedContent(
+                            targetState = playlistTarget,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(DURATION_ENTER)) togetherWith fadeOut(animationSpec = tween(DURATION_EXIT_SHORT))
+                            },
+                            label = "playlists_crossfade"
+                        ) { playlists ->
+                            if (playlists != null) {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(playlists, key = { it.id }) { playlist ->
+                                        Column(
                                             modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(160.dp)
-                                                .clip(JetMeloShapes.large)
+                                                .width(160.dp)
+                                                .clip(JetMeloShapes.medium)
+                                                .clickable {
+                                                    navController.navigate(
+                                                        PlaylistNav(
+                                                            playlistId = playlist.id,
+                                                            limit = playlist.trackCount
+                                                        )
+                                                    )
+                                                }
                                         ) {
-                                            AsyncImage(
-                                                model = playlist.cover,
-                                                contentDescription = playlist.name,
-                                                contentScale = ContentScale.Crop,
+                                            Box(
                                                 modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .sharedElement(
-                                                        sharedTransitionScope.rememberSharedContentState(
-                                                            key = "cover_${playlist.id}"
-                                                        ),
-                                                        animatedVisibilityScope = animatedContentScope
-                                                    )
-                                            )
-                                        }
-
-                                        Spacer(Modifier.height(8.dp))
-
-                                        Text(
-                                            text = playlist.name,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-
-                                        Text(
-                                            modifier = Modifier.padding(bottom = 8.dp),
-                                            text = playlist.playCount?.let { formatPlayCount(it) } ?: "",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
-                            }
-                        } else if (personalizedData != null) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(personalizedData.result, key = { it.id }) { playlist ->
-                                    Column(
-                                        modifier = Modifier
-                                            .width(160.dp)
-                                            .clip(JetMeloShapes.medium)
-                                            .clickable {
-                                                navController.navigate(
-                                                    PlaylistNav(
-                                                        playlistId = playlist.id,
-                                                        limit = playlist.trackCount
-                                                    )
+                                                    .fillMaxWidth()
+                                                    .height(160.dp)
+                                                    .clip(JetMeloShapes.large)
+                                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                            ) {
+                                                AsyncImage(
+                                                    model = playlist.cover,
+                                                    contentDescription = playlist.name,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .sharedElement(
+                                                            sharedTransitionScope.rememberSharedContentState(
+                                                                key = "cover_${playlist.id}"
+                                                            ),
+                                                            animatedVisibilityScope = animatedContentScope
+                                                        )
                                                 )
                                             }
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(160.dp)
-                                                .clip(JetMeloShapes.large)
-                                        ) {
-                                            AsyncImage(
-                                                model = playlist.cover,
-                                                contentDescription = playlist.name,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .sharedElement(
-                                                        sharedTransitionScope.rememberSharedContentState(
-                                                            key = "cover_${playlist.id}"
-                                                        ),
-                                                        animatedVisibilityScope = animatedContentScope
-                                                    )
+
+                                            Spacer(Modifier.height(8.dp))
+
+                                            Text(
+                                                text = playlist.name,
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+
+                                            val countText = playlist.playCount?.let { formatPlayCount(it) }
+                                                ?: playlist.trackCount?.let { stringResource(R.string.song_size, it) }
+                                                ?: ""
+                                            Text(
+                                                modifier = Modifier.padding(bottom = 8.dp),
+                                                text = countText,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
-
-                                        Spacer(Modifier.height(8.dp))
-
-                                        Text(
-                                            text = playlist.name,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-
-                                        Text(
-                                            modifier = Modifier.padding(bottom = 8.dp),
-                                            text = stringResource(R.string.song_size, playlist.trackCount ?: 0),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
                                     }
                                 }
+                            } else {
+                                PlaylistsRowSkeleton(brush = shimmerBrush)
                             }
-                        } else {
-                            PlaylistsRowSkeleton(brush = shimmerBrush)
                         }
                     }
 
-                    // 3. Daily Songs 4-Row Grid Section (Fixed Slot)
+                    // 3. Daily Songs 4-Row Grid Section (Fixed Slot with Crossfade)
                     item {
                         SectionHeader(
                             title = stringResource(R.string.recommend_songs)
                         )
 
-                        if (dailyData != null) {
-                            val songs = dailyData.data.dailySongs
-                            LazyHorizontalGrid(
-                                rows = GridCells.Fixed(4),
-                                state = gridState,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(ListItemHeight * 4),
-                                contentPadding = PaddingValues(horizontal = 10.dp),
-                                flingBehavior = rememberSnapFlingBehavior(
-                                    gridState,
-                                    snapPosition = SnapPosition.Start
-                                )
-                            ) {
-                                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                                    SongListItem(
-                                        isPlaying = isPlaying,
-                                        isActive = currentMediaId == song.id,
-                                        showLikedIcon = song.id in songIds,
-                                        song = song,
-                                        songIndex = index + 1,
-                                        modifier = Modifier
-                                            .clip(JetMeloShapes.small)
-                                            .width(340.dp)
-                                            .clickable {
-                                                mediaController?.setPlaylist(songs)
-                                                mediaController?.playMediaAtId(song.id)
-                                            },
-                                        trailingContent = {
-                                            IconButton(onClick = {
-                                                selectSong = song
-                                                openBottomSheet = true
-                                            }) {
-                                                Icon(
-                                                    imageVector = Icons.Default.MoreVert,
-                                                    contentDescription = stringResource(R.string.more)
-                                                )
-                                            }
-                                        }
+                        AnimatedContent(
+                            targetState = dailyData,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(DURATION_ENTER)) togetherWith fadeOut(animationSpec = tween(DURATION_EXIT_SHORT))
+                            },
+                            label = "daily_songs_crossfade"
+                        ) { data ->
+                            if (data != null) {
+                                val songs = data.data.dailySongs
+                                LazyHorizontalGrid(
+                                    rows = GridCells.Fixed(4),
+                                    state = gridState,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(ListItemHeight * 4),
+                                    contentPadding = PaddingValues(horizontal = 10.dp),
+                                    flingBehavior = rememberSnapFlingBehavior(
+                                        gridState,
+                                        snapPosition = SnapPosition.Start
                                     )
+                                ) {
+                                    itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                                        SongListItem(
+                                            isPlaying = isPlaying,
+                                            isActive = currentMediaId == song.id,
+                                            showLikedIcon = song.id in songIds,
+                                            song = song,
+                                            songIndex = index + 1,
+                                            modifier = Modifier
+                                                .clip(JetMeloShapes.small)
+                                                .width(340.dp)
+                                                .clickable {
+                                                    mediaController?.setPlaylist(songs)
+                                                    mediaController?.playMediaAtId(song.id)
+                                                },
+                                            trailingContent = {
+                                                IconButton(onClick = {
+                                                    selectSong = song
+                                                    openBottomSheet = true
+                                                }) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.MoreVert,
+                                                        contentDescription = stringResource(R.string.more)
+                                                    )
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
+                            } else {
+                                DailySongsGridSkeleton(brush = shimmerBrush)
                             }
-                        } else {
-                            DailySongsGridSkeleton(brush = shimmerBrush)
                         }
                     }
                 }
