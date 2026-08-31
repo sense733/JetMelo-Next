@@ -2,8 +2,6 @@ package com.rcmiku.music.ui.icons
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
@@ -17,18 +15,18 @@ val ChevronDown: ImageVector
             name = "ChevronDown",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
+            viewportWidth = 960f,
+            viewportHeight = 960f
         ).apply {
-            path(
-                stroke = SolidColor(Color(0xFF000000)),
-                strokeLineWidth = 2f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
-            ) {
-                moveToRelative(6f, 9f)
-                lineToRelative(6f, 6f)
-                lineToRelative(6f, -6f)
+            path(fill = SolidColor(Color(0xFF000000))) {
+                moveTo(480f, 620f)
+                lineTo(200f, 340f)
+                lineToRelative(56f, -56f)
+                lineToRelative(224f, 224f)
+                lineToRelative(224f, -224f)
+                lineToRelative(56f, 56f)
+                lineToRelative(-280f, 280f)
+                close()
             }
         }.build()
 

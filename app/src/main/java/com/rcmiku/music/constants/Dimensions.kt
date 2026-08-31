@@ -23,6 +23,16 @@ const val DURATION_ENTER = 400
 const val DURATION_EXIT = 200
 const val DURATION_EXIT_SHORT = 100
 
+const val DURATION_MOTION_SHORT = 200
+const val DURATION_MOTION_MEDIUM = 400
+const val DURATION_MOTION_LONG = 600
+
+const val SPRING_DAMPING_NO_BOUNCY = 1.0f
+const val SPRING_DAMPING_LOW_BOUNCY = 0.8f
+const val SPRING_STIFFNESS_LOW = 200f
+const val SPRING_STIFFNESS_MEDIUM = 500f
+const val SPRING_STIFFNESS_HIGH = 1000f
+
 private val emphasizedPath = Path().apply {
     moveTo(0f, 0f)
     cubicTo(0.05f, 0f, 0.133333f, 0.06f, 0.166666f, 0.4f)

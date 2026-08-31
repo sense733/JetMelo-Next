@@ -15,17 +15,34 @@ val Down: ImageVector
             name = "Down",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
+            viewportWidth = 960f,
+            viewportHeight = 960f
         ).apply {
             path(fill = SolidColor(Color(0xFF5F6368))) {
-                moveTo(2f, 8.025f)
-                lineTo(3.775f, 6.25f)
-                lineTo(12f, 14.475f)
-                lineTo(20.225f, 6.25f)
-                lineTo(22f, 8.025f)
-                lineTo(12f, 18.025f)
-                lineTo(2f, 8.025f)
+                moveTo(480f, 640f)
+                lineTo(240f, 400f)
+                lineToRelative(56f, -56f)
+                lineToRelative(144f, 144f)
+                verticalLineToRelative(-328f)
+                horizontalLineToRelative(80f)
+                verticalLineToRelative(328f)
+                lineToRelative(144f, -144f)
+                lineToRelative(56f, 56f)
+                lineToRelative(-240f, 240f)
+                close()
+                moveTo(240f, 800f)
+                quadToRelative(-33f, 0f, -56.5f, -23.5f)
+                reflectiveQuadTo(160f, 720f)
+                verticalLineToRelative(-120f)
+                horizontalLineToRelative(80f)
+                verticalLineToRelative(120f)
+                horizontalLineToRelative(480f)
+                verticalLineToRelative(-120f)
+                horizontalLineToRelative(80f)
+                verticalLineToRelative(120f)
+                quadToRelative(0f, 33f, -23.5f, 56.5f)
+                reflectiveQuadTo(720f, 800f)
+                horizontalLineTo(240f)
                 close()
             }
         }.build()

@@ -15,40 +15,41 @@ val PlaylistInsert: ImageVector
             name = "PlaylistInsert",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
+            viewportWidth = 960f,
+            viewportHeight = 960f
         ).apply {
-            path(fill = SolidColor(Color(0xFF1F1F1F))) {
-                moveTo(3f, 16f)
-                verticalLineTo(14f)
-                horizontalLineTo(10f)
-                verticalLineTo(16f)
-                horizontalLineTo(3f)
+            path(fill = SolidColor(Color(0xFF000000))) {
+                moveTo(120f, 640f)
+                verticalLineToRelative(-80f)
+                horizontalLineToRelative(280f)
+                verticalLineToRelative(80f)
+                horizontalLineTo(120f)
                 close()
-                moveTo(3f, 12f)
-                verticalLineTo(10f)
-                horizontalLineTo(14f)
-                verticalLineTo(12f)
-                horizontalLineTo(3f)
+                moveTo(120f, 480f)
+                verticalLineToRelative(-80f)
+                horizontalLineToRelative(440f)
+                verticalLineToRelative(80f)
+                horizontalLineTo(120f)
                 close()
-                moveTo(3f, 8f)
-                verticalLineTo(6f)
-                horizontalLineTo(14f)
-                verticalLineTo(8f)
-                horizontalLineTo(3f)
+                moveTo(120f, 320f)
+                verticalLineToRelative(-80f)
+                horizontalLineToRelative(440f)
+                verticalLineToRelative(80f)
+                horizontalLineTo(120f)
                 close()
-            }
-            path(fill = SolidColor(Color(0xFF1F1F1F))) {
-                moveTo(18.5f, 22f)
-                lineTo(14f, 17.5f)
-                verticalLineTo(21f)
-                horizontalLineTo(12f)
-                verticalLineTo(14f)
-                horizontalLineTo(19f)
-                verticalLineTo(16f)
-                horizontalLineTo(15.5f)
-                lineTo(20f, 20.5f)
-                lineTo(18.5f, 22f)
+                moveTo(680f, 840f)
+                verticalLineToRelative(-160f)
+                horizontalLineTo(520f)
+                verticalLineToRelative(-80f)
+                horizontalLineToRelative(160f)
+                verticalLineToRelative(-160f)
+                horizontalLineToRelative(80f)
+                verticalLineToRelative(160f)
+                horizontalLineToRelative(160f)
+                verticalLineToRelative(80f)
+                horizontalLineTo(760f)
+                verticalLineToRelative(160f)
+                horizontalLineToRelative(-80f)
                 close()
             }
         }.build()

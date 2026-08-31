@@ -15,69 +15,35 @@ val Payment: ImageVector
             name = "Payment",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
+            viewportWidth = 960f,
+            viewportHeight = 960f
         ).apply {
             path(fill = SolidColor(Color(0xFF000000))) {
-                moveTo(15.75f, 14.5f)
-                arcToRelative(
-                    0.75f,
-                    0.75f,
-                    0f,
-                    isMoreThanHalf = false,
-                    isPositiveArc = false,
-                    0f,
-                    1.5f
-                )
-                horizontalLineToRelative(2.5f)
-                arcToRelative(
-                    0.75f,
-                    0.75f,
-                    0f,
-                    isMoreThanHalf = false,
-                    isPositiveArc = false,
-                    0f,
-                    -1.5f
-                )
+                moveTo(880f, 720f)
+                quadToRelative(0f, 33f, -23.5f, 56.5f)
+                reflectiveQuadTo(800f, 800f)
+                horizontalLineTo(160f)
+                quadToRelative(-33f, 0f, -56.5f, -23.5f)
+                reflectiveQuadTo(80f, 720f)
+                verticalLineToRelative(-480f)
+                quadToRelative(0f, -33f, 23.5f, -56.5f)
+                reflectiveQuadTo(160f, 160f)
+                horizontalLineToRelative(640f)
+                quadToRelative(33f, 0f, 56.5f, 23.5f)
+                reflectiveQuadTo(880f, 240f)
+                verticalLineToRelative(480f)
                 close()
-                moveTo(2f, 8.25f)
-                arcTo(3.25f, 3.25f, 0f, isMoreThanHalf = false, isPositiveArc = true, 5.25f, 5f)
-                horizontalLineToRelative(13.5f)
-                arcTo(3.25f, 3.25f, 0f, isMoreThanHalf = false, isPositiveArc = true, 22f, 8.25f)
-                verticalLineToRelative(7.5f)
-                arcTo(3.25f, 3.25f, 0f, isMoreThanHalf = false, isPositiveArc = true, 18.75f, 19f)
-                horizontalLineTo(5.25f)
-                arcTo(3.25f, 3.25f, 0f, isMoreThanHalf = false, isPositiveArc = true, 2f, 15.75f)
+                moveTo(160f, 240f)
+                verticalLineToRelative(80f)
+                horizontalLineToRelative(640f)
+                verticalLineToRelative(-80f)
+                horizontalLineTo(160f)
                 close()
-                moveTo(20.5f, 9.5f)
-                verticalLineTo(8.25f)
-                arcToRelative(
-                    1.75f,
-                    1.75f,
-                    0f,
-                    isMoreThanHalf = false,
-                    isPositiveArc = false,
-                    -1.75f,
-                    -1.75f
-                )
-                horizontalLineTo(5.25f)
-                arcTo(1.75f, 1.75f, 0f, isMoreThanHalf = false, isPositiveArc = false, 3.5f, 8.25f)
-                verticalLineTo(9.5f)
-                close()
-                moveTo(3.5f, 11f)
-                verticalLineToRelative(4.75f)
-                curveToRelative(0f, 0.966f, 0.784f, 1.75f, 1.75f, 1.75f)
-                horizontalLineToRelative(13.5f)
-                arcToRelative(
-                    1.75f,
-                    1.75f,
-                    0f,
-                    isMoreThanHalf = false,
-                    isPositiveArc = false,
-                    1.75f,
-                    -1.75f
-                )
-                verticalLineTo(11f)
+                moveTo(160f, 720f)
+                horizontalLineToRelative(640f)
+                verticalLineToRelative(-240f)
+                horizontalLineTo(160f)
+                verticalLineToRelative(240f)
                 close()
             }
         }.build()
