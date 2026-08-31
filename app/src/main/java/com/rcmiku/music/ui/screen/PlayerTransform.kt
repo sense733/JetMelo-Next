@@ -1,5 +1,6 @@
 package com.rcmiku.music.ui.screen
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -12,14 +13,19 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
+import androidx.core.view.WindowCompat
 import androidx.media3.common.MediaMetadata
 import androidx.navigation.NavHostController
+import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.DURATION
 import com.rcmiku.music.constants.DURATION_ENTER
 import com.rcmiku.music.constants.DURATION_EXIT
@@ -27,7 +33,6 @@ import com.rcmiku.music.constants.DURATION_EXIT_SHORT
 import com.rcmiku.music.constants.EmphasizedAccelerateEasing
 import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.constants.EmphasizedEasing
-import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.ui.components.Lyric
 import com.rcmiku.music.ui.components.MiniPlayer
 import com.rcmiku.music.ui.components.Player
@@ -79,6 +84,31 @@ fun PlayerTransform(
 
     var show by remember {
         mutableIntStateOf(MINI_PLAYER)
+    }
+
+    val isExpanded = show != MINI_PLAYER
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val view = LocalView.current
+
+    DisposableEffect(isExpanded, isDarkTheme) {
+        val window = (view.context as? Activity)?.window
+        if (window != null && !view.isInEditMode) {
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            if (isExpanded) {
+                insetsController.isAppearanceLightStatusBars = false
+                insetsController.isAppearanceLightNavigationBars = false
+            } else {
+                insetsController.isAppearanceLightStatusBars = !isDarkTheme
+                insetsController.isAppearanceLightNavigationBars = !isDarkTheme
+            }
+        }
+        onDispose {
+            if (window != null && !view.isInEditMode) {
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = !isDarkTheme
+                insetsController.isAppearanceLightNavigationBars = !isDarkTheme
+            }
+        }
     }
 
     SharedTransitionLayout(
