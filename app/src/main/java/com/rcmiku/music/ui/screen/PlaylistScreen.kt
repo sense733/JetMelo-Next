@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -256,7 +255,7 @@ fun PlaylistScreen(
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Text(
-                                            text = stringResource(R.string.play),
+                                            text = stringResource(R.string.play_all),
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -295,7 +294,7 @@ fun PlaylistScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "共 ${detail.playlist.tracks.size} 首歌曲",
+                                text = stringResource(R.string.song_size, detail.playlist.tracks.size),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.SemiBold

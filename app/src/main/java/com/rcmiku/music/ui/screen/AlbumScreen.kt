@@ -256,7 +256,7 @@ fun AlbumScreen(
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Text(
-                                            text = stringResource(R.string.play),
+                                            text = stringResource(R.string.play_all),
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -295,7 +295,7 @@ fun AlbumScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "共 ${detail.songs.size} 首歌曲",
+                                text = stringResource(R.string.song_size, detail.songs.size),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.SemiBold

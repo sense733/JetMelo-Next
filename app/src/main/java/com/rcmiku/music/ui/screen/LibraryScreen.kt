@@ -36,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -154,7 +153,7 @@ fun LibraryScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Text(
-                                text = "点击登录网易云音乐账号",
+                                text = stringResource(R.string.login_prompt),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold
@@ -173,13 +172,17 @@ fun LibraryScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         val favCount = favoriteSongState?.ids?.size
+                        val errorColor = MaterialTheme.colorScheme.error
                         QuickActionCard(
                             item = QuickActionItem(
                                 title = stringResource(R.string.favorite_music),
-                                subtitle = if (favCount != null && favCount > 0) "$favCount 首" else "点击查看",
+                                subtitle = if (favCount != null && favCount > 0)
+                                    stringResource(R.string.song_size, favCount)
+                                else
+                                    stringResource(R.string.click_to_view),
                                 icon = FavoriteFill,
-                                iconTint = Color(0xFFE74C3C),
-                                iconBackground = Color(0xFFE74C3C).copy(alpha = 0.12f),
+                                iconTint = errorColor,
+                                iconBackground = errorColor.copy(alpha = 0.12f),
                                 onClick = {
                                     favoriteSongState?.data?.id?.let {
                                         navController.navigate(PlaylistNav(playlistId = it, noCache = true))
@@ -192,7 +195,7 @@ fun LibraryScreen(
                         QuickActionCard(
                             item = QuickActionItem(
                                 title = stringResource(R.string.cloud_music),
-                                subtitle = "云端存储",
+                                subtitle = stringResource(R.string.cloud_music_subtitle),
                                 icon = Cloud,
                                 iconTint = MaterialTheme.colorScheme.primary,
                                 iconBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
@@ -214,7 +217,7 @@ fun LibraryScreen(
                         QuickActionCard(
                             item = QuickActionItem(
                                 title = stringResource(R.string.record),
-                                subtitle = "听歌排行",
+                                subtitle = stringResource(R.string.record),
                                 icon = Leaderboard,
                                 iconTint = MaterialTheme.colorScheme.tertiary,
                                 iconBackground = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
@@ -230,7 +233,7 @@ fun LibraryScreen(
                         QuickActionCard(
                             item = QuickActionItem(
                                 title = stringResource(R.string.favorite_album),
-                                subtitle = "收藏专辑",
+                                subtitle = stringResource(R.string.favorite_album),
                                 icon = Album,
                                 iconTint = MaterialTheme.colorScheme.secondary,
                                 iconBackground = MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f),
@@ -246,7 +249,7 @@ fun LibraryScreen(
 
             // 3. User Playlists Section
             item {
-                SectionHeader(title = "我的歌单")
+                SectionHeader(title = stringResource(R.string.my_playlists))
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Created Playlists

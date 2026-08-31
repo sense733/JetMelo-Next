@@ -117,7 +117,7 @@ fun ListScreen(
                                         .fillMaxSize()
                                         .sharedElement(
                                             sharedTransitionScope.rememberSharedContentState(
-                                                key = chart.id
+                                                key = "cover_${chart.id}"
                                             ),
                                             animatedVisibilityScope = animatedContentScope
                                         )
@@ -136,7 +136,7 @@ fun ListScreen(
                             )
 
                             Text(
-                                text = chart.description ?: "${chart.trackCount ?: 0} 首歌曲",
+                                text = chart.description ?: stringResource(R.string.song_size, chart.trackCount ?: 0),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

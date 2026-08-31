@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -114,7 +113,7 @@ fun ExploreScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "搜索歌曲、专辑或艺术家",
+                                text = stringResource(R.string.search_placeholder),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -128,11 +127,10 @@ fun ExploreScreen(
                     if (topList != null && topList.list.isNotEmpty()) {
                         SectionHeader(
                             title = stringResource(R.string.top_list),
-                            actionText = "查看全部",
+                            actionText = stringResource(R.string.view_all),
                             onActionClick = { navController.navigate(Screen.TopList.route) }
                         )
 
-                        // Display top 3 charts horizontally or stacked
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -143,9 +141,9 @@ fun ExploreScreen(
                                 ) {
                                     HeroBannerCard(
                                         imageUrl = chart.picUrl,
-                                        badgeText = "排行榜",
+                                        badgeText = stringResource(R.string.top_list),
                                         title = chart.name,
-                                        subtitle = chart.description ?: "${chart.trackCount ?: 0} 首歌曲",
+                                        subtitle = chart.description ?: stringResource(R.string.song_size, chart.trackCount ?: 0),
                                         aspectRatio = 1.7f,
                                         onClick = {
                                             navController.navigate(
@@ -197,7 +195,7 @@ fun ExploreScreen(
                                                 .fillMaxSize()
                                                 .sharedElement(
                                                     sharedTransitionScope.rememberSharedContentState(
-                                                        key = album.id
+                                                        key = "cover_${album.id}"
                                                     ),
                                                     animatedVisibilityScope = animatedContentScope
                                                 )
@@ -263,7 +261,7 @@ fun ExploreScreen(
                                                 .fillMaxSize()
                                                 .sharedElement(
                                                     sharedTransitionScope.rememberSharedContentState(
-                                                        key = album.id
+                                                        key = "cover_${album.id}"
                                                     ),
                                                     animatedVisibilityScope = animatedContentScope
                                                 )

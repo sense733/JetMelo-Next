@@ -108,12 +108,10 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
-    val greeting = remember(currentHour) {
-        when (currentHour) {
-            in 5..11 -> "早上好"
-            in 12..17 -> "下午好"
-            else -> "晚上好"
-        }
+    val greeting = when (currentHour) {
+        in 5..11 -> stringResource(R.string.greeting_morning)
+        in 12..17 -> stringResource(R.string.greeting_afternoon)
+        else -> stringResource(R.string.greeting_evening)
     }
 
     val onRefresh: () -> Unit = {
@@ -187,9 +185,9 @@ fun HomeScreen(
                                 ) {
                                     HeroBannerCard(
                                         imageUrl = firstSong.al.picUrl,
-                                        badgeText = "今日精选",
-                                        title = "每日推荐",
-                                        subtitle = "开启专属音乐旅程 • 共 ${songs.size} 首歌曲",
+                                        badgeText = stringResource(R.string.featured_today),
+                                        title = stringResource(R.string.recommend_songs),
+                                        subtitle = stringResource(R.string.daily_recommend_subtitle, songs.size),
                                         aspectRatio = 1.8f,
                                         onClick = {
                                             mediaController?.setPlaylist(songs)
@@ -240,7 +238,7 @@ fun HomeScreen(
                                                     .fillMaxSize()
                                                     .sharedElement(
                                                         sharedTransitionScope.rememberSharedContentState(
-                                                            key = playlist.id
+                                                            key = "cover_${playlist.id}"
                                                         ),
                                                         animatedVisibilityScope = animatedContentScope
                                                     )
@@ -311,7 +309,7 @@ fun HomeScreen(
                                                     .fillMaxSize()
                                                     .sharedElement(
                                                         sharedTransitionScope.rememberSharedContentState(
-                                                            key = playlist.id
+                                                            key = "cover_${playlist.id}"
                                                         ),
                                                         animatedVisibilityScope = animatedContentScope
                                                     )
@@ -330,7 +328,7 @@ fun HomeScreen(
                                         )
 
                                         Text(
-                                            text = "${playlist.trackCount} 首歌曲",
+                                            text = stringResource(R.string.song_size, playlist.trackCount ?: 0),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,

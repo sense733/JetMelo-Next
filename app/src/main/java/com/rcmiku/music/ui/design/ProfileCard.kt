@@ -74,6 +74,7 @@ fun ProfileHeaderCard(
                 )
 
                 if (isVip) {
+                    val extendedColors = com.rcmiku.music.ui.theme.LocalJetMeloExtendedColors.current
                     Box(
                         modifier = Modifier
                             .size(20.dp)
@@ -84,7 +85,7 @@ fun ProfileHeaderCard(
                         Icon(
                             imageVector = VipFill,
                             contentDescription = "VIP",
-                            tint = Color(0xFFE67E22),
+                            tint = extendedColors.emberAccent,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -112,7 +113,7 @@ fun ProfileHeaderCard(
                 ) {
                     if (follows != null) {
                         Text(
-                            text = "关注 $follows",
+                            text = "$follows",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -120,7 +121,7 @@ fun ProfileHeaderCard(
 
                     if (fans != null) {
                         Text(
-                            text = "粉丝 $fans",
+                            text = "$fans",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -134,7 +135,7 @@ fun ProfileHeaderCard(
                                 .padding(horizontal = 6.dp, vertical = 1.dp)
                         ) {
                             Text(
-                                text = "Lv.$level",
+                                text = androidx.compose.ui.res.stringResource(com.rcmiku.music.R.string.level, level),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 fontWeight = FontWeight.Bold

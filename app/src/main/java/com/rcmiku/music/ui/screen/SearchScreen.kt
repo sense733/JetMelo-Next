@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -109,7 +110,7 @@ fun SearchScreen(
     val tabList = listOf(
         SearchType.Song to stringResource(R.string.song),
         SearchType.Playlist to stringResource(R.string.playlists),
-        SearchType.VoiceList to "播客",
+        SearchType.VoiceList to stringResource(R.string.voice_list),
         SearchType.Artist to stringResource(R.string.artist),
         SearchType.Album to stringResource(R.string.album)
     )
@@ -243,36 +244,45 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f)
-                .semantics { traversalIndex = 1f }
+                .semantics { traversalIndex = 1f },
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
         ) {
             when (searchType) {
                 SearchType.Song -> {
                     items(searchResults.itemCount) { index ->
                         searchResults[index]?.let { resource ->
                             resource.song?.let { song ->
-                                SongListItem(
-                                    isPlaying = isPlaying,
-                                    isActive = currentMediaId == song.id,
-                                    showLikedIcon = song.id in songIds,
-                                    song = song,
-                                    songIndex = index + 1,
+                                Card(
                                     modifier = Modifier
-                                        .clip(JetMeloShapes.small)
-                                        .clickable {
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                                    shape = JetMeloShapes.small,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    )
+                                ) {
+                                    SongListItem(
+                                        isPlaying = isPlaying,
+                                        isActive = currentMediaId == song.id,
+                                        showLikedIcon = song.id in songIds,
+                                        song = song,
+                                        songIndex = index + 1,
+                                        modifier = Modifier.clickable {
                                             mediaController?.addSong(song)
                                         },
-                                    trailingContent = {
-                                        IconButton(onClick = {
-                                            selectSong = song
-                                            openBottomSheet = true
-                                        }) {
-                                            Icon(
-                                                imageVector = Icons.Default.MoreVert,
-                                                contentDescription = stringResource(R.string.more)
-                                            )
+                                        trailingContent = {
+                                            IconButton(onClick = {
+                                                selectSong = song
+                                                openBottomSheet = true
+                                            }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.MoreVert,
+                                                    contentDescription = stringResource(R.string.more)
+                                                )
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -282,11 +292,18 @@ fun SearchScreen(
                     items(searchResults.itemCount) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toPlaylist()?.let { playlist ->
-                                PlaylistListItem(
-                                    playlist = playlist,
+                                Card(
                                     modifier = Modifier
-                                        .clip(JetMeloShapes.small)
-                                        .clickable {
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                                    shape = JetMeloShapes.small,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    )
+                                ) {
+                                    PlaylistListItem(
+                                        playlist = playlist,
+                                        modifier = Modifier.clickable {
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = playlist.id,
@@ -294,7 +311,8 @@ fun SearchScreen(
                                                 )
                                             )
                                         }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -304,14 +322,22 @@ fun SearchScreen(
                     items(searchResults.itemCount) { index ->
                         searchResults[index]?.let { resource ->
                             resource.baseInfo?.let { voice ->
-                                VoiceListItem(
-                                    voice = voice,
+                                Card(
                                     modifier = Modifier
-                                        .clip(JetMeloShapes.small)
-                                        .clickable {
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                                    shape = JetMeloShapes.small,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    )
+                                ) {
+                                    VoiceListItem(
+                                        voice = voice,
+                                        modifier = Modifier.clickable {
                                             navController.navigate(RadioNav(radioId = voice.id))
                                         }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -321,14 +347,22 @@ fun SearchScreen(
                     items(searchResults.itemCount) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toSearchArtist()?.let { artist ->
-                                ArtistListItem(
-                                    artist = artist,
+                                Card(
                                     modifier = Modifier
-                                        .clip(JetMeloShapes.small)
-                                        .clickable {
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                                    shape = JetMeloShapes.small,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    )
+                                ) {
+                                    ArtistListItem(
+                                        artist = artist,
+                                        modifier = Modifier.clickable {
                                             navController.navigate(ArtistNav(artistId = artist.id))
                                         }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -338,14 +372,22 @@ fun SearchScreen(
                     items(searchResults.itemCount) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toAlbumList()?.let { album ->
-                                AlbumListItem(
-                                    album = album,
+                                Card(
                                     modifier = Modifier
-                                        .clip(JetMeloShapes.small)
-                                        .clickable {
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                                    shape = JetMeloShapes.small,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    )
+                                ) {
+                                    AlbumListItem(
+                                        album = album,
+                                        modifier = Modifier.clickable {
                                             navController.navigate(AlbumNav(albumId = album.id))
                                         }
-                                )
+                                    )
+                                }
                             }
                         }
                     }

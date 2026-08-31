@@ -17,6 +17,7 @@
     <string name="about">关于</string>
     <string name="playlist">歌单</string>
     <string name="play">播放</string>
+    <string name="play_all">播放全部</string>
     <string name="favorite">收藏</string>
     <string name="library_add">收藏</string>
     <string name="personalized_playlist">专属歌单</string>
@@ -86,4 +87,15 @@
     <string name="collected">已收藏</string>
     <string name="remove_from_songList">从歌单移除</string>
     <string name="no_brief">暂无简介</string>
+    <string name="greeting_morning">早上好</string>
+    <string name="greeting_afternoon">下午好</string>
+    <string name="greeting_evening">晚上好</string>
+    <string name="featured_today">今日精选</string>
+    <string name="daily_recommend_subtitle">开启专属音乐旅程 • 共 %d 首歌曲</string>
+    <string name="search_placeholder">搜索歌曲、专辑或艺术家</string>
+    <string name="view_all">查看全部</string>
+    <string name="login_prompt">点击登录网易云音乐账号</string>
+    <string name="my_playlists">我的歌单</string>
+    <string name="cloud_music_subtitle">云端存储</string>
+    <string name="click_to_view">点击查看</string>
 </resources>

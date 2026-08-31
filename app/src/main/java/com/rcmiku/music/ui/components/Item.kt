@@ -413,28 +413,15 @@ fun SongListItem(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier
-                    .size(18.dp)
-                    .padding(end = 2.dp)
+                    .size(16.dp)
+                    .padding(end = 4.dp)
             )
         }
-        if (song.fee == 1) {
-            Icon(
-                imageVector = Vip,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier
-                    .size(18.dp)
-                    .padding(end = 2.dp)
+        if (song.fee == 1 || song.fee == 4) {
+            com.rcmiku.music.ui.design.QualityBadge(
+                qualityText = "VIP",
+                modifier = Modifier.padding(end = 4.dp)
             )
-        }
-        if (song.fee == 4) {
-            Icon(
-                imageVector = Payment,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(4.dp))
         }
     },
     isActive: Boolean = false,
