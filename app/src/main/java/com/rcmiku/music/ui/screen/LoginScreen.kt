@@ -72,7 +72,7 @@ fun LoginScreen(
     ) { padding ->
         Box(
             Modifier
-                .padding(top = padding.calculateTopPadding())
+                .padding(padding)
                 .fillMaxSize()
         ) {
             AndroidView(
