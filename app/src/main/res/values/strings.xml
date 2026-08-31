@@ -98,4 +98,12 @@
     <string name="my_playlists">我的歌单</string>
     <string name="cloud_music_subtitle">云端存储</string>
     <string name="click_to_view">点击查看</string>
+    <string name="appearance_settings">外观与主题</string>
+    <string name="theme_mode">主题模式</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色模式</string>
+    <string name="theme_dark">深色模式</string>
+    <string name="dynamic_color">动态色彩</string>
+    <string name="dynamic_color_subtitle">基于系统壁纸生成动态主题色 (Android 12+)</string>
+    <string name="delete_track_failed">移除歌曲失败，已恢复</string>
 </resources>

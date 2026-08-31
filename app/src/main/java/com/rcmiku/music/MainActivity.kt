@@ -11,12 +11,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.media3.common.util.UnstableApi
+import com.rcmiku.music.constants.dynamicColorKey
+import com.rcmiku.music.constants.themeModeKey
 import com.rcmiku.music.extensions.init
 import com.rcmiku.music.playback.PlayerController
 import com.rcmiku.music.playback.PlayerState
 import com.rcmiku.music.playback.state
 import com.rcmiku.music.ui.screen.MainScreen
 import com.rcmiku.music.ui.theme.JetMeloTheme
+import com.rcmiku.music.ui.theme.ThemeMode
+import com.rcmiku.music.utils.rememberEnumPreference
+import com.rcmiku.music.utils.rememberPreference
 import dagger.hilt.android.AndroidEntryPoint
 
 @UnstableApi
@@ -34,11 +39,17 @@ class MainActivity : ComponentActivity() {
         }
         playerController = PlayerController
         setContent {
+            val themeMode by rememberEnumPreference(themeModeKey, ThemeMode.SYSTEM)
+            val dynamicColor by rememberPreference(dynamicColorKey, true)
+
             playerController.controller?.run {
                 init(applicationContext)
                 playerState = state(applicationContext)
             }
-            JetMeloTheme {
+            JetMeloTheme(
+                themeMode = themeMode,
+                dynamicColor = dynamicColor
+            ) {
                 CompositionLocalProvider(
                     LocalPlayerController provides playerController,
                     LocalPlayerState provides playerState

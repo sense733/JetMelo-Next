@@ -91,13 +91,25 @@ private val LightColorScheme = lightColorScheme(
     scrim = IndigoLightScrim
 )
 
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
+}
+
 @Composable
 fun JetMeloTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val isSystemDark = isSystemInDarkTheme()
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemDark
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
