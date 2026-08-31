@@ -2,6 +2,7 @@ package com.rcmiku.music.ui.components
 
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,18 +25,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.MoreVert
+import com.rcmiku.music.ui.icons.PlaylistInsert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -50,9 +49,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -64,8 +65,12 @@ import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.MediaSessionConstants
 import com.rcmiku.music.data.favoriteSongIdsDatastore
+import com.rcmiku.music.ui.design.ImmersiveBackground
+import com.rcmiku.music.ui.design.LocalArtworkColors
+import com.rcmiku.music.ui.design.QualityBadge
 import com.rcmiku.music.ui.icons.Album
 import com.rcmiku.music.ui.icons.Artist
+import com.rcmiku.music.ui.icons.AudioLines
 import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.icons.Favorite
 import com.rcmiku.music.ui.icons.FavoriteFill
@@ -77,6 +82,8 @@ import com.rcmiku.music.ui.icons.SkipNextFill
 import com.rcmiku.music.ui.icons.SkipPreviousFill
 import com.rcmiku.music.ui.navigation.AlbumNav
 import com.rcmiku.music.ui.navigation.ArtistNav
+import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.ui.theme.TitleHeroLarge
 import com.rcmiku.music.utils.getItemShape
 import com.rcmiku.music.utils.makeTimeString
 import com.rcmiku.ncmapi.model.Artist
@@ -99,7 +106,6 @@ fun Player(
     onPositionUpdate: (Long) -> Unit,
     navController: NavHostController
 ) {
-
     BackHandler {
         onBackPressed()
     }
@@ -125,6 +131,7 @@ fun Player(
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var openPlayerBottomSheet by rememberSaveable { mutableStateOf(false) }
     val shuffleMode = playerState?.shuffleModeEnabled == true
+    val artworkColors = LocalArtworkColors.current
 
     LaunchedEffect(mediaId) {
         playerState?.currentMediaItem?.mediaMetadata?.extras?.getString("song")?.let {
@@ -132,124 +139,168 @@ fun Player(
         }
     }
 
-    val screenHeight = LocalConfiguration.current.screenHeightDp
-
-    Surface(
-        modifier = modifier
-            .clickable {
-                onContainerClick()
-            }
-            .fillMaxSize(),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+    ImmersiveBackground(
+        modifier = modifier.fillMaxSize(),
+        artworkUri = mediaMetadata.artworkUri
     ) {
         Column(
             modifier = Modifier
+                .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding(),
-            verticalArrangement = if (screenHeight.dp < 700.dp) Arrangement.spacedBy(8.dp) else Arrangement.spacedBy(
-                24.dp
-            )
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // Top App Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .height(56.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBackPressed) {
                     Icon(
                         imageVector = ChevronDown,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = Color.White
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "正在播放",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = mediaMetadata.albumTitle?.toString() ?: "JetMelo",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+
+                IconButton(onClick = { openPlayerBottomSheet = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = null,
+                        tint = Color.White
                     )
                 }
             }
 
+            // Cover Artwork Area
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .aspectRatio(1f)
-                    .clip(MaterialTheme.shapes.small)
-                    .clickable { onClick() }
+                    .weight(1f, fill = false)
+                    .padding(vertical = 12.dp)
             ) {
-                AsyncImage(
-                    model = mediaMetadata.artworkUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = imageModifier
-                        .clip(MaterialTheme.shapes.small)
-                        .fillMaxWidth()
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.88f)
+                        .aspectRatio(1f)
+                        .shadow(elevation = 16.dp, shape = JetMeloShapes.large)
+                        .clip(JetMeloShapes.large)
+                        .clickable(onClick = onClick)
+                ) {
+                    AsyncImage(
+                        model = mediaMetadata.artworkUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = imageModifier
+                            .fillMaxSize()
+                            .clip(JetMeloShapes.large)
+                    )
+                }
             }
 
+            // Metadata, Progress & Controls Section
             Column(
                 modifier = Modifier
-                    .weight(6f)
-                    .fillMaxWidth(),
-                verticalArrangement = if (screenHeight.dp < 700.dp) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(
-                    24.dp
-                )
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp),
+                // Title, Artist, and Favorite button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 12.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            mediaMetadata.title?.let {
-                                Text(
-                                    text = it.toString(),
-                                    maxLines = 1,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier
-                                        .basicMarquee()
-                                        .clickable { openBottomSheet = true }
-                                )
-                            }
-                            mediaMetadata.artist?.let {
-                                Text(
-                                    text = it.toString(),
-                                    maxLines = 1,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier
-                                        .basicMarquee()
-                                        .clickable { openBottomSheet = true }
-                                )
-                            }
-                        }
-                        FilledIconButton(
-                            onClick = {
-                                mediaController?.sendCustomCommand(
-                                    MediaSessionConstants.CommandToggleLike,
-                                    Bundle.EMPTY
-                                )
-                            }
-                        ) {
-                            Icon(
-                                if (songIds.contains(mediaId?.toLong())) FavoriteFill else Favorite,
-                                contentDescription = null
+                        mediaMetadata.title?.let {
+                            Text(
+                                text = it.toString(),
+                                maxLines = 1,
+                                style = TitleHeroLarge,
+                                color = Color.White,
+                                modifier = Modifier
+                                    .basicMarquee()
+                                    .clickable { openBottomSheet = true }
                             )
                         }
-                        FilledIconButton(onClick = { openPlayerBottomSheet = true }) {
-                            Icon(imageVector = Icons.Outlined.MoreVert, contentDescription = null)
+                        mediaMetadata.artist?.let {
+                            Text(
+                                text = it.toString(),
+                                maxLines = 1,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White.copy(alpha = 0.75f),
+                                modifier = Modifier
+                                    .basicMarquee()
+                                    .clickable { openBottomSheet = true }
+                            )
                         }
                     }
 
-                    if (screenHeight.dp > 700.dp)
-                        Spacer(Modifier.height(24.dp))
+                    IconButton(
+                        onClick = {
+                            mediaController?.sendCustomCommand(
+                                MediaSessionConstants.CommandToggleLike,
+                                Bundle.EMPTY
+                            )
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        val isFav = songIds.contains(mediaId?.toLongOrNull())
+                        Icon(
+                            imageVector = if (isFav) FavoriteFill else Favorite,
+                            contentDescription = null,
+                            tint = if (isFav) Color(0xFFE74C3C) else Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
 
+                // Audio Quality Badge
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    QualityBadge(qualityText = "Hi-Res Lossless")
+                }
+
+                // Progress Slider Section
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     val interactionSource = remember { MutableInteractionSource() }
+                    val currentPos = sliderPosition ?: position
+                    val safeDuration = if (duration > 0 && duration != C.TIME_UNSET) duration else 0L
+
                     Slider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                        value = currentPos.toFloat().coerceIn(0f, maxOf(1f, safeDuration.toFloat())),
+                        valueRange = 0f..maxOf(1f, safeDuration.toFloat()),
                         onValueChange = { sliderPosition = it.toLong() },
                         onValueChangeFinished = {
                             sliderPosition?.let {
@@ -258,6 +309,11 @@ fun Player(
                             }
                             sliderPosition = null
                         },
+                        colors = SliderDefaults.colors(
+                            thumbColor = artworkColors.accentColor,
+                            activeTrackColor = artworkColors.accentColor,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+                        ),
                         track = { sliderState ->
                             SliderDefaults.Track(
                                 sliderState = sliderState,
@@ -268,41 +324,37 @@ fun Player(
                         thumb = {
                             SliderDefaults.Thumb(
                                 interactionSource = interactionSource,
-                                thumbSize = DpSize(4.dp, 20.dp)
+                                thumbSize = DpSize(6.dp, 18.dp)
                             )
                         }
                     )
 
-                    Row {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            text = makeTimeString(sliderPosition ?: position),
+                            text = makeTimeString(currentPos),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White.copy(alpha = 0.7f)
                         )
-                        Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = makeTimeString(duration),
+                            text = makeTimeString(safeDuration),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White.copy(alpha = 0.7f)
                         )
                     }
                 }
 
-                if (screenHeight.dp > 700.dp)
-                    Spacer(Modifier.height(24.dp))
-
-                val buttonSize = Modifier.size(48.dp)
-
+                // Playback Controls Row
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .fillMaxWidth()
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    FilledTonalIconButton(
+                    IconButton(
                         onClick = {
                             mediaController?.sendCustomCommand(
                                 MediaSessionConstants.CommandToggleShuffle,
@@ -313,43 +365,56 @@ fun Player(
                         Icon(
                             imageVector = Shuffle,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.alpha(if (!shuffleMode) 0.4f else 1f)
-                        )
-                    }
-                    FilledTonalIconButton(
-                        onClick = { mediaController?.seekToPrevious() },
-                        modifier = buttonSize
-                    ) {
-                        Icon(
-                            SkipPreviousFill,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    FilledTonalIconButton(
-                        modifier = Modifier.size(72.dp),
-                        onClick = { if (!isPlaying) mediaController?.play() else mediaController?.pause() }
-                    ) {
-                        Icon(
-                            if (isPlaying) PauseFill else Icons.Filled.PlayArrow,
-                            modifier = Modifier.size(48.dp),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    FilledTonalIconButton(
-                        onClick = { mediaController?.seekToNext() },
-                        modifier = buttonSize
-                    ) {
-                        Icon(
-                            SkipNextFill,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = if (shuffleMode) artworkColors.accentColor else Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(26.dp)
                         )
                     }
 
-                    FilledTonalIconButton(
+                    IconButton(
+                        onClick = { mediaController?.seekToPrevious() },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = SkipPreviousFill,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    // 72dp Circular Play/Pause Button
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .shadow(8.dp, shape = JetMeloShapes.full)
+                            .clip(JetMeloShapes.full)
+                            .background(artworkColors.accentColor)
+                            .clickable {
+                                if (!isPlaying) mediaController?.play() else mediaController?.pause()
+                            }
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) PauseFill else Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = artworkColors.onAccentColor,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { mediaController?.seekToNext() },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = SkipNextFill,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    IconButton(
                         onClick = {
                             val newMode = when (repeatMode) {
                                 0 -> 2
@@ -363,14 +428,40 @@ fun Player(
                         Icon(
                             imageVector = repeatIcon,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.alpha(if (repeatMode == 0) 0.4f else 1f)
+                            tint = if (repeatMode != 0) artworkColors.accentColor else Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+
+                // Bottom Actions Row (Lyric, Queue)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    IconButton(onClick = onClick) {
+                        Icon(
+                            imageVector = AudioLines,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    IconButton(onClick = onContainerClick) {
+                        Icon(
+                            imageVector = PlaylistInsert,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
         }
-
 
         currentSong?.let {
             ArtistBottomSheet(
@@ -378,14 +469,14 @@ fun Player(
                 onClick = { artist ->
                     navController.navigate(ArtistNav(artistId = artist.id))
                     onBackPressed()
-                }, onDismiss = {
-                    openBottomSheet = false
                 },
+                onDismiss = { openBottomSheet = false },
                 openBottomSheet = openBottomSheet,
                 onAlbumClick = { album ->
                     navController.navigate(AlbumNav(albumId = album.id))
                     onBackPressed()
-                })
+                }
+            )
         }
 
         PlayerMenuBottomSheet(

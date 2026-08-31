@@ -22,9 +22,11 @@ pagingCompose = "3.3.6"
 reorderable = "2.4.3"
 protobufKotlinLite = "4.29.1"
 protobuf = "0.9.4"
+paletteKtx = "1.0.0"
 
 
 [libraries]
+androidx-palette = { module = "androidx.palette:palette-ktx", version.ref = "paletteKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 androidx-material-icons-core = { module = "androidx.compose.material:material-icons-core", version.ref = "materialIconsCore" }

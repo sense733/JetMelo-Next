@@ -1,7 +1,6 @@
 package com.rcmiku.music.ui.components
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.EaseInOutBack
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -14,14 +13,15 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,8 +29,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -59,7 +59,11 @@ import androidx.media3.common.MediaMetadata
 import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
-import com.rcmiku.music.constants.MediaItemHeight
+import com.rcmiku.music.ui.design.ImmersiveBackground
+import com.rcmiku.music.ui.design.LocalArtworkColors
+import com.rcmiku.music.ui.design.QualityBadge
+import com.rcmiku.music.ui.icons.ChevronDown
+import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.parseLrc
 import com.rcmiku.music.viewModel.LyricViewModel
 import kotlinx.coroutines.launch
@@ -82,6 +86,7 @@ fun Lyric(
     val lrcLine = lyric?.lrc?.lyric?.parseLrc()
     var currentIndex by remember { mutableIntStateOf(0) }
     var autoScrollEnabled by remember { mutableStateOf(true) }
+    val artworkColors = LocalArtworkColors.current
 
     LaunchedEffect(currentMediaId) {
         currentIndex = 0
@@ -98,53 +103,79 @@ fun Lyric(
 
     KeepScreenOn()
 
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxHeight(),
+    ImmersiveBackground(
+        modifier = modifier.fillMaxSize(),
+        artworkUri = mediaMetadata.artworkUri
     ) {
         Column(
             modifier = Modifier
+                .fillMaxSize()
                 .statusBarsPadding()
         ) {
+            // Header Bar with artwork and song info
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .padding(12.dp)
-                    .clip(MaterialTheme.shapes.small)
-                    .clickable { onBackPressed() }
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                AsyncImage(
-                    model = mediaMetadata.artworkUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = imageModifier
-                        .size(MediaItemHeight)
-                        .clip(MaterialTheme.shapes.small)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
+                IconButton(onClick = onBackPressed) {
+                    Icon(
+                        imageVector = ChevronDown,
+                        contentDescription = null,
+                        tint = Color.White
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .weight(1f)
-                        .then(modifier)
+                        .clip(JetMeloShapes.small)
+                        .clickable(onClick = onBackPressed)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(
-                        text = mediaMetadata.title.toString(),
-                        maxLines = 1,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.basicMarquee()
+                    AsyncImage(
+                        model = mediaMetadata.artworkUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = imageModifier
+                            .size(44.dp)
+                            .clip(JetMeloShapes.small)
                     )
-                    Text(
-                        text = mediaMetadata.artist.toString(),
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.basicMarquee()
-                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = mediaMetadata.title?.toString() ?: "",
+                            maxLines = 1,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.basicMarquee()
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = mediaMetadata.artist?.toString() ?: "",
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.basicMarquee()
+                            )
+                            QualityBadge(qualityText = "HI-RES")
+                        }
+                    }
                 }
             }
 
+            // Lyric Scrolling Content
             lrcLine?.let { lrcLines ->
-
                 LaunchedEffect(listState.isScrollInProgress) {
                     autoScrollEnabled = !listState.isScrollInProgress
                 }
@@ -181,26 +212,25 @@ fun Lyric(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 12.dp),
+                        .padding(horizontal = 24.dp),
                     contentPadding = WindowInsets.navigationBars.asPaddingValues(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    item {
+                        Spacer(Modifier.height(32.dp))
+                    }
+
                     items(
                         count = lrcLines.size,
                     ) { index ->
                         val isCurrent = index == currentIndex
                         val currentText = lrcLines[index].text.isNotEmpty()
 
-                        if (currentText)
-                            Text(
-                                text = lrcLines[index].text,
-                                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 32.sp,
-                                lineHeight = 1.2.em,
+                        if (currentText) {
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.small)
+                                    .clip(JetMeloShapes.medium)
                                     .clickable {
                                         lrcLines[index].time.let {
                                             mediaController?.seekTo(it)
@@ -210,21 +240,32 @@ fun Lyric(
                                         }
                                     }
                                     .padding(vertical = 8.dp, horizontal = 4.dp)
-                                    .alpha(if (isCurrent) 1f else 0.5f)
-                            )
-                        else
-                            Row(modifier = Modifier.padding(horizontal = 12.dp)) {
+                                    .alpha(if (isCurrent) 1f else 0.45f)
+                            ) {
+                                Text(
+                                    text = lrcLines[index].text,
+                                    color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.85f),
+                                    fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
+                                    fontSize = if (isCurrent) 28.sp else 22.sp,
+                                    lineHeight = 1.25.em
+                                )
+                            }
+                        } else {
+                            Row(modifier = Modifier.padding(horizontal = 4.dp)) {
                                 if (isCurrent) {
                                     lrcLines.getOrNull(index + 1)?.time?.let { time ->
                                         ThreeDotsAnimation(
                                             times = lrcLines[index].time to time,
+                                            dotColor = artworkColors.accentColor
                                         )
                                     }
                                 }
                             }
+                        }
                     }
+
                     item {
-                        Spacer(Modifier.padding(vertical = 24.dp))
+                        Spacer(Modifier.height(120.dp))
                     }
                 }
             }
@@ -250,48 +291,68 @@ fun ThreeDotsAnimation(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = keyframes {
-                durationMillis = 3000
-                1f at 0 using EaseInOutBack
-                1.2f at 1500 using EaseInOutBack
-                1f at 3000 using EaseInOutBack
+                this.durationMillis = (duration / 2).toInt()
+                1.3f at 200 using EaseInOutCubic
+                1f at 400 using EaseInOutCubic
             },
-            repeatMode = RepeatMode.Reverse
-        )
+            repeatMode = RepeatMode.Restart
+        ),
     )
 
-    val alphaAnimations = List(3) { index ->
-        transition.animateFloat(
-            initialValue = 0.4f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = keyframes {
-                    durationMillis = duration.toInt()
-                    val start = index * (duration.toInt() / 3)
-                    0.5f at start
-                    1.0f at start + duration.toInt() / 6
-                },
-                repeatMode = RepeatMode.Restart
-            )
-        )
-    }
+    val scale2 by
+    transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                this.durationMillis = (duration / 2).toInt()
+                1.3f at 400 using EaseInOutCubic
+                1f at 600 using EaseInOutCubic
+            },
+            repeatMode = RepeatMode.Restart
+        ),
+    )
 
-    Canvas(
+    val scale3 by
+    transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                this.durationMillis = (duration / 2).toInt()
+                1.3f at 600 using EaseInOutCubic
+                1f at 800 using EaseInOutCubic
+            },
+            repeatMode = RepeatMode.Restart
+        ),
+    )
+
+    Row(
         modifier = modifier
-            .size(48.dp, 16.dp)
-            .scale(scale)
+            .padding(vertical = 12.dp)
+            .height(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        val space = 16.dp.toPx()
-        val centerY = size.height / 2
-        val baseRadius = dotSize.toPx() / 2
-
-        repeat(3) { i ->
+        Canvas(modifier = Modifier.size(dotSize)) {
             drawCircle(
-                color = dotColor.copy(alpha = alphaAnimations[i].value),
-                radius = baseRadius,
-                center = Offset(
-                    x = size.width / 2 - space + i * space,
-                    y = centerY
-                )
+                color = dotColor,
+                radius = (size.minDimension / 2) * scale,
+                center = Offset(size.width / 2, size.height / 2)
+            )
+        }
+        Canvas(modifier = Modifier.size(dotSize)) {
+            drawCircle(
+                color = dotColor,
+                radius = (size.minDimension / 2) * scale2,
+                center = Offset(size.width / 2, size.height / 2)
+            )
+        }
+        Canvas(modifier = Modifier.size(dotSize)) {
+            drawCircle(
+                color = dotColor,
+                radius = (size.minDimension / 2) * scale3,
+                center = Offset(size.width / 2, size.height / 2)
             )
         }
     }

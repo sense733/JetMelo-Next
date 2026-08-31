@@ -1,5 +1,10 @@
 package com.rcmiku.music.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -10,30 +15,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaMetadata
 import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.MiniPlayerHeight
-import com.rcmiku.music.constants.ThumbnailCornerRadius
+import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
+import com.rcmiku.music.ui.theme.JetMeloShapes
 
 @Composable
 fun MiniPlayer(
@@ -46,40 +52,48 @@ fun MiniPlayer(
 ) {
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
+    val artworkColors = LocalArtworkColors.current
 
-    val showMiniPlayer =
-        (playerState?.player?.mediaItemCount ?: 0) != 0
+    val showMiniPlayer = (playerState?.player?.mediaItemCount ?: 0) != 0
 
-    if (showMiniPlayer)
+    val progressTarget = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
+    val animatedProgress by animateFloatAsState(
+        targetValue = progressTarget,
+        animationSpec = tween(durationMillis = 150, easing = LinearEasing),
+        label = "mini_player_progress"
+    )
+
+    if (showMiniPlayer) {
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .clickable { onClick() }
-                .height(MiniPlayerHeight)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .height(MiniPlayerHeight - 12.dp)
+                .shadow(elevation = 6.dp, shape = JetMeloShapes.medium)
+                .clip(JetMeloShapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f))
+                .background(artworkColors.dominantColor.copy(alpha = 0.12f))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    shape = JetMeloShapes.medium
+                )
+                .clickable(onClick = onClick)
         ) {
-            LinearProgressIndicator(
-                progress = { (position.toFloat() / duration).coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .align(Alignment.BottomCenter),
-            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(end = 6.dp),
+                    .padding(start = 8.dp, end = 4.dp),
             ) {
-                Box(Modifier.weight(1f)) {
+                Box(modifier = Modifier.weight(1f)) {
                     MiniMediaInfo(
                         mediaMetadata = mediaMetadata,
-                        modifier = Modifier.padding(horizontal = 6.dp),
                         imageModifier = imageModifier
                     )
                 }
 
                 IconButton(
-                    enabled = true,
                     onClick = {
                         if (playerState?.isPlaying == true)
                             mediaController?.pause()
@@ -89,19 +103,35 @@ fun MiniPlayer(
                 ) {
                     Icon(
                         imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
+
                 IconButton(
-                    enabled = true,
                     onClick = {
                         mediaController?.seekToNext()
                     }
                 ) {
-                    Icon(imageVector = SkipNext, contentDescription = null)
+                    Icon(
+                        imageVector = SkipNext,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
+
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.5.dp)
+                    .align(Alignment.BottomCenter),
+                color = artworkColors.accentColor,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f)
+            )
         }
+    }
 }
 
 @Composable
@@ -110,33 +140,30 @@ fun MiniMediaInfo(
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
 ) {
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
     ) {
-        Box(modifier = Modifier) {
-            AsyncImage(
-                model = mediaMetadata.artworkUri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = imageModifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(ThumbnailCornerRadius))
-            )
-        }
+        AsyncImage(
+            model = mediaMetadata.artworkUri,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = imageModifier
+                .size(44.dp)
+                .clip(JetMeloShapes.small)
+        )
 
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 6.dp)
+                .padding(horizontal = 10.dp)
         ) {
             mediaMetadata.title?.let {
                 Text(
                     text = it.toString(),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.basicMarquee()
@@ -145,8 +172,8 @@ fun MiniMediaInfo(
             mediaMetadata.artist?.let {
                 Text(
                     text = it.toString(),
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.basicMarquee()

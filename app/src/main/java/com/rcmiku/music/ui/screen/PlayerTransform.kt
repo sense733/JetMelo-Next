@@ -27,6 +27,7 @@ import com.rcmiku.music.constants.DURATION_EXIT_SHORT
 import com.rcmiku.music.constants.EmphasizedAccelerateEasing
 import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.constants.EmphasizedEasing
+import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.ui.components.Lyric
 import com.rcmiku.music.ui.components.MiniPlayer
 import com.rcmiku.music.ui.components.Player
@@ -72,13 +73,16 @@ fun PlayerTransform(
     navController: NavHostController,
 ) {
 
+    val playerState = LocalPlayerState.current
+    val mediaId = playerState?.currentMediaItem?.mediaId ?: mediaMetadata.title?.toString() ?: "unknown"
+    val coverKey = "cover_$mediaId"
+
     var show by remember {
         mutableIntStateOf(MINI_PLAYER)
     }
 
     SharedTransitionLayout(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+        modifier = Modifier.background(androidx.compose.ui.graphics.Color.Transparent)
     ) {
         AnimatedContent(targetState = show, transitionSpec = {
             fadeIn(
@@ -96,7 +100,7 @@ fun PlayerTransform(
                         position = position,
                         imageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(
-                                key = mediaMetadata.artist.toString()
+                                key = coverKey
                             ),
                             animatedVisibilityScope = this,
                             placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
@@ -136,7 +140,7 @@ fun PlayerTransform(
                         mediaMetadata = mediaMetadata,
                         imageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(
-                                key = mediaMetadata.artist.toString()
+                                key = coverKey
                             ),
                             animatedVisibilityScope = this,
                             placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
@@ -166,7 +170,7 @@ fun PlayerTransform(
                         mediaMetadata = mediaMetadata,
                         imageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(
-                                key = mediaMetadata.artist.toString()
+                                key = coverKey
                             ),
                             animatedVisibilityScope = this,
                             placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
@@ -201,7 +205,7 @@ fun PlayerTransform(
                         },
                         imageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(
-                                key = mediaMetadata.artist.toString()
+                                key = coverKey
                             ),
                             animatedVisibilityScope = this,
                             placeHolderSize = { contentSize: IntSize, animatedSize: IntSize ->

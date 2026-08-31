@@ -17,7 +17,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import com.rcmiku.music.ui.design.LocalArtworkColors
+import com.rcmiku.music.ui.design.rememberArtworkColors
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -69,13 +72,27 @@ fun MainScreen() {
         (playerState?.player?.mediaItemCount ?: 0) != 0
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     var currentPlayMediaId by rememberPreference(currentPlayMediaIdKey, 0)
-    LaunchedEffect(playbackState) {
-        if (playbackState == STATE_READY) {
+    val isPlaying = playerState?.isPlaying == true
+
+    val artworkUri = playerState?.mediaMetadata?.artworkUri
+    val artworkColors = rememberArtworkColors(
+        artworkUri = artworkUri,
+        songId = currentMediaId
+    )
+
+    LaunchedEffect(playbackState, isPlaying) {
+        if (playbackState == STATE_READY && isPlaying) {
             while (isActive) {
-                delay(1000)
-                position = playerState.player.currentPosition
-                duration = playerState.player.duration
+                val currentPos = playerState?.player?.currentPosition ?: 0L
+                val dur = playerState?.player?.duration ?: 0L
+                position = currentPos
+                duration = if (dur > 0) dur else 0L
+                delay(100)
             }
+        } else if (playbackState == STATE_READY) {
+            position = playerState?.player?.currentPosition ?: 0L
+            val dur = playerState?.player?.duration ?: 0L
+            duration = if (dur > 0) dur else 0L
         }
     }
 
@@ -97,82 +114,84 @@ fun MainScreen() {
         }
     }
 
-    Scaffold(
-        bottomBar = {
-            Column {
-                AnimatedVisibility(
-                    showNavigationBar, enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
-                    NavigationBar {
-                        tabs.forEach { item ->
-                            NavigationBarItem(
-                                icon = {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = stringResource(id = item.titleRes)
-                                    )
-                                },
-                                label = { Text(stringResource(id = item.titleRes)) },
-                                selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
-                                onClick = {
-                                    navController.navigate(item.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
+    CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
+        Scaffold(
+            bottomBar = {
+                Column {
+                    AnimatedVisibility(
+                        showNavigationBar, enter = expandVertically(),
+                        exit = shrinkVertically()
+                    ) {
+                        NavigationBar {
+                            tabs.forEach { item ->
+                                NavigationBarItem(
+                                    icon = {
+                                        Icon(
+                                            imageVector = item.icon,
+                                            contentDescription = stringResource(id = item.titleRes)
+                                        )
+                                    },
+                                    label = { Text(stringResource(id = item.titleRes)) },
+                                    selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                                    onClick = {
+                                        navController.navigate(item.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                })
+                                    })
+                            }
                         }
                     }
                 }
-            }
 
-        },
-        content = { padding ->
+            },
+            content = { padding ->
 
-            var bottomPadding = if (!showPlayer) {
-                padding.calculateBottomPadding()
-            } else {
-                0.dp
-            }
+                var bottomPadding = if (!showPlayer) {
+                    padding.calculateBottomPadding()
+                } else {
+                    0.dp
+                }
 
-            if (!showPlayer && !showNavigationBar && showMiniPlayer) {
-                bottomPadding =
-                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            }
+                if (!showPlayer && !showNavigationBar && showMiniPlayer) {
+                    bottomPadding =
+                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                }
 
-            Box(
-                contentAlignment = Alignment.BottomCenter,
-                modifier = Modifier
-                    .zIndex(1f)
-                    .fillMaxSize()
-            ) {
                 Box(
+                    contentAlignment = Alignment.BottomCenter,
                     modifier = Modifier
-                        .defaultMinSize(minHeight = MiniPlayerHeight)
-                        .windowInsetsPadding(WindowInsets(bottom = bottomPadding)),
+                        .zIndex(1f)
+                        .fillMaxSize()
                 ) {
-                    playerState?.mediaMetadata?.let {
-                        PlayerTransform(
-                            mediaMetadata = it, position = position, duration = duration,
-                            onBackPressed = { showPlayer = false },
-                            onClick = { showPlayer = true },
-                            onPositionUpdate = { updatePosition ->
-                                position = updatePosition
-                            }, navController = navController
-                        )
+                    Box(
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = MiniPlayerHeight)
+                            .windowInsetsPadding(WindowInsets(bottom = bottomPadding)),
+                    ) {
+                        playerState?.mediaMetadata?.let {
+                            PlayerTransform(
+                                mediaMetadata = it, position = position, duration = duration,
+                                onBackPressed = { showPlayer = false },
+                                onClick = { showPlayer = true },
+                                onPositionUpdate = { updatePosition ->
+                                    position = updatePosition
+                                }, navController = navController
+                            )
 
+                        }
                     }
                 }
-            }
 
-            NavGraph(
-                navController = navController,
-                bottomPadding = bottomPadding,
-                showMiniPlayer = showMiniPlayer
-            )
-        }
-    )
+                NavGraph(
+                    navController = navController,
+                    bottomPadding = bottomPadding,
+                    showMiniPlayer = showMiniPlayer
+                )
+            }
+        )
+    }
 }

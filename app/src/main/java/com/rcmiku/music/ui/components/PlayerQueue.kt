@@ -2,17 +2,19 @@ package com.rcmiku.music.ui.components
 
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,11 +23,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -40,9 +42,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
@@ -51,15 +56,19 @@ import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
-import com.rcmiku.music.constants.MediaItemHeight
 import com.rcmiku.music.constants.MediaSessionConstants
 import com.rcmiku.music.extensions.currentMediaItems
 import com.rcmiku.music.extensions.playMediaAt
 import com.rcmiku.music.extensions.removeSong
+import com.rcmiku.music.ui.design.ImmersiveBackground
+import com.rcmiku.music.ui.design.LocalArtworkColors
+import com.rcmiku.music.ui.icons.AudioLines
+import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.icons.DragHandle
 import com.rcmiku.music.ui.icons.Repeat
 import com.rcmiku.music.ui.icons.RepeatOne
 import com.rcmiku.music.ui.icons.Shuffle
+import com.rcmiku.music.ui.theme.JetMeloShapes
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -79,6 +88,7 @@ fun PlayerQueue(
     val currentMediaId = playerState?.player?.currentMediaItem?.mediaId
     val currentIndex = playerState?.player?.currentMediaItemIndex
     var cacheMediaItems by remember { mutableStateOf(currentMediaItems) }
+    val artworkColors = LocalArtworkColors.current
 
     val repeatIcon = when (repeatMode) {
         0 -> Repeat
@@ -90,74 +100,50 @@ fun PlayerQueue(
         onBackPressed()
     }
 
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxHeight(),
+    ImmersiveBackground(
+        modifier = modifier.fillMaxSize(),
+        artworkUri = mediaMetadata.artworkUri
     ) {
         Column(
             modifier = Modifier
+                .fillMaxSize()
                 .statusBarsPadding()
-                .padding(top = 12.dp)
         ) {
+            // Header Bar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .padding(horizontal = 12.dp)
-                    .clip(MaterialTheme.shapes.small)
-                    .clickable { onBackPressed() }
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                AsyncImage(
-                    model = mediaMetadata.artworkUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = imageModifier
-                        .size(MediaItemHeight)
-                        .clip(MaterialTheme.shapes.small)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .then(modifier)
-                ) {
-                    Text(
-                        text = mediaMetadata.title.toString(),
-                        maxLines = 1,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.basicMarquee()
-                    )
-                    Text(
-                        text = mediaMetadata.artist.toString(),
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.basicMarquee(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                IconButton(onClick = onBackPressed) {
+                    Icon(
+                        imageVector = ChevronDown,
+                        contentDescription = null,
+                        tint = Color.White
                     )
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 4.dp)
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
                         text = stringResource(R.string.playing_list),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
                     )
                     currentMediaItems?.size?.let { size ->
                         Text(
                             text = stringResource(R.string.song_size, size),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.7f)
                         )
                     }
                 }
 
-                Row {
-                    FilledTonalIconButton(
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(
                         onClick = {
                             mediaController?.sendCustomCommand(
                                 MediaSessionConstants.CommandToggleShuffle,
@@ -168,12 +154,11 @@ fun PlayerQueue(
                         Icon(
                             imageVector = Shuffle,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.alpha(if (!shuffleMode) 0.4f else 1f)
+                            tint = if (shuffleMode) artworkColors.accentColor else Color.White.copy(alpha = 0.5f)
                         )
                     }
 
-                    FilledTonalIconButton(
+                    IconButton(
                         onClick = {
                             val newMode = when (repeatMode) {
                                 0 -> 2
@@ -187,12 +172,10 @@ fun PlayerQueue(
                         Icon(
                             imageVector = repeatIcon,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.alpha(if (repeatMode == 0) 0.4f else 1f)
+                            tint = if (repeatMode != 0) artworkColors.accentColor else Color.White.copy(alpha = 0.5f)
                         )
                     }
                 }
-
             }
 
             val view = LocalView.current
@@ -247,6 +230,7 @@ fun PlayerQueue(
                         mediaItem.mediaId
                     }) { index, mediaItem ->
 
+                        val isCurrent = currentMediaId == mediaItem.mediaId
                         val dismissState = rememberSwipeToDismissBoxState(
                             positionalThreshold = { totalDistance -> totalDistance },
                             confirmValueChange = { dismissValue ->
@@ -268,13 +252,87 @@ fun PlayerQueue(
                                 state = dismissState,
                                 enableDismissFromStartToEnd = false,
                                 backgroundContent = {
-
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                                            .clip(JetMeloShapes.medium)
+                                            .background(MaterialTheme.colorScheme.errorContainer),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Text(
+                                            text = "删除",
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(end = 16.dp)
+                                        )
+                                    }
                                 }
                             ) {
-                                MediaItemListItem(
-                                    isPlaying = isPlaying,
-                                    isActive = currentMediaId == mediaItem.mediaId,
-                                    mediaMetadata = mediaItem.mediaMetadata, trailingContent = {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 3.dp)
+                                        .clickable {
+                                            mediaController?.playMediaAt(index)
+                                        },
+                                    shape = JetMeloShapes.medium,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isCurrent)
+                                            artworkColors.accentColor.copy(alpha = 0.25f)
+                                        else
+                                            Color.White.copy(alpha = 0.08f)
+                                    )
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        AsyncImage(
+                                            model = mediaItem.mediaMetadata.artworkUri,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = (if (isCurrent) imageModifier else Modifier)
+                                                .size(44.dp)
+                                                .clip(JetMeloShapes.small)
+                                        )
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Column(
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(
+                                                text = mediaItem.mediaMetadata.title?.toString() ?: "",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = if (isCurrent) artworkColors.accentColor else Color.White,
+                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = mediaItem.mediaMetadata.artist?.toString() ?: "",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = Color.White.copy(alpha = 0.65f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+
+                                        if (isCurrent && isPlaying) {
+                                            Icon(
+                                                imageVector = AudioLines,
+                                                contentDescription = null,
+                                                tint = artworkColors.accentColor,
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .padding(end = 6.dp)
+                                            )
+                                        }
+
                                         IconButton(
                                             modifier = Modifier
                                                 .draggableHandle(
@@ -291,16 +349,17 @@ fun PlayerQueue(
                                                         )
                                                     }
                                                 )
-                                                .padding(end = 6.dp),
+                                                .size(36.dp),
                                             onClick = {},
                                         ) {
-                                            Icon(DragHandle, contentDescription = null)
+                                            Icon(
+                                                imageVector = DragHandle,
+                                                contentDescription = null,
+                                                tint = Color.White.copy(alpha = 0.5f)
+                                            )
                                         }
-                                    },
-                                    modifier = Modifier.clickable {
-                                        mediaController?.playMediaAt(index)
                                     }
-                                )
+                                }
                             }
                         }
                     }
