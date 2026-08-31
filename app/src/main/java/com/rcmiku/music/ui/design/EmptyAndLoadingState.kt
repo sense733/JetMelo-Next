@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +40,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.rcmiku.music.constants.ListItemHeight
+import com.rcmiku.music.constants.ListThumbnailSize
+import com.rcmiku.music.constants.ThumbnailCornerRadius
 import com.rcmiku.music.ui.theme.JetMeloShapes
 
 @Composable
@@ -136,217 +141,117 @@ fun SkeletonPlaceholder(
 }
 
 @Composable
-fun HomeScreenSkeleton(
-    modifier: Modifier = Modifier
+fun HeroBannerSkeleton(
+    modifier: Modifier = Modifier,
+    brush: Brush = rememberShimmerBrush()
 ) {
-    val brush = rememberShimmerBrush()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.8f)
+                .clip(JetMeloShapes.extraLarge)
+                .background(brush)
+        )
+    }
+}
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+@Composable
+fun PlaylistsRowSkeleton(
+    modifier: Modifier = Modifier,
+    brush: Brush = rememberShimmerBrush()
+) {
+    LazyRow(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         userScrollEnabled = false
     ) {
-        // 1. Hero Card Skeleton
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+        items(4) {
+            Column(
+                modifier = Modifier.width(160.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1.8f)
-                        .clip(JetMeloShapes.extraLarge)
+                        .height(160.dp)
+                        .clip(JetMeloShapes.large)
                         .background(brush)
                 )
-            }
-        }
-
-        // 2. Recommended Playlists Horizontal Carousel Skeleton
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
+                Spacer(Modifier.height(8.dp))
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 4.dp, height = 18.dp)
-                            .clip(JetMeloShapes.full)
-                            .background(brush)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(width = 130.dp, height = 20.dp)
-                            .clip(JetMeloShapes.small)
-                            .background(brush)
-                    )
-                }
-
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    userScrollEnabled = false
-                ) {
-                    items(4) {
-                        Column(
-                            modifier = Modifier.width(160.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(160.dp)
-                                    .clip(JetMeloShapes.large)
-                                    .background(brush)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.85f)
-                                    .height(16.dp)
-                                    .clip(JetMeloShapes.extraSmall)
-                                    .background(brush)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.5f)
-                                    .height(12.dp)
-                                    .clip(JetMeloShapes.extraSmall)
-                                    .background(brush)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. Personalized Playlists Horizontal Carousel Skeleton
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
+                        .fillMaxWidth(0.9f)
+                        .height(16.dp)
+                        .clip(JetMeloShapes.extraSmall)
+                        .background(brush)
+                )
+                Spacer(Modifier.height(6.dp))
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 4.dp, height = 18.dp)
-                            .clip(JetMeloShapes.full)
-                            .background(brush)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(width = 110.dp, height = 20.dp)
-                            .clip(JetMeloShapes.small)
-                            .background(brush)
-                    )
-                }
-
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    userScrollEnabled = false
-                ) {
-                    items(4) {
-                        Column(
-                            modifier = Modifier.width(160.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(160.dp)
-                                    .clip(JetMeloShapes.large)
-                                    .background(brush)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.85f)
-                                    .height(16.dp)
-                                    .clip(JetMeloShapes.extraSmall)
-                                    .background(brush)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.5f)
-                                    .height(12.dp)
-                                    .clip(JetMeloShapes.extraSmall)
-                                    .background(brush)
-                            )
-                        }
-                    }
-                }
+                        .fillMaxWidth(0.55f)
+                        .height(14.dp)
+                        .clip(JetMeloShapes.extraSmall)
+                        .background(brush)
+                )
+                Spacer(Modifier.height(8.dp))
             }
         }
+    }
+}
 
-        // 4. Daily Songs List Skeleton
-        item {
-            Column(
+@Composable
+fun DailySongsGridSkeleton(
+    modifier: Modifier = Modifier,
+    brush: Brush = rememberShimmerBrush()
+) {
+    LazyHorizontalGrid(
+        rows = GridCells.Fixed(4),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(ListItemHeight * 4),
+        contentPadding = PaddingValues(horizontal = 10.dp),
+        userScrollEnabled = false
+    ) {
+        items(8) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .width(340.dp)
+                    .height(ListItemHeight)
+                    .padding(horizontal = 6.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .padding(6.dp)
+                        .size(ListThumbnailSize)
+                        .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                        .background(brush)
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(width = 4.dp, height = 18.dp)
-                            .clip(JetMeloShapes.full)
+                            .fillMaxWidth(0.7f)
+                            .height(16.dp)
+                            .clip(JetMeloShapes.extraSmall)
                             .background(brush)
                     )
                     Box(
                         modifier = Modifier
-                            .size(width = 90.dp, height = 20.dp)
-                            .clip(JetMeloShapes.small)
+                            .fillMaxWidth(0.45f)
+                            .height(12.dp)
+                            .clip(JetMeloShapes.extraSmall)
                             .background(brush)
                     )
-                }
-
-                repeat(4) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(JetMeloShapes.small)
-                                .background(brush)
-                        )
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.65f)
-                                    .height(14.dp)
-                                    .clip(JetMeloShapes.extraSmall)
-                                    .background(brush)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.4f)
-                                    .height(12.dp)
-                                    .clip(JetMeloShapes.extraSmall)
-                                    .background(brush)
-                            )
-                        }
-                    }
                 }
             }
         }

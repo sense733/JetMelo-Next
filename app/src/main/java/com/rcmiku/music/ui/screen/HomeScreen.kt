@@ -67,8 +67,12 @@ import com.rcmiku.music.extensions.playMediaAtId
 import com.rcmiku.music.extensions.setPlaylist
 import com.rcmiku.music.ui.components.SongListItem
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
+import com.rcmiku.music.ui.design.DailySongsGridSkeleton
 import com.rcmiku.music.ui.design.HeroBannerCard
+import com.rcmiku.music.ui.design.HeroBannerSkeleton
+import com.rcmiku.music.ui.design.PlaylistsRowSkeleton
 import com.rcmiku.music.ui.design.SectionHeader
+import com.rcmiku.music.ui.design.rememberShimmerBrush
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
@@ -166,19 +170,18 @@ fun HomeScreen(
                     )
                 }
             ) {
-                val isLoading = recommendSongsState == null && recommendPlaylistState == null && personalizedPlaylistState == null
+                val shimmerBrush = rememberShimmerBrush()
+                val dailyData = recommendSongsState?.getOrNull()
+                val recommendData = recommendPlaylistState?.getOrNull()
+                val personalizedData = personalizedPlaylistState?.getOrNull()
 
-                if (isLoading) {
-                    com.rcmiku.music.ui.design.HomeScreenSkeleton()
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 96.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // 1. Featured Daily Hero Card
-                        item {
-                            val dailyData = recommendSongsState?.getOrNull()
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 1. Featured Daily Hero Card (Fixed Slot)
+                    item {
                         if (dailyData != null) {
                             val songs = dailyData.data.dailySongs
                             val firstSong = songs.firstOrNull()
@@ -204,18 +207,21 @@ fun HomeScreen(
                                         }
                                     )
                                 }
+                            } else {
+                                HeroBannerSkeleton(brush = shimmerBrush)
                             }
+                        } else {
+                            HeroBannerSkeleton(brush = shimmerBrush)
                         }
                     }
 
-                    // 2. Recommended Playlists (Horizontal Carousel)
+                    // 2. Recommended Playlists Horizontal Carousel (Fixed Slot)
                     item {
-                        val recommendData = recommendPlaylistState?.getOrNull()
-                        if (recommendData != null) {
-                            SectionHeader(
-                                title = stringResource(R.string.personalized_playlist)
-                            )
+                        SectionHeader(
+                            title = stringResource(R.string.personalized_playlist)
+                        )
 
+                        if (recommendData != null) {
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -272,17 +278,7 @@ fun HomeScreen(
                                     }
                                 }
                             }
-                        }
-                    }
-
-                    // 3. Personalized Playlists (Alternative stream if available)
-                    item {
-                        val personalizedData = personalizedPlaylistState?.getOrNull()
-                        if (personalizedData != null) {
-                            SectionHeader(
-                                title = stringResource(R.string.recommend_playlist)
-                            )
-
+                        } else if (personalizedData != null) {
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -344,18 +340,19 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                        } else {
+                            PlaylistsRowSkeleton(brush = shimmerBrush)
                         }
                     }
 
-                    // 4. Daily Songs List Section
+                    // 3. Daily Songs 4-Row Grid Section (Fixed Slot)
                     item {
-                        val dailyData = recommendSongsState?.getOrNull()
+                        SectionHeader(
+                            title = stringResource(R.string.recommend_songs)
+                        )
+
                         if (dailyData != null) {
                             val songs = dailyData.data.dailySongs
-                            SectionHeader(
-                                title = stringResource(R.string.recommend_songs)
-                            )
-
                             LazyHorizontalGrid(
                                 rows = GridCells.Fixed(4),
                                 state = gridState,
@@ -396,13 +393,14 @@ fun HomeScreen(
                                     )
                                 }
                             }
+                        } else {
+                            DailySongsGridSkeleton(brush = shimmerBrush)
                         }
                     }
                 }
             }
         }
     }
-}
 
     SongMenuBottomSheet(
         navController = navController,
