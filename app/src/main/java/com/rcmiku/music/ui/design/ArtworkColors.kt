@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import android.os.Build
 import android.util.LruCache
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -49,19 +50,11 @@ object PaletteExtractor {
     private const val SAMPLE_SIZE = 128
     private const val BLUR_RADIUS = 16
 
-    private val cache = object : LruCache<String, ArtworkColors>(MAX_CACHE_SIZE) {
-        override fun entryRemoved(
-            evicted: Boolean,
-            key: String?,
-            oldValue: ArtworkColors?,
-            newValue: ArtworkColors?
-        ) {
-            super.entryRemoved(evicted, key, oldValue, newValue)
-            if (evicted && oldValue != newValue) {
-                oldValue?.blurredBitmap?.recycle()
-            }
-        }
-    }
+    private const val MIN_BACKGROUND_CONTRAST = 4.5f
+    private const val MIN_ACCENT_CONTRAST = 3.0f
+    private const val MAX_CONTRAST_ITERATIONS = 12
+
+    private val cache = LruCache<String, ArtworkColors>(MAX_CACHE_SIZE)
 
     suspend fun extract(
         context: Context,
@@ -100,26 +93,34 @@ object PaletteExtractor {
 
                 if (bitmap != null && !bitmap.isRecycled) {
                     val palette = Palette.from(bitmap).generate()
-                    val dominantSwatch = palette.dominantSwatch
-                        ?: palette.darkMutedSwatch
-                        ?: palette.mutedSwatch
-                    val vibrantSwatch = palette.vibrantSwatch
-                        ?: palette.lightVibrantSwatch
-                        ?: palette.darkVibrantSwatch
-                        ?: dominantSwatch
+                    val dominantCandidates = listOfNotNull(
+                        palette.dominantSwatch,
+                        palette.darkMutedSwatch,
+                        palette.mutedSwatch,
+                        palette.darkVibrantSwatch,
+                        palette.lightMutedSwatch
+                    ).map { Color(it.rgb) }
 
-                    val rawDominant = dominantSwatch?.rgb?.let { Color(it) } ?: fallbackDominant
-                    val rawAccent = vibrantSwatch?.rgb?.let { Color(it) } ?: fallbackAccent
+                    val accentCandidates = listOfNotNull(
+                        palette.vibrantSwatch,
+                        palette.lightVibrantSwatch,
+                        palette.darkVibrantSwatch,
+                        palette.dominantSwatch
+                    ).map { Color(it.rgb) }
 
-                    val adjustedDominant = ensureAccessibleBackground(rawDominant)
+                    val adjustedDominant = findAccessibleBackground(dominantCandidates, fallbackDominant)
                     val onDominant = getAccessibleTextColor(adjustedDominant)
 
-                    val adjustedAccent = ensureAccessibleAccent(rawAccent, adjustedDominant)
+                    val adjustedAccent = findAccessibleAccent(accentCandidates, adjustedDominant, fallbackAccent)
                     val onAccent = getAccessibleTextColor(adjustedAccent)
 
-                    val blurred = try {
-                        fastBlur(bitmap.copy(Bitmap.Config.ARGB_8888, true), BLUR_RADIUS)
-                    } catch (_: Exception) {
+                    val blurred = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                        try {
+                            fastBlur(bitmap.copy(Bitmap.Config.ARGB_8888, true), BLUR_RADIUS)
+                        } catch (_: Exception) {
+                            null
+                        }
+                    } else {
                         null
                     }
 
@@ -176,52 +177,68 @@ object PaletteExtractor {
         return if (whiteContrast >= blackContrast) Color.White else Color.Black
     }
 
-    private fun ensureAccessibleBackground(bg: Color): Color {
-        var result = bg
-        val whiteContrast = calculateContrastRatio(Color.White, result)
-        val blackContrast = calculateContrastRatio(Color.Black, result)
-        if (max(whiteContrast, blackContrast) < 4.5f) {
-            val lum = calculateLuminance(result)
-            result = if (lum < 0.5f) {
-                Color(
-                    red = result.red * 0.7f,
-                    green = result.green * 0.7f,
-                    blue = result.blue * 0.7f,
-                    alpha = 1f
-                )
-            } else {
-                Color(
-                    red = min(1f, result.red * 1.3f),
-                    green = min(1f, result.green * 1.3f),
-                    blue = min(1f, result.blue * 1.3f),
-                    alpha = 1f
-                )
+    private fun findAccessibleBackground(
+        candidates: List<Color>,
+        fallback: Color
+    ): Color {
+        val pool = (candidates + fallback).distinct()
+        for (candidate in pool) {
+            var current = candidate
+            for (step in 0 until MAX_CONTRAST_ITERATIONS) {
+                val whiteContrast = calculateContrastRatio(Color.White, current)
+                val blackContrast = calculateContrastRatio(Color.Black, current)
+                if (max(whiteContrast, blackContrast) >= MIN_BACKGROUND_CONTRAST) {
+                    return current
+                }
+                val lum = calculateLuminance(current)
+                current = if (lum < 0.5f) {
+                    val nextR = current.red * 0.9f
+                    val nextG = current.green * 0.9f
+                    val nextB = current.blue * 0.9f
+                    if (nextR < 0.05f && nextG < 0.05f && nextB < 0.05f) break
+                    Color(red = nextR, green = nextG, blue = nextB, alpha = 1f)
+                } else {
+                    val nextR = min(1f, current.red * 1.1f + 0.02f)
+                    val nextG = min(1f, current.green * 1.1f + 0.02f)
+                    val nextB = min(1f, current.blue * 1.1f + 0.02f)
+                    if (nextR > 0.95f && nextG > 0.95f && nextB > 0.95f) break
+                    Color(red = nextR, green = nextG, blue = nextB, alpha = 1f)
+                }
             }
         }
-        return result
+        return pool.firstOrNull() ?: fallback
     }
 
-    private fun ensureAccessibleAccent(accent: Color, background: Color): Color {
-        var result = accent
-        if (calculateContrastRatio(result, background) < 3.0f) {
-            val bgLum = calculateLuminance(background)
-            result = if (bgLum < 0.5f) {
-                Color(
-                    red = min(1f, result.red * 1.4f),
-                    green = min(1f, result.green * 1.4f),
-                    blue = min(1f, result.blue * 1.4f),
-                    alpha = 1f
-                )
-            } else {
-                Color(
-                    red = result.red * 0.6f,
-                    green = result.green * 0.6f,
-                    blue = result.blue * 0.6f,
-                    alpha = 1f
-                )
+    // Accent contrast ≥3.0:1 is strictly targeted for pure icons/graphical objects (WCAG 2.1 AA UI component requirement); any text-bearing accent elements must satisfy ≥4.5:1.
+    private fun findAccessibleAccent(
+        candidates: List<Color>,
+        background: Color,
+        fallback: Color
+    ): Color {
+        val pool = (candidates + fallback).distinct()
+        val bgLum = calculateLuminance(background)
+        for (candidate in pool) {
+            var current = candidate
+            for (step in 0 until MAX_CONTRAST_ITERATIONS) {
+                if (calculateContrastRatio(current, background) >= MIN_ACCENT_CONTRAST) {
+                    return current
+                }
+                current = if (bgLum < 0.5f) {
+                    val nextR = min(1f, current.red * 1.1f + 0.02f)
+                    val nextG = min(1f, current.green * 1.1f + 0.02f)
+                    val nextB = min(1f, current.blue * 1.1f + 0.02f)
+                    if (nextR >= 0.98f && nextG >= 0.98f && nextB >= 0.98f) break
+                    Color(red = nextR, green = nextG, blue = nextB, alpha = 1f)
+                } else {
+                    val nextR = current.red * 0.88f
+                    val nextG = current.green * 0.88f
+                    val nextB = current.blue * 0.88f
+                    if (nextR < 0.05f && nextG < 0.05f && nextB < 0.05f) break
+                    Color(red = nextR, green = nextG, blue = nextB, alpha = 1f)
+                }
             }
         }
-        return result
+        return pool.firstOrNull() ?: fallback
     }
 
     private fun fastBlur(sentBitmap: Bitmap, radius: Int): Bitmap {

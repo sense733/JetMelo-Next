@@ -83,7 +83,11 @@ fun Lyric(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val lyric by lyricViewModel.lyric.collectAsState()
-    val lrcLine = lyric?.lrc?.lyric?.parseLrc()
+    val lrcLines = remember(lyric) { lyric?.lrc?.lyric?.parseLrc() }
+    val tLrcLines = remember(lyric) { lyric?.tlyric?.lyric?.parseLrc()?.filter { it.text.isNotBlank() } }
+    val tLrcMap = remember(tLrcLines) {
+        tLrcLines?.associate { it.time to it.text } ?: emptyMap()
+    }
     var currentIndex by remember { mutableIntStateOf(0) }
     var autoScrollEnabled by remember { mutableStateOf(true) }
     val artworkColors = LocalArtworkColors.current
@@ -91,8 +95,8 @@ fun Lyric(
     LaunchedEffect(currentMediaId) {
         currentIndex = 0
         coroutineScope.launch {
-            currentMediaId?.let {
-                lyricViewModel.fetchLyric(it.toLong())
+            currentMediaId?.toLongOrNull()?.let {
+                lyricViewModel.fetchLyric(it)
             }
         }
     }
@@ -175,13 +179,13 @@ fun Lyric(
             }
 
             // Lyric Scrolling Content
-            lrcLine?.let { lrcLines ->
+            lrcLines?.let { lines ->
                 LaunchedEffect(listState.isScrollInProgress) {
                     autoScrollEnabled = !listState.isScrollInProgress
                 }
 
                 LaunchedEffect(position) {
-                    val index = lrcLines.indexOfLast { it.time <= position }
+                    val index = lines.indexOfLast { it.time <= position }
                     if (index != currentIndex) {
                         currentIndex = index
                         if (autoScrollEnabled) {
@@ -221,18 +225,22 @@ fun Lyric(
                     }
 
                     items(
-                        count = lrcLines.size,
+                        count = lines.size,
                     ) { index ->
                         val isCurrent = index == currentIndex
-                        val currentText = lrcLines[index].text.isNotEmpty()
+                        val line = lines[index]
+                        val currentText = line.text.isNotEmpty()
 
                         if (currentText) {
+                            val translation = tLrcMap[line.time]
+                                ?: tLrcLines?.firstOrNull { kotlin.math.abs(it.time - line.time) <= 100 }?.text
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(JetMeloShapes.medium)
                                     .clickable {
-                                        lrcLines[index].time.let {
+                                        line.time.let {
                                             mediaController?.seekTo(it)
                                             coroutineScope.launch {
                                                 currentIndex = index
@@ -243,19 +251,29 @@ fun Lyric(
                                     .alpha(if (isCurrent) 1f else 0.45f)
                             ) {
                                 Text(
-                                    text = lrcLines[index].text,
+                                    text = line.text,
                                     color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.85f),
                                     fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
                                     fontSize = if (isCurrent) 28.sp else 22.sp,
                                     lineHeight = 1.25.em
                                 )
+                                if (!translation.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = translation,
+                                        color = if (isCurrent) Color.White.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.6f),
+                                        fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                                        fontSize = if (isCurrent) 18.sp else 15.sp,
+                                        lineHeight = 1.25.em
+                                    )
+                                }
                             }
                         } else {
                             Row(modifier = Modifier.padding(horizontal = 4.dp)) {
                                 if (isCurrent) {
-                                    lrcLines.getOrNull(index + 1)?.time?.let { time ->
+                                    lines.getOrNull(index + 1)?.time?.let { time ->
                                         ThreeDotsAnimation(
-                                            times = lrcLines[index].time to time,
+                                            times = line.time to time,
                                             dotColor = artworkColors.accentColor
                                         )
                                     }

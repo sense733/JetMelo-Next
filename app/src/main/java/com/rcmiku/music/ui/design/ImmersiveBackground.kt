@@ -16,8 +16,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 
 @Composable
 fun ImmersiveBackground(
@@ -39,7 +41,10 @@ fun ImmersiveBackground(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (artworkUri != null) {
                 AsyncImage(
-                    model = artworkUri,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(artworkUri)
+                        .size(128, 128)
+                        .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

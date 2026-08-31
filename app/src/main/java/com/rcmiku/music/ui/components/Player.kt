@@ -276,7 +276,7 @@ fun Player(
                         Icon(
                             imageVector = if (isFav) FavoriteFill else Favorite,
                             contentDescription = null,
-                            tint = if (isFav) Color(0xFFE74C3C) else Color.White.copy(alpha = 0.8f),
+                            tint = if (isFav) MaterialTheme.colorScheme.error else Color.White.copy(alpha = 0.8f),
                             modifier = Modifier.size(28.dp)
                         )
                     }
