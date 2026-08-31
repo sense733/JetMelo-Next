@@ -58,7 +58,7 @@ object PaletteExtractor {
 
     suspend fun extract(
         context: Context,
-        artworkUri: Uri?,
+        artworkUri: Any?,
         songId: String?,
         fallbackDominant: Color,
         fallbackAccent: Color
@@ -460,7 +460,7 @@ object PaletteExtractor {
 
 @Composable
 fun rememberArtworkColors(
-    artworkUri: Uri?,
+    artworkUri: Any?,
     songId: String?,
     fallbackDominant: Color = MaterialTheme.colorScheme.surfaceContainer,
     fallbackAccent: Color = MaterialTheme.colorScheme.primary
