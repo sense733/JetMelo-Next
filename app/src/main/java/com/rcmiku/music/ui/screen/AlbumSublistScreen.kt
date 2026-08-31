@@ -74,7 +74,7 @@ fun AlbumSublistScreen(
                                     url = it.picUrl,
                                     modifier = Modifier.sharedElement(
                                         sharedTransitionScope.rememberSharedContentState(
-                                            key = it.id
+                                            key = "cover_${it.id}"
                                         ),
                                         animatedVisibilityScope = animatedContentScope
                                     )
