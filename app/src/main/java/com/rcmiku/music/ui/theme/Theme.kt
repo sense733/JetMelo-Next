@@ -10,26 +10,85 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
+
+@Immutable
+data class JetMeloExtendedColors(
+    val emberAccent: Color = EmberAccent,
+    val emberAccentContainer: Color = EmberAccentContainer,
+    val onEmberAccent: Color = OnEmberAccent,
+    val onEmberAccentContainer: Color = OnEmberAccentContainer
+)
+
+val LocalJetMeloExtendedColors = staticCompositionLocalOf { JetMeloExtendedColors() }
+
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = IndigoDarkPrimary,
+    onPrimary = IndigoDarkOnPrimary,
+    primaryContainer = IndigoDarkPrimaryContainer,
+    onPrimaryContainer = IndigoDarkOnPrimaryContainer,
+    secondary = IndigoDarkSecondary,
+    onSecondary = IndigoDarkOnSecondary,
+    secondaryContainer = IndigoDarkSecondaryContainer,
+    onSecondaryContainer = IndigoDarkOnSecondaryContainer,
+    tertiary = IndigoDarkTertiary,
+    onTertiary = IndigoDarkOnTertiary,
+    tertiaryContainer = IndigoDarkTertiaryContainer,
+    onTertiaryContainer = IndigoDarkOnTertiaryContainer,
+    background = IndigoDarkBackground,
+    onBackground = IndigoDarkOnBackground,
+    surface = IndigoDarkSurface,
+    onSurface = IndigoDarkOnSurface,
+    surfaceVariant = IndigoDarkSurfaceVariant,
+    onSurfaceVariant = IndigoDarkOnSurfaceVariant,
+    surfaceContainerLowest = IndigoDarkSurfaceContainerLowest,
+    surfaceContainerLow = IndigoDarkSurfaceContainerLow,
+    surfaceContainer = IndigoDarkSurfaceContainer,
+    surfaceContainerHigh = IndigoDarkSurfaceContainerHigh,
+    surfaceContainerHighest = IndigoDarkSurfaceContainerHighest,
+    outline = IndigoDarkOutline,
+    outlineVariant = IndigoDarkOutlineVariant,
+    error = IndigoDarkError,
+    onError = IndigoDarkOnError,
+    errorContainer = IndigoDarkErrorContainer,
+    onErrorContainer = IndigoDarkOnErrorContainer,
+    scrim = IndigoDarkScrim
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = IndigoLightPrimary,
+    onPrimary = IndigoLightOnPrimary,
+    primaryContainer = IndigoLightPrimaryContainer,
+    onPrimaryContainer = IndigoLightOnPrimaryContainer,
+    secondary = IndigoLightSecondary,
+    onSecondary = IndigoLightOnSecondary,
+    secondaryContainer = IndigoLightSecondaryContainer,
+    onSecondaryContainer = IndigoLightOnSecondaryContainer,
+    tertiary = IndigoLightTertiary,
+    onTertiary = IndigoLightOnTertiary,
+    tertiaryContainer = IndigoLightTertiaryContainer,
+    onTertiaryContainer = IndigoLightOnTertiaryContainer,
+    background = IndigoLightBackground,
+    onBackground = IndigoLightOnBackground,
+    surface = IndigoLightSurface,
+    onSurface = IndigoLightOnSurface,
+    surfaceVariant = IndigoLightSurfaceVariant,
+    onSurfaceVariant = IndigoLightOnSurfaceVariant,
+    surfaceContainerLowest = IndigoLightSurfaceContainerLowest,
+    surfaceContainerLow = IndigoLightSurfaceContainerLow,
+    surfaceContainer = IndigoLightSurfaceContainer,
+    surfaceContainerHigh = IndigoLightSurfaceContainerHigh,
+    surfaceContainerHighest = IndigoLightSurfaceContainerHighest,
+    outline = IndigoLightOutline,
+    outlineVariant = IndigoLightOutlineVariant,
+    error = IndigoLightError,
+    onError = IndigoLightOnError,
+    errorContainer = IndigoLightErrorContainer,
+    onErrorContainer = IndigoLightOnErrorContainer,
+    scrim = IndigoLightScrim
 )
 
 @Composable
@@ -49,9 +108,14 @@ fun JetMeloTheme(
         else -> LightColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    val extendedColors = JetMeloExtendedColors()
+
+    CompositionLocalProvider(LocalJetMeloExtendedColors provides extendedColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = JetMeloM3Shapes,
+            content = content
+        )
+    }
 }

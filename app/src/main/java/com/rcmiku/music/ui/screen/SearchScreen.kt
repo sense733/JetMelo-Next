@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -107,13 +108,16 @@ fun SearchScreen(
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var selectSong by remember { mutableStateOf<Song?>(null) }
 
-    Box(
-        Modifier
+    Column(
+        modifier = Modifier
             .fillMaxSize()
-            .semantics { isTraversalGroup = true }) {
+            .statusBarsPadding()
+            .semantics { isTraversalGroup = true }
+    ) {
         SearchBar(
             modifier = Modifier
-                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(horizontal = if (expanded) 0.dp else 16.dp)
                 .semantics { traversalIndex = 0f },
             inputField = {
                 SearchBarDefaults.InputField(
@@ -191,31 +195,33 @@ fun SearchScreen(
             }
         )
 
-        Column(Modifier.padding(top = 100.dp)) {
-            SecondaryTabRow(
-                selectedTabIndex = state,
-                indicator = {
-                    FancyIndicator(
-                        MaterialTheme.colorScheme.primary,
-                        Modifier.tabIndicatorOffset(state)
-                    )
-                }
-            ) {
-                tab.forEachIndexed { index, item ->
-                    Tab(
-                        modifier = Modifier.clip(MaterialTheme.shapes.small),
-                        selected = state == index,
-                        onClick = {
-                            state = index
-                            searchViewModel.updateSearchType(item.first)
-                        },
-                        text = { Text(item.second) })
-                }
+        SecondaryTabRow(
+            selectedTabIndex = state,
+            indicator = {
+                FancyIndicator(
+                    MaterialTheme.colorScheme.primary,
+                    Modifier.tabIndicatorOffset(state)
+                )
             }
+        ) {
+            tab.forEachIndexed { index, item ->
+                Tab(
+                    modifier = Modifier.clip(MaterialTheme.shapes.small),
+                    selected = state == index,
+                    onClick = {
+                        state = index
+                        searchViewModel.updateSearchType(item.first)
+                    },
+                    text = { Text(item.second) })
+            }
+        }
 
-            LazyColumn(
-                modifier = Modifier.semantics { traversalIndex = 1f }
-            ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .weight(1f)
+                .semantics { traversalIndex = 1f }
+        ) {
 
                 when (searchType) {
                     SearchType.Album -> {
@@ -309,7 +315,6 @@ fun SearchScreen(
                 }
             }
         }
-    }
 
     SongMenuBottomSheet(
         navController = navController,

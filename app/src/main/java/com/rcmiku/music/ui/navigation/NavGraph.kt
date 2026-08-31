@@ -1,5 +1,14 @@
 package com.rcmiku.music.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import com.rcmiku.music.constants.DURATION_ENTER
+import com.rcmiku.music.constants.DURATION_EXIT
+import com.rcmiku.music.constants.EmphasizedAccelerateEasing
+import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,8 +48,44 @@ fun NavGraph(
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            Modifier
+            modifier = Modifier
                 .windowInsetsPadding(WindowInsets(bottom = bottomPadding + if (showMiniPlayer) MiniPlayerHeight else 0.dp)),
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { (it * 0.15f).toInt() },
+                    animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing)
+                ) + fadeIn(
+                    animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing),
+                    initialAlpha = 0.8f
+                )
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { (-it * 0.15f).toInt() },
+                    animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing)
+                ) + fadeOut(
+                    animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing),
+                    targetAlpha = 0.8f
+                )
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { (-it * 0.15f).toInt() },
+                    animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing)
+                ) + fadeIn(
+                    animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing),
+                    initialAlpha = 0.8f
+                )
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { (it * 0.15f).toInt() },
+                    animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing)
+                ) + fadeOut(
+                    animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing),
+                    targetAlpha = 0.8f
+                )
+            }
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
