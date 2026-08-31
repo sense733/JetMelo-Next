@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -122,7 +123,9 @@ fun MainScreen() {
                         showNavigationBar, enter = expandVertically(),
                         exit = shrinkVertically()
                     ) {
-                        NavigationBar {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        ) {
                             tabs.forEach { item ->
                                 NavigationBarItem(
                                     icon = {
@@ -141,7 +144,8 @@ fun MainScreen() {
                                             launchSingleTop = true
                                             restoreState = true
                                         }
-                                    })
+                                    }
+                                )
                             }
                         }
                     }
