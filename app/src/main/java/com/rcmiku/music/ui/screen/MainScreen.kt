@@ -120,7 +120,7 @@ fun MainScreen() {
             bottomBar = {
                 Column {
                     AnimatedVisibility(
-                        showNavigationBar, enter = expandVertically(),
+                        showNavigationBar && !showPlayer, enter = expandVertically(),
                         exit = shrinkVertically()
                     ) {
                         NavigationBar(
