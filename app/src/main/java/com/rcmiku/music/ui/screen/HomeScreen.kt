@@ -166,14 +166,19 @@ fun HomeScreen(
                     )
                 }
             ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // 1. Featured Daily Hero Card
-                    item {
-                        val dailyData = recommendSongsState?.getOrNull()
+                val isLoading = recommendSongsState == null && recommendPlaylistState == null && personalizedPlaylistState == null
+
+                if (isLoading) {
+                    com.rcmiku.music.ui.design.HomeScreenSkeleton()
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 96.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // 1. Featured Daily Hero Card
+                        item {
+                            val dailyData = recommendSongsState?.getOrNull()
                         if (dailyData != null) {
                             val songs = dailyData.data.dailySongs
                             val firstSong = songs.firstOrNull()
@@ -397,6 +402,7 @@ fun HomeScreen(
             }
         }
     }
+}
 
     SongMenuBottomSheet(
         navController = navController,
