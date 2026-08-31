@@ -35,3 +35,5 @@ proguard-project.txt
 *.iml
 .idea
 .kotlin/
+.opencode/
+design/
