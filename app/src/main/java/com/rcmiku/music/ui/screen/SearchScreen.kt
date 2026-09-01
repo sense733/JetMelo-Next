@@ -73,6 +73,7 @@ import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
+import com.rcmiku.music.constants.ListItemHeight
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.addSong
 import com.rcmiku.music.ui.components.AlbumListItem
@@ -82,7 +83,9 @@ import com.rcmiku.music.ui.components.SongListItem
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.components.VoiceListItem
 import com.rcmiku.music.ui.design.rememberShimmerBrush
+import com.rcmiku.music.ui.icons.Album
 import com.rcmiku.music.ui.icons.ArrowInsert
+import com.rcmiku.music.ui.icons.AudioLines
 import com.rcmiku.music.ui.icons.History
 import com.rcmiku.music.ui.icons.LocalFireDepartment
 import com.rcmiku.music.ui.icons.Search
@@ -205,182 +208,291 @@ fun SearchScreen(
             },
             content = {
                 if (searchValue.isNotEmpty()) {
-                    LazyColumn(contentPadding = PaddingValues(bottom = bottomContentPadding)) {
-                        items(suggestions) { suggestion ->
-                            when (suggestion) {
-                                is SearchSuggestion.Keyword -> {
-                                    KeywordSuggestItem(
-                                        keyword = suggestion.keyword,
-                                        query = searchValue,
-                                        onInsert = {
-                                            searchValue = suggestion.keyword
-                                            searchViewModel.onInputQueryChange(suggestion.keyword)
-                                        },
-                                        onClick = {
-                                            searchValue = suggestion.keyword
-                                            expanded = false
-                                            searchViewModel.updateSearchValue(suggestion.keyword)
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-                                        }
-                                    )
-                                }
+                    val songs = remember(suggestions) { suggestions.filterIsInstance<SearchSuggestion.Song>() }
+                    val albums = remember(suggestions) { suggestions.filterIsInstance<SearchSuggestion.Album>() }
+                    val artists = remember(suggestions) { suggestions.filterIsInstance<SearchSuggestion.Artist>() }
+                    val keywords = remember(suggestions) { suggestions.filterIsInstance<SearchSuggestion.Keyword>() }
 
-                                is SearchSuggestion.Artist -> {
-                                    ArtistSuggestItem(
-                                        artistName = suggestion.name,
-                                        avatarUrl = suggestion.avatarUrl,
-                                        query = searchValue,
-                                        onClick = {
-                                            searchValue = suggestion.name
-                                            expanded = false
-                                            searchViewModel.updateSearchValue(suggestion.name)
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-                                        }
+                    LazyColumn(
+                        contentPadding = PaddingValues(
+                            top = 8.dp,
+                            bottom = 16.dp + bottomContentPadding
+                        )
+                    ) {
+                        if (suggestions.isNotEmpty()) {
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    shape = JetMeloShapes.medium,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
                                     )
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (songs.isNotEmpty()) {
+                                            SuggestGroupHeader(title = stringResource(R.string.song))
+                                            songs.forEach { song ->
+                                                SongSuggestItem(
+                                                    song = song,
+                                                    query = searchValue,
+                                                    onInsert = {
+                                                        searchValue = song.name
+                                                        searchViewModel.onInputQueryChange(song.name)
+                                                    },
+                                                    onClick = {
+                                                        searchValue = song.name
+                                                        expanded = false
+                                                        searchViewModel.updateSearchValue(song.name)
+                                                        focusManager.clearFocus()
+                                                        keyboardController?.hide()
+                                                    }
+                                                )
+                                            }
+                                        }
+
+                                        if (albums.isNotEmpty()) {
+                                            SuggestGroupHeader(title = stringResource(R.string.album))
+                                            albums.forEach { album ->
+                                                AlbumSuggestItem(
+                                                    album = album,
+                                                    query = searchValue,
+                                                    onInsert = {
+                                                        searchValue = album.name
+                                                        searchViewModel.onInputQueryChange(album.name)
+                                                    },
+                                                    onClick = {
+                                                        searchValue = album.name
+                                                        expanded = false
+                                                        searchViewModel.updateSearchValue(album.name)
+                                                        focusManager.clearFocus()
+                                                        keyboardController?.hide()
+                                                    }
+                                                )
+                                            }
+                                        }
+
+                                        if (artists.isNotEmpty()) {
+                                            SuggestGroupHeader(title = stringResource(R.string.artist))
+                                            artists.forEach { artist ->
+                                                ArtistSuggestItem(
+                                                    artist = artist,
+                                                    query = searchValue,
+                                                    onInsert = {
+                                                        searchValue = artist.name
+                                                        searchViewModel.onInputQueryChange(artist.name)
+                                                    },
+                                                    onClick = {
+                                                        searchValue = artist.name
+                                                        expanded = false
+                                                        searchViewModel.updateSearchValue(artist.name)
+                                                        focusManager.clearFocus()
+                                                        keyboardController?.hide()
+                                                    }
+                                                )
+                                            }
+                                        }
+
+                                        if (keywords.isNotEmpty()) {
+                                            SuggestGroupHeader(title = stringResource(R.string.suggest_keywords))
+                                            keywords.forEach { kw ->
+                                                KeywordSuggestItem(
+                                                    keyword = kw.keyword,
+                                                    query = searchValue,
+                                                    onInsert = {
+                                                        searchValue = kw.keyword
+                                                        searchViewModel.onInputQueryChange(kw.keyword)
+                                                    },
+                                                    onClick = {
+                                                        searchValue = kw.keyword
+                                                        expanded = false
+                                                        searchViewModel.updateSearchValue(kw.keyword)
+                                                        focusManager.clearFocus()
+                                                        keyboardController?.hide()
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                        contentPadding = PaddingValues(
+                            top = 8.dp,
+                            bottom = 16.dp + bottomContentPadding
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         if (searchHistoryState.isNotEmpty()) {
                             item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.recent_searches),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    shape = JetMeloShapes.medium,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
                                     )
-                                    TextButton(
-                                        onClick = { searchViewModel.clearSearchHistory() },
-                                        contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.clear_all),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
-
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    searchHistoryState.forEach { historyItem ->
-                                        RecentHistoryItem(
-                                            query = historyItem,
-                                            onClick = {
-                                                searchValue = historyItem
-                                                expanded = false
-                                                searchViewModel.updateSearchValue(historyItem)
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-                                            },
-                                            onDelete = {
-                                                searchViewModel.deleteSearchQuery(historyItem)
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.recent_searches),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            TextButton(
+                                                onClick = { searchViewModel.clearSearchHistory() },
+                                                contentPadding = PaddingValues(horizontal = 8.dp)
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.clear_all),
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
                                             }
-                                        )
+                                        }
+
+                                        searchHistoryState.forEach { historyItem ->
+                                            RecentHistoryItem(
+                                                query = historyItem,
+                                                onClick = {
+                                                    searchValue = historyItem
+                                                    expanded = false
+                                                    searchViewModel.updateSearchValue(historyItem)
+                                                    focusManager.clearFocus()
+                                                    keyboardController?.hide()
+                                                },
+                                                onDelete = {
+                                                    searchViewModel.deleteSearchQuery(historyItem)
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
 
                         item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                shape = JetMeloShapes.medium,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                )
                             ) {
-                                Icon(
-                                    imageVector = LocalFireDepartment,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.hot_searches),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            Spacer(Modifier.height(12.dp))
-
-                            if (isHotLoading && hotSearches.isEmpty()) {
-                                val brush = rememberShimmerBrush()
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
                                 ) {
-                                    val pillWidths = listOf(80.dp, 110.dp, 90.dp, 120.dp, 85.dp, 100.dp)
-                                    pillWidths.forEach { pillWidth ->
-                                        Box(
-                                            modifier = Modifier
-                                                .width(pillWidth)
-                                                .height(36.dp)
-                                                .clip(JetMeloShapes.full)
-                                                .background(brush)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = LocalFireDepartment,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.hot_searches),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
-                                }
-                            } else {
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    hotSearches.forEachIndexed { index, tag ->
-                                        val showTrending = index < 2
-                                        Surface(
-                                            shape = JetMeloShapes.full,
-                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            border = BorderStroke(
-                                                width = 1.dp,
-                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                                            ),
-                                            modifier = Modifier
-                                                .clip(JetMeloShapes.full)
-                                                .clickable {
-                                                    searchValue = tag
-                                                    expanded = false
-                                                    searchViewModel.updateSearchValue(tag)
-                                                    focusManager.clearFocus()
-                                                    keyboardController?.hide()
-                                                }
+
+                                    Spacer(Modifier.height(12.dp))
+
+                                    if (isHotLoading && hotSearches.isEmpty()) {
+                                        val brush = rememberShimmerBrush()
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                            ) {
-                                                if (showTrending) {
-                                                    Icon(
-                                                        imageVector = TrendingUp,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.tertiary,
-                                                        modifier = Modifier
-                                                            .size(16.dp)
-                                                            .padding(end = 4.dp)
-                                                    )
-                                                }
-                                                Text(
-                                                    text = tag,
-                                                    style = MaterialTheme.typography.labelLarge,
-                                                    color = MaterialTheme.colorScheme.onSurface
+                                            val pillWidths = listOf(80.dp, 110.dp, 90.dp, 120.dp, 85.dp, 100.dp)
+                                            pillWidths.forEach { pillWidth ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .width(pillWidth)
+                                                        .height(36.dp)
+                                                        .clip(JetMeloShapes.full)
+                                                        .background(brush)
                                                 )
+                                            }
+                                        }
+                                    } else {
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            hotSearches.forEachIndexed { index, tag ->
+                                                val showTrending = index < 2
+                                                Surface(
+                                                    shape = JetMeloShapes.full,
+                                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                    border = BorderStroke(
+                                                        width = 1.dp,
+                                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                                    ),
+                                                    modifier = Modifier
+                                                        .clip(JetMeloShapes.full)
+                                                        .clickable {
+                                                            searchValue = tag
+                                                            expanded = false
+                                                            searchViewModel.updateSearchValue(tag)
+                                                            focusManager.clearFocus()
+                                                            keyboardController?.hide()
+                                                        }
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                    ) {
+                                                        if (showTrending) {
+                                                            Icon(
+                                                                imageVector = TrendingUp,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.tertiary,
+                                                                modifier = Modifier
+                                                                    .size(16.dp)
+                                                                    .padding(end = 4.dp)
+                                                            )
+                                                        }
+                                                        Text(
+                                                            text = tag,
+                                                            style = MaterialTheme.typography.labelLarge,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -580,8 +692,42 @@ fun SearchScreen(
 }
 
 @Composable
-fun KeywordSuggestItem(
-    keyword: String,
+fun SuggestGroupHeader(
+    title: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+    )
+}
+
+@Composable
+fun SuggestBadge(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = JetMeloShapes.extraSmall,
+        modifier = modifier
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+        )
+    }
+}
+
+@Composable
+fun SongSuggestItem(
+    song: SearchSuggestion.Song,
     query: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
@@ -591,28 +737,154 @@ fun KeywordSuggestItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(ListItemHeight)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp)
     ) {
-        Icon(
-            imageVector = Search,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(end = 16.dp)
-        )
-        Text(
-            text = highlightSearchKeyword(
-                text = keyword,
-                query = query,
-                highlightColor = MaterialTheme.colorScheme.primary
-            ),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        if (!song.coverUrl.isNullOrEmpty()) {
+            AsyncImage(
+                model = song.coverUrl,
+                contentDescription = song.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(JetMeloShapes.small)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(JetMeloShapes.small)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = AudioLines,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = highlightSearchKeyword(
+                        text = song.name,
+                        query = query,
+                        highlightColor = MaterialTheme.colorScheme.primary
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                SuggestBadge(
+                    text = stringResource(R.string.song),
+                    modifier = Modifier.padding(start = 6.dp)
+                )
+            }
+
+            if (song.artistName.isNotBlank()) {
+                Text(
+                    text = song.artistName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        IconButton(onClick = onInsert) {
+            Icon(
+                imageVector = ArrowInsert,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun AlbumSuggestItem(
+    album: SearchSuggestion.Album,
+    query: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onInsert: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(ListItemHeight)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(JetMeloShapes.small)
+                .background(MaterialTheme.colorScheme.tertiaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Album,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(Modifier.width(16.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = highlightSearchKeyword(
+                        text = album.name,
+                        query = query,
+                        highlightColor = MaterialTheme.colorScheme.primary
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                SuggestBadge(
+                    text = stringResource(R.string.album),
+                    modifier = Modifier.padding(start = 6.dp)
+                )
+            }
+
+            if (album.artistName.isNotBlank()) {
+                Text(
+                    text = album.artistName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
@@ -625,56 +897,143 @@ fun KeywordSuggestItem(
 
 @Composable
 fun ArtistSuggestItem(
-    artistName: String,
-    avatarUrl: String?,
+    artist: SearchSuggestion.Artist,
     query: String,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onInsert: () -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .height(ListItemHeight)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp)
     ) {
-        Icon(
-            imageVector = UserRound,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(end = 16.dp)
-        )
+        if (!artist.avatarUrl.isNullOrEmpty()) {
+            AsyncImage(
+                model = artist.avatarUrl,
+                contentDescription = artist.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = UserRound,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.width(12.dp))
+
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = highlightSearchKeyword(
-                    text = artistName,
-                    query = query,
-                    highlightColor = MaterialTheme.colorScheme.primary
-                ),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = highlightSearchKeyword(
+                        text = artist.name,
+                        query = query,
+                        highlightColor = MaterialTheme.colorScheme.primary
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                SuggestBadge(
+                    text = stringResource(R.string.artist),
+                    modifier = Modifier.padding(start = 6.dp)
+                )
+            }
             Text(
                 text = stringResource(R.string.artist),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        AsyncImage(
-            model = avatarUrl,
-            contentDescription = artistName,
-            contentScale = ContentScale.Crop,
+
+        IconButton(onClick = onInsert) {
+            Icon(
+                imageVector = ArrowInsert,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun KeywordSuggestItem(
+    keyword: String,
+    query: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onInsert: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(ListItemHeight)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp)
+    ) {
+        Box(
             modifier = Modifier
                 .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .clip(JetMeloShapes.small)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(Modifier.width(16.dp))
+
+        Text(
+            text = highlightSearchKeyword(
+                text = keyword,
+                query = query,
+                highlightColor = MaterialTheme.colorScheme.primary
+            ),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
+
+        IconButton(onClick = onInsert) {
+            Icon(
+                imageVector = ArrowInsert,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

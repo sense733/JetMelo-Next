@@ -27,13 +27,22 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface SearchSuggestion {
     data class Keyword(val keyword: String) : SearchSuggestion
+    data class Song(
+        val id: Long,
+        val name: String,
+        val artistName: String,
+        val coverUrl: String? = null
+    ) : SearchSuggestion
     data class Artist(val id: Long, val name: String, val avatarUrl: String?) : SearchSuggestion
+    data class Album(val id: Long, val name: String, val artistName: String) : SearchSuggestion
 }
 
 @HiltViewModel
@@ -114,14 +123,18 @@ class SearchViewModel @Inject constructor(
         saveSearch(searchValue)
     }
 
-    private suspend fun fetchSuggestionsInternal(query: String): List<SearchSuggestion> {
+    private suspend fun fetchSuggestionsInternal(query: String): List<SearchSuggestion> = coroutineScope {
+        val webDeferred = async { SearchApi.searchSuggestWeb(query).getOrNull()?.result }
+        val keywordDeferred = async { SearchApi.searchSuggestKeyword(query).getOrNull()?.result }
+
+        val webResult = webDeferred.await()
+        val keywordResult = keywordDeferred.await()
+
         val resultList = mutableListOf<SearchSuggestion>()
-        val webResp = SearchApi.searchSuggestWeb(query).getOrNull()?.result
-        if (webResp != null) {
-            webResp.allMatch.forEach {
-                resultList.add(SearchSuggestion.Keyword(it.keyword))
-            }
-            webResp.artists.firstOrNull()?.let { artist ->
+        val addedKeywords = mutableSetOf<String>()
+
+        webResult?.artists?.firstOrNull()?.let { artist ->
+            if (artist.name.isNotBlank()) {
                 resultList.add(
                     SearchSuggestion.Artist(
                         id = artist.id,
@@ -129,14 +142,47 @@ class SearchViewModel @Inject constructor(
                         avatarUrl = artist.picUrl ?: artist.img1v1Url
                     )
                 )
+                addedKeywords.add(artist.name.lowercase())
             }
         }
-        if (resultList.isEmpty()) {
-            SearchApi.searchSuggestKeyword(query).getOrNull()?.data?.suggests?.forEach {
-                resultList.add(SearchSuggestion.Keyword(it.keyword))
+
+        webResult?.songs?.take(3)?.forEach { song ->
+            if (song.name.isNotBlank()) {
+                resultList.add(
+                    SearchSuggestion.Song(
+                        id = song.id,
+                        name = song.name,
+                        artistName = song.artistName,
+                        coverUrl = song.album?.picUrl
+                    )
+                )
             }
         }
-        return resultList
+
+        webResult?.albums?.firstOrNull()?.let { album ->
+            if (album.name.isNotBlank()) {
+                resultList.add(
+                    SearchSuggestion.Album(
+                        id = album.id,
+                        name = album.name,
+                        artistName = album.artistName
+                    )
+                )
+            }
+        }
+
+        val rawKeywords = keywordResult?.allMatch?.map { it.keyword }
+            ?: webResult?.allMatch?.map { it.keyword }
+            ?: emptyList()
+
+        rawKeywords.forEach { kw ->
+            val trimmed = kw.trim()
+            if (trimmed.isNotBlank() && addedKeywords.add(trimmed.lowercase())) {
+                resultList.add(SearchSuggestion.Keyword(trimmed))
+            }
+        }
+
+        resultList
     }
 
     private fun fetchHotSearches() {
