@@ -1,7 +1,10 @@
 package com.rcmiku.music.ui.screen
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +32,8 @@ import com.rcmiku.music.viewModel.CloudSongScreenViewModel
 @Composable
 fun CloudSongScreen(
     navController: NavHostController,
-    cloudSongScreenViewModel: CloudSongScreenViewModel = hiltViewModel()
+    cloudSongScreenViewModel: CloudSongScreenViewModel = hiltViewModel(),
+    bottomContentPadding: Dp = 0.dp
 ) {
 
     val cloudSong = cloudSongScreenViewModel.cloudSong.collectAsLazyPagingItems()
@@ -61,7 +65,10 @@ fun CloudSongScreen(
         )
     }) { padding ->
         LazyColumn(
-            contentPadding = padding,
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = bottomContentPadding
+            ),
         ) {
             items(cloudSong.itemCount) { index ->
                 cloudSong[index]?.let { item ->

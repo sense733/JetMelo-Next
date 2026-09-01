@@ -2,13 +2,19 @@ package com.rcmiku.music.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
@@ -44,7 +50,9 @@ import com.rcmiku.music.constants.currentPlayMediaIdKey
 import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.ui.components.tabs
+import com.rcmiku.music.ui.design.BottomFogOverlay
 import com.rcmiku.music.ui.navigation.NavGraph
+import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.utils.CookieProvider
@@ -59,6 +67,8 @@ fun MainScreen() {
     val currentDestination = navBackStackEntry?.destination
     val showNavigationBar =
         currentDestination?.hierarchy?.any { tabs.any { tab -> it.route == tab.route } } == true
+    val isSearchScreen =
+        currentDestination?.hierarchy?.any { it.route == Screen.Search.route } == true
     val ncmCookie by rememberPreference(ncmCookieKey, "")
     var userId by rememberPreference(userIdKey, 0L)
     val playerState = LocalPlayerState.current
@@ -70,7 +80,7 @@ fun MainScreen() {
     }
     val playbackState = playerState?.playbackState
     val showMiniPlayer =
-        (playerState?.player?.mediaItemCount ?: 0) != 0
+        (playerState?.player?.mediaItemCount ?: 0) != 0 && !isSearchScreen
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     var currentPlayMediaId by rememberPreference(currentPlayMediaIdKey, 0)
     val isPlaying = playerState?.isPlaying == true
@@ -115,87 +125,138 @@ fun MainScreen() {
         }
     }
 
+    val navBarInset =
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarBaseHeight = 64.dp
+
+    val playerBottomPadding = if (!showPlayer) {
+        if (showNavigationBar) {
+            navBarBaseHeight + navBarInset
+        } else if (showMiniPlayer) {
+            navBarInset
+        } else {
+            0.dp
+        }
+    } else {
+        0.dp
+    }
+
+    val fogBottomPadding = if (showNavigationBar && showMiniPlayer) {
+        playerBottomPadding + (MiniPlayerHeight / 2)
+    } else {
+        playerBottomPadding
+    }
+
+    val bottomContentPadding = if (isSearchScreen) {
+        navBarInset
+    } else {
+        playerBottomPadding + if (showMiniPlayer) MiniPlayerHeight + 8.dp else 0.dp
+    }
+
     CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
-        Scaffold(
-            bottomBar = {
-                Column {
-                    AnimatedVisibility(
-                        showNavigationBar && !showPlayer, enter = expandVertically(),
-                        exit = shrinkVertically()
-                    ) {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                bottomBar = {
+                    Column {
+                        AnimatedVisibility(
+                            showNavigationBar && !showPlayer,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
                         ) {
-                            tabs.forEach { item ->
-                                NavigationBarItem(
-                                    icon = {
-                                        Icon(
-                                            imageVector = item.icon,
-                                            contentDescription = stringResource(id = item.titleRes)
-                                        )
-                                    },
-                                    label = { Text(stringResource(id = item.titleRes)) },
-                                    selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
-                                    onClick = {
-                                        navController.navigate(item.route) {
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                saveState = true
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.background)
+                            ) {
+                                if (showMiniPlayer) {
+                                    Spacer(modifier = Modifier.height(MiniPlayerHeight / 2))
+                                }
+                                NavigationBar(
+                                    modifier = Modifier.height(64.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                                    containerColor = MaterialTheme.colorScheme.background
+                                ) {
+                                    tabs.forEach { item ->
+                                        NavigationBarItem(
+                                            icon = {
+                                                Icon(
+                                                    imageVector = item.icon,
+                                                    contentDescription = stringResource(id = item.titleRes)
+                                                )
+                                            },
+                                            label = { Text(stringResource(id = item.titleRes)) },
+                                            selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                                            onClick = {
+                                                navController.navigate(item.route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
                                             }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
+                                        )
                                     }
-                                )
+                                }
                             }
                         }
                     }
+
+                },
+                content = { padding ->
+                    Box(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        NavGraph(
+                            navController = navController,
+                            bottomContentPadding = bottomContentPadding
+                        )
+
+                        AnimatedVisibility(
+                            visible = showMiniPlayer && !showPlayer,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        ) {
+                            BottomFogOverlay(
+                                bottomPadding = fogBottomPadding
+                            )
+                        }
+                    }
                 }
+            )
 
-            },
-            content = { padding ->
-
-                var bottomPadding = if (!showPlayer) {
-                    padding.calculateBottomPadding()
-                } else {
-                    0.dp
-                }
-
-                if (!showPlayer && !showNavigationBar && showMiniPlayer) {
-                    bottomPadding =
-                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                }
-
-                Box(
-                    contentAlignment = Alignment.BottomCenter,
-                    modifier = Modifier
-                        .zIndex(1f)
-                        .fillMaxSize()
+            Box(
+                contentAlignment = Alignment.BottomCenter,
+                modifier = Modifier
+                    .zIndex(1f)
+                    .fillMaxSize()
+            ) {
+                AnimatedVisibility(
+                    visible = showMiniPlayer || showPlayer,
+                    enter = fadeIn(),
+                    exit = fadeOut()
                 ) {
                     Box(
                         modifier = Modifier
                             .defaultMinSize(minHeight = MiniPlayerHeight)
-                            .windowInsetsPadding(WindowInsets(bottom = bottomPadding)),
+                            .windowInsetsPadding(WindowInsets(bottom = playerBottomPadding)),
                     ) {
                         playerState?.mediaMetadata?.let {
                             PlayerTransform(
-                                mediaMetadata = it, position = position, duration = duration,
+                                mediaMetadata = it,
+                                position = position,
+                                duration = duration,
                                 onBackPressed = { showPlayer = false },
                                 onClick = { showPlayer = true },
                                 onPositionUpdate = { updatePosition ->
                                     position = updatePosition
-                                }, navController = navController
+                                },
+                                navController = navController
                             )
-
                         }
                     }
                 }
-
-                NavGraph(
-                    navController = navController,
-                    bottomPadding = bottomPadding,
-                    showMiniPlayer = showMiniPlayer
-                )
             }
-        )
+        }
     }
 }

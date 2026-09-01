@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -68,7 +69,8 @@ import com.rcmiku.ncmapi.api.account.UserPlaylistType
 @Composable
 fun LibraryScreen(
     navController: NavHostController,
-    libraryScreenViewModel: LibraryScreenViewModel = hiltViewModel()
+    libraryScreenViewModel: LibraryScreenViewModel = hiltViewModel(),
+    bottomContentPadding: Dp = 0.dp
 ) {
     var ncmCookie by rememberPreference(ncmCookieKey, "")
     val userInfoBatchState by libraryScreenViewModel.userInfo.collectAsState()
@@ -121,7 +123,7 @@ fun LibraryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding()),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp + bottomContentPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 1. User Profile Section

@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -58,7 +59,8 @@ fun ExploreScreen(
     navController: NavHostController,
     exploreScreenViewModel: ExploreScreenViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope
+    animatedContentScope: AnimatedContentScope,
+    bottomContentPadding: Dp = 0.dp
 ) {
     val topListState by exploreScreenViewModel.topList.collectAsState()
     val newAlbumState by exploreScreenViewModel.newAlbum.collectAsState()
@@ -89,7 +91,7 @@ fun ExploreScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = padding.calculateTopPadding()),
-                contentPadding = PaddingValues(bottom = 96.dp),
+                contentPadding = PaddingValues(bottom = bottomContentPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // 1. Search Bar Entry Pill
@@ -193,11 +195,13 @@ fun ExploreScreen(
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .fillMaxSize()
+                                                .clip(JetMeloShapes.medium)
                                                 .sharedElement(
                                                     sharedTransitionScope.rememberSharedContentState(
                                                         key = "cover_${album.id}"
                                                     ),
-                                                    animatedVisibilityScope = animatedContentScope
+                                                    animatedVisibilityScope = animatedContentScope,
+                                                    clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                                 )
                                         )
                                     }
@@ -260,11 +264,13 @@ fun ExploreScreen(
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .fillMaxSize()
+                                                .clip(JetMeloShapes.medium)
                                                 .sharedElement(
                                                     sharedTransitionScope.rememberSharedContentState(
                                                         key = "cover_${album.id}"
                                                     ),
-                                                    animatedVisibilityScope = animatedContentScope
+                                                    animatedVisibilityScope = animatedContentScope,
+                                                    clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                                 )
                                         )
                                     }

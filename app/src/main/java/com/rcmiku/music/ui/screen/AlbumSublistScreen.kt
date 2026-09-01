@@ -5,9 +5,9 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.unit.Dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,7 +36,8 @@ fun AlbumSublistScreen(
     navController: NavHostController,
     albumSublistScreenViewmodel: AlbumSublistScreenViewmodel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope
+    animatedContentScope: AnimatedContentScope,
+    bottomContentPadding: Dp = 0.dp
 ) {
     val albumSublist = albumSublistScreenViewmodel.albumSublist.collectAsLazyPagingItems()
 
@@ -62,7 +63,10 @@ fun AlbumSublistScreen(
         )
     }) { padding ->
         LazyColumn(
-            contentPadding = padding,
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = bottomContentPadding
+            ),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(albumSublist.itemCount) { index ->
@@ -86,9 +90,6 @@ fun AlbumSublistScreen(
                     }
 
                 }
-            }
-            item {
-                Spacer(modifier = Modifier.navigationBarsPadding())
             }
         }
     }

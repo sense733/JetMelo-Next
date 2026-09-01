@@ -55,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -84,7 +85,8 @@ fun AlbumScreen(
     navController: NavHostController,
     albumScreenViewModel: AlbumScreenViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope
+    animatedContentScope: AnimatedContentScope,
+    bottomContentPadding: Dp = 0.dp
 ) {
     val albumDetailState by albumScreenViewModel.albumDetail.collectAsState()
     val listState = rememberLazyListState()
@@ -141,7 +143,7 @@ fun AlbumScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(bottom = bottomContentPadding),
                     state = listState
                 ) {
                     // 1. Solaris Immersive Hero Header

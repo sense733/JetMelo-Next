@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -67,7 +68,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun RecordScreen(
     navController: NavHostController,
-    recordScreenViewModel: RecordScreenViewModel = hiltViewModel()
+    recordScreenViewModel: RecordScreenViewModel = hiltViewModel(),
+    bottomContentPadding: Dp = 0.dp
 ) {
 
     var state by remember { mutableIntStateOf(0) }
@@ -101,7 +103,12 @@ fun RecordScreen(
             )
         },
     ) { padding ->
-        LazyColumn(contentPadding = padding) {
+        LazyColumn(
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = bottomContentPadding
+            )
+        ) {
             item {
                 Column {
                     SecondaryTabRow(

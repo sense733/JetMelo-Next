@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,11 +72,10 @@ fun MiniPlayer(
                 .height(MiniPlayerHeight - 12.dp)
                 .shadow(elevation = 6.dp, shape = JetMeloShapes.medium)
                 .clip(JetMeloShapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f))
-                .background(artworkColors.dominantColor.copy(alpha = 0.12f))
+                .background(Color.White)
                 .border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    color = Color(0x1F000000),
                     shape = JetMeloShapes.medium
                 )
                 .clickable(onClick = onClick)
@@ -104,7 +104,7 @@ fun MiniPlayer(
                     Icon(
                         imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color(0xFF1C1B1F)
                     )
                 }
 
@@ -116,7 +116,7 @@ fun MiniPlayer(
                     Icon(
                         imageVector = SkipNext,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color(0xFF1C1B1F)
                     )
                 }
             }
@@ -128,7 +128,7 @@ fun MiniPlayer(
                     .height(2.5.dp)
                     .align(Alignment.BottomCenter),
                 color = artworkColors.accentColor,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f)
+                trackColor = Color(0x1F000000)
             )
         }
     }
@@ -162,7 +162,7 @@ fun MiniMediaInfo(
                 Text(
                     text = it.toString(),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Color(0xFF1C1B1F),
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -173,7 +173,7 @@ fun MiniMediaInfo(
                 Text(
                     text = it.toString(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Color(0xFF49454F),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.basicMarquee()

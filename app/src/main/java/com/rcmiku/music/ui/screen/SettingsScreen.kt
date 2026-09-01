@@ -7,12 +7,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,7 +79,10 @@ import com.rcmiku.ncmapi.api.player.SongLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavHostController) {
+fun SettingsScreen(
+    navController: NavHostController,
+    bottomContentPadding: Dp = 0.dp
+) {
     val uriHandler = LocalUriHandler.current
 
     var themeMode by rememberEnumPreference(themeModeKey, defaultValue = ThemeMode.SYSTEM)
@@ -216,7 +222,10 @@ fun SettingsScreen(navController: NavHostController) {
         LazyColumn(
             modifier = Modifier.padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            contentPadding = padding
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = bottomContentPadding
+            )
         ) {
             // 1. Appearance & Theme Section
             item {

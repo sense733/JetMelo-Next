@@ -59,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -92,7 +93,8 @@ fun PlaylistScreen(
     navController: NavHostController,
     playlistScreenViewModel: PlaylistScreenViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope
+    animatedContentScope: AnimatedContentScope,
+    bottomContentPadding: Dp = 0.dp
 ) {
     val playlistDetailState by playlistScreenViewModel.playlistDetail.collectAsState()
     val listState = rememberLazyListState()
@@ -152,7 +154,7 @@ fun PlaylistScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(bottom = bottomContentPadding),
                     state = listState
                 ) {
                     // 1. Solaris Immersive Hero Header

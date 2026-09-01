@@ -1,26 +1,22 @@
 package com.rcmiku.music.ui.navigation
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import com.rcmiku.music.constants.DURATION_ENTER
-import com.rcmiku.music.constants.DURATION_EXIT
-import com.rcmiku.music.constants.EmphasizedAccelerateEasing
-import com.rcmiku.music.constants.EmphasizedDecelerateEasing
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.rcmiku.music.constants.MiniPlayerHeight
+import com.rcmiku.music.constants.DURATION_ENTER
+import com.rcmiku.music.constants.DURATION_EXIT
+import com.rcmiku.music.constants.EmphasizedAccelerateEasing
+import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.ui.screen.AlbumScreen
 import com.rcmiku.music.ui.screen.AlbumSublistScreen
 import com.rcmiku.music.ui.screen.ArtistScreen
@@ -41,15 +37,12 @@ import com.rcmiku.music.ui.screen.UserPlaylistScreen
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    bottomPadding: Dp,
-    showMiniPlayer: Boolean
+    bottomContentPadding: Dp = 0.dp
 ) {
     SharedTransitionLayout {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier
-                .windowInsetsPadding(WindowInsets(bottom = bottomPadding + if (showMiniPlayer) MiniPlayerHeight else 0.dp)),
             enterTransition = {
                 slideInHorizontally(
                     initialOffsetX = { (it * 0.15f).toInt() },
@@ -91,73 +84,101 @@ fun NavGraph(
                 HomeScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
             composable(Screen.Explore.route) {
                 ExploreScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
             composable(Screen.Library.route) {
                 LibraryScreen(
                     navController = navController,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
-            composable(Screen.Settings.route) { SettingsScreen(navController = navController) }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    navController = navController,
+                    bottomContentPadding = bottomContentPadding
+                )
+            }
             composable(Screen.Login.route) { LoginScreen(navController = navController) }
-            composable(Screen.Search.route) { SearchScreen(navController = navController) }
+            composable(Screen.Search.route) {
+                SearchScreen(
+                    navController = navController,
+                    bottomContentPadding = bottomContentPadding
+                )
+            }
             composable<PlaylistNav> {
                 PlaylistScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
             composable<AlbumNav> {
                 AlbumScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
             composable(Screen.TopList.route) {
                 ListScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
             composable(Screen.AlbumSublist.route) {
                 AlbumSublistScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
             composable<UserPlayListNav> {
                 UserPlaylistScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
             composable<RecordNav> {
-                RecordScreen(navController = navController)
+                RecordScreen(
+                    navController = navController,
+                    bottomContentPadding = bottomContentPadding
+                )
             }
             composable<CloudSongNav> {
-                CloudSongScreen(navController = navController)
+                CloudSongScreen(
+                    navController = navController,
+                    bottomContentPadding = bottomContentPadding
+                )
             }
             composable<ArtistNav> {
-                ArtistScreen(navController = navController)
+                ArtistScreen(
+                    navController = navController,
+                    bottomContentPadding = bottomContentPadding
+                )
             }
             composable<RadioNav> {
                 ProgramRadioScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    animatedContentScope = this@composable
+                    animatedContentScope = this@composable,
+                    bottomContentPadding = bottomContentPadding
                 )
             }
         }

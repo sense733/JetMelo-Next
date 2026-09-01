@@ -1,5 +1,6 @@
 package com.rcmiku.music.ui.screen
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -113,7 +114,8 @@ fun SearchScreen(
     bottomContentPadding: Dp = 0.dp
 ) {
     var searchValue by rememberSaveable { mutableStateOf("") }
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    val currentSubmittedKeyword by searchViewModel.searchValue.collectAsState()
     val searchType by searchViewModel.searchType.collectAsState()
     val searchResults = searchViewModel.searchResults.collectAsLazyPagingItems()
     val mediaController = LocalPlayerController.current.controller
@@ -142,6 +144,29 @@ fun SearchScreen(
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var selectSong by remember { mutableStateOf<Song?>(null) }
 
+    val handleExpandedChange: (Boolean) -> Unit = { isExpanded ->
+        if (!isExpanded) {
+            if (currentSubmittedKeyword.isNotEmpty()) {
+                searchValue = currentSubmittedKeyword
+                expanded = false
+                keyboardController?.hide()
+                focusManager.clearFocus()
+            } else {
+                keyboardController?.hide()
+                focusManager.clearFocus()
+                navController.navigateUp()
+            }
+        } else {
+            expanded = true
+        }
+    }
+
+    BackHandler(enabled = !expanded) {
+        searchViewModel.updateSearchValue("")
+        searchValue = ""
+        expanded = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -161,24 +186,24 @@ fun SearchScreen(
                         searchViewModel.onInputQueryChange(it)
                     },
                     onSearch = {
-                        expanded = false
-                        searchViewModel.updateSearchValue(it)
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
+                        if (it.isNotBlank()) {
+                            expanded = false
+                            searchViewModel.updateSearchValue(it)
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        }
                     },
                     expanded = expanded,
-                    onExpandedChange = {
-                        expanded = it
-                    },
+                    onExpandedChange = handleExpandedChange,
                     placeholder = { Text(stringResource(R.string.search_placeholder)) },
                     leadingIcon = {
                         IconButton(onClick = {
                             if (expanded) {
-                                expanded = false
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
+                                handleExpandedChange(false)
                             } else {
-                                navController.navigateUp()
+                                searchViewModel.updateSearchValue("")
+                                searchValue = ""
+                                expanded = true
                             }
                         }) {
                             Icon(
@@ -192,6 +217,7 @@ fun SearchScreen(
                             IconButton(onClick = {
                                 searchValue = ""
                                 searchViewModel.onInputQueryChange("")
+                                expanded = true
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
@@ -203,9 +229,7 @@ fun SearchScreen(
                 )
             },
             expanded = expanded,
-            onExpandedChange = {
-                expanded = it
-            },
+            onExpandedChange = handleExpandedChange,
             content = {
                 if (searchValue.isNotEmpty()) {
                     val songs = remember(suggestions) { suggestions.filterIsInstance<SearchSuggestion.Song>() }
@@ -504,7 +528,8 @@ fun SearchScreen(
             }
         )
 
-        PrimaryTabRow(
+        if (!expanded && currentSubmittedKeyword.isNotEmpty()) {
+            PrimaryTabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.primary
@@ -680,6 +705,7 @@ fun SearchScreen(
                     }
                 }
             }
+        }
         }
     }
 

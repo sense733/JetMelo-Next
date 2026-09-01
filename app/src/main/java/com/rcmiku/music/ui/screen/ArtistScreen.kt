@@ -4,11 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -67,7 +69,8 @@ import com.rcmiku.ncmapi.model.Song
 @Composable
 fun ArtistScreen(
     navController: NavHostController,
-    artistScreenViewModel: ArtistScreenViewModel = hiltViewModel()
+    artistScreenViewModel: ArtistScreenViewModel = hiltViewModel(),
+    bottomContentPadding: Dp = 0.dp
 ) {
     val artistHeadInfoState by artistScreenViewModel.artistHeadInfo.collectAsState()
     val artistTopSongState by artistScreenViewModel.artistTopSong.collectAsState()
@@ -88,7 +91,7 @@ fun ArtistScreen(
         stringResource(R.string.album)
     )
 
-    LazyColumn(state = listState) {
+    LazyColumn(state = listState, contentPadding = PaddingValues(bottom = bottomContentPadding)) {
         item {
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -207,10 +210,6 @@ fun ArtistScreen(
                     }
                 }
             }
-        }
-
-        item {
-            Spacer(Modifier.navigationBarsPadding())
         }
     }
 

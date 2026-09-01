@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -99,7 +100,8 @@ fun HomeScreen(
     navController: NavHostController,
     homeScreenViewModel: HomeScreenViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope
+    animatedContentScope: AnimatedContentScope,
+    bottomContentPadding: Dp = 0.dp
 ) {
     val recommendSongsState by homeScreenViewModel.recommendSongs.collectAsState()
     val recommendPlaylistState by homeScreenViewModel.recommendPlaylist.collectAsState()
@@ -185,7 +187,7 @@ fun HomeScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(bottom = bottomContentPadding),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // 1. Featured Daily Hero Card (Fixed Slot with Crossfade)
@@ -278,11 +280,13 @@ fun HomeScreen(
                                                     contentScale = ContentScale.Crop,
                                                     modifier = Modifier
                                                         .fillMaxSize()
+                                                        .clip(JetMeloShapes.large)
                                                         .sharedElement(
                                                             sharedTransitionScope.rememberSharedContentState(
                                                                 key = "cover_${playlist.id}"
                                                             ),
-                                                            animatedVisibilityScope = animatedContentScope
+                                                            animatedVisibilityScope = animatedContentScope,
+                                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
                                                         )
                                                 )
                                             }
