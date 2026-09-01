@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +38,10 @@ fun ImmersiveBackground(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .clickable(
+                interactionSource = null,
+                indication = null
+            ) {}
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (artworkUri != null) {
