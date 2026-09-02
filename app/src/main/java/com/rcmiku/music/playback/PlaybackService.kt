@@ -55,16 +55,21 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import android.widget.Toast
+import androidx.media3.common.Player.STATE_ENDED
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 
 @UnstableApi
 class PlaybackService : MediaSessionService() {
 
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaSession: MediaSession? = null
     private var favoriteSongIds: List<Long> by mutableStateOf(emptyList())
-    private val use40DpIcon by preference(this, use40DpIconKey, false)
-    private val audioQuality by enumPreference(this, audioQualityKey, SongLevel.STANDARD)
+    private val use40DpIcon by preference(this, use40DpIconKey, false, scope)
+    private val audioQuality by enumPreference(this, audioQualityKey, SongLevel.STANDARD, scope)
 
     private val favoriteButton: CommandButton
         get() = CommandButton.Builder(ICON_UNDEFINED)
@@ -93,8 +98,6 @@ class PlaybackService : MediaSessionService() {
             .setDisplayName("shuffle_on")
             .setSessionCommand(MediaSessionConstants.CommandToggleShuffle)
             .build()
-
-    private var scope = CoroutineScope(Dispatchers.Main) + SupervisorJob()
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -172,6 +175,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        scope.cancel()
         mediaSession?.run {
             player.release()
             release()
@@ -182,7 +186,10 @@ class PlaybackService : MediaSessionService() {
 
     @OptIn(UnstableApi::class)
     override fun onTaskRemoved(rootIntent: Intent?) {
-        pauseAllPlayersAndStopSelf()
+        val player = mediaSession?.player
+        if (player == null || !player.playWhenReady || player.mediaItemCount == 0 || player.playbackState == STATE_ENDED) {
+            pauseAllPlayersAndStopSelf()
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
@@ -210,6 +217,14 @@ class PlaybackService : MediaSessionService() {
                 } else {
                     FavoriteSongIdsUtil.removeSongId(applicationContext, songId)
                 }
+                updateCustomLayout()
+            }.onFailure {
+                Toast.makeText(
+                    applicationContext,
+                    applicationContext.getString(R.string.operation_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
+                updateCustomLayout()
             }
         }
     }
@@ -227,6 +242,10 @@ class PlaybackService : MediaSessionService() {
     @kotlin.OptIn(FlowPreview::class)
     private fun observeFavoriteSongIds() {
         scope.launch {
+            applicationContext.favoriteSongIdsDatastore.data.firstOrNull()?.let { initial ->
+                favoriteSongIds = initial.songIdsList
+                updateCustomLayout()
+            }
             applicationContext.favoriteSongIdsDatastore.data.debounce(1000).distinctUntilChanged()
                 .collect { favoriteSongs ->
                     favoriteSongIds = favoriteSongs.songIdsList
