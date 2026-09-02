@@ -368,6 +368,9 @@ internal class PlayerStateImpl(
     }
 
     override fun dispose() {
+        // 休眠定时器持有一Tick 一跳的回调，PlayerState 释放时必须一并取消，
+        // 否则旧 timer 在 onFinish 中暂停的是已脱离观测的陈旧 player
+        countDownTimer?.cancel()
         player.removeListener(listener)
         scope.cancel()
     }

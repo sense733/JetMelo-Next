@@ -57,7 +57,13 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(controller) {
-                controller?.init(applicationContext)
+                if (controller != null) {
+                    controller.init(applicationContext)
+                } else {
+                    // 4.29 重试触发点：构建失败后 controller 保持 null，在此主动重试连接；
+                    // 失败不改变 controller 状态，effect 不会因 key 未变而循环重试
+                    PlayerController.init(applicationContext)
+                }
             }
             JetMeloTheme(
                 themeMode = themeMode,

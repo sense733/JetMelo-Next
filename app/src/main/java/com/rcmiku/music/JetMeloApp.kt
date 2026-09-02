@@ -23,6 +23,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -44,6 +45,8 @@ class JetMeloApp : Application(), SingletonImageLoader.Factory {
             dataStore.data
                 .map { it[ncmCookieKey] }
                 .distinctUntilChanged()
+                // DataStore 文件损坏/IO 异常时保持进程存活，沿用内存中的既有 Cookie 状态
+                .catch { /* swallow: 无法恢复的 DataStore 异常不应崩溃 Application */ }
                 .collect { ncmCookie ->
                     if (!ncmCookie.isNullOrEmpty()) {
                         runCatching {

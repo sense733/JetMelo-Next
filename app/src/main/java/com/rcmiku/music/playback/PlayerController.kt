@@ -37,7 +37,11 @@ object PlayerController {
             future,
             object : FutureCallback<MediaController> {
                 override fun onSuccess(result: MediaController) {
-                    controller = result
+                    // 身份守卫：仅当仍是当前 future 时才赋值，防止 release() 后滞后回调
+                    // 把已释放的实例写回单例
+                    if (controllerFuture === future) {
+                        controller = result
+                    }
                 }
 
                 override fun onFailure(t: Throwable) {
