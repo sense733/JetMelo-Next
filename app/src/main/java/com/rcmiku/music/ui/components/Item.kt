@@ -428,7 +428,7 @@ fun SongListItem(
     thumbnailContent = {
         ItemThumbnail(
             thumbnailUrl = song.al.picUrl,
-            cacheKey = song.al.pic.toString(),
+            cacheKey = song.al.picUrl.ifEmpty { song.id.toString() },
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
@@ -458,7 +458,7 @@ fun RadioListItem(
     thumbnailContent = {
         ItemThumbnail(
             thumbnailUrl = radio.coverUrl,
-            cacheKey = radio.coverUrl,
+            cacheKey = radio.coverUrl.ifEmpty { radio.id.toString() },
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
@@ -489,7 +489,8 @@ fun CloudSongListItem(
     thumbnailContent = {
         ItemThumbnail(
             thumbnailUrl = cloudSong.simpleSong.al?.picUrl,
-            cacheKey = cloudSong.simpleSong.al?.pic.toString(),
+            cacheKey = cloudSong.simpleSong.al?.picUrl?.ifEmpty { cloudSong.simpleSong.id.toString() }
+                ?: cloudSong.simpleSong.id.toString(),
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
@@ -513,13 +514,13 @@ fun MediaItemListItem(
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) = ListItem(
-    title = mediaMetadata.title.toString(),
-    subtitle = mediaMetadata.artist.toString(),
+    title = mediaMetadata.title?.toString().orEmpty(),
+    subtitle = mediaMetadata.artist?.toString().orEmpty(),
     badges = badges,
     thumbnailContent = {
         ItemThumbnail(
-            thumbnailUrl = mediaMetadata.artworkUri.toString(),
-            cacheKey = mediaMetadata.artworkUri.toString(),
+            thumbnailUrl = mediaMetadata.artworkUri?.toString(),
+            cacheKey = mediaMetadata.artworkUri?.toString().orEmpty(),
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,

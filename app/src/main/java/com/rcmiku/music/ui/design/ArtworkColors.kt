@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.util.LruCache
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -64,7 +65,7 @@ object PaletteExtractor {
         fallbackAccent: Color
     ): ArtworkColors = withContext(Dispatchers.IO) {
         val cacheKey = songId ?: artworkUri?.toString()
-        if (cacheKey == null) {
+        if (cacheKey.isNullOrEmpty()) {
             return@withContext defaultArtworkColors(fallbackDominant, fallbackAccent)
         }
 
@@ -116,8 +117,9 @@ object PaletteExtractor {
 
                     val blurred = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
                         try {
-                            fastBlur(bitmap.copy(Bitmap.Config.ARGB_8888, true), BLUR_RADIUS)
-                        } catch (_: Exception) {
+                            fastBlur(bitmap, BLUR_RADIUS)
+                        } catch (e: Exception) {
+                            Log.w("PaletteExtractor", "fastBlur failed", e)
                             null
                         }
                     } else {
@@ -130,19 +132,18 @@ object PaletteExtractor {
                         accentColor = adjustedAccent,
                         onAccentColor = onAccent,
                         surfaceScrim = Color(0xDE100E14),
-                        blurredBitmap = blurred,
+                        blurredBitmap = null,
                         isDark = calculateLuminance(adjustedDominant) < 0.5f
                     )
                     cache.put(cacheKey, colors)
-                    return@withContext colors
+                    return@withContext colors.copy(blurredBitmap = blurred)
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("PaletteExtractor", "Failed to extract palette for $cacheKey", e)
         }
 
-        val fallback = defaultArtworkColors(fallbackDominant, fallbackAccent)
-        cache.put(cacheKey, fallback)
-        fallback
+        defaultArtworkColors(fallbackDominant, fallbackAccent)
     }
 
     private fun defaultArtworkColors(fallbackDominant: Color, fallbackAccent: Color): ArtworkColors {
@@ -171,7 +172,7 @@ object PaletteExtractor {
         return (lighter + 0.05f) / (darker + 0.05f)
     }
 
-    private fun getAccessibleTextColor(bg: Color): Color {
+    fun getAccessibleTextColor(bg: Color): Color {
         val whiteContrast = calculateContrastRatio(Color.White, bg)
         val blackContrast = calculateContrastRatio(Color.Black, bg)
         return if (whiteContrast >= blackContrast) Color.White else Color.Black
@@ -470,9 +471,9 @@ fun rememberArtworkColors(
         mutableStateOf(
             ArtworkColors(
                 dominantColor = fallbackDominant,
-                onDominantColor = Color.White,
+                onDominantColor = PaletteExtractor.getAccessibleTextColor(fallbackDominant),
                 accentColor = fallbackAccent,
-                onAccentColor = Color.White
+                onAccentColor = PaletteExtractor.getAccessibleTextColor(fallbackAccent)
             )
         )
     }
