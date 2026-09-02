@@ -45,7 +45,8 @@ class ArtistScreenViewModel @Inject constructor(savedStateHandle: SavedStateHand
             config = PagingConfig(
                 pageSize = 100,
                 prefetchDistance = 50,
-                enablePlaceholders = false
+                enablePlaceholders = false,
+                initialLoadSize = 100
             ),
             pagingSourceFactory = { ArtistAlbumPagingSource(id) }
         ).flow.cachedIn(viewModelScope)

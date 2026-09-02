@@ -42,7 +42,8 @@ class ProgramRadioScreenViewModel @Inject constructor(savedStateHandle: SavedSta
             config = PagingConfig(
                 pageSize = 500,
                 prefetchDistance = 100,
-                enablePlaceholders = false
+                enablePlaceholders = false,
+                initialLoadSize = 500
             ),
             pagingSourceFactory = { RadioPagingSource(id) }
         ).flow.cachedIn(viewModelScope)

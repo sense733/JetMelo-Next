@@ -16,7 +16,8 @@ class AlbumSublistScreenViewmodel @Inject constructor() : ViewModel() {
         config = PagingConfig(
             pageSize = 100,
             prefetchDistance = 50,
-            enablePlaceholders = false
+            enablePlaceholders = false,
+            initialLoadSize = 100
         ),
         pagingSourceFactory = { AlbumPagingSource() }
     ).flow.cachedIn(viewModelScope)

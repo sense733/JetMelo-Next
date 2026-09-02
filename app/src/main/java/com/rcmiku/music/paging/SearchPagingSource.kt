@@ -6,14 +6,17 @@ import com.rcmiku.ncmapi.api.search.SearchApi
 import com.rcmiku.ncmapi.api.search.SearchType
 import com.rcmiku.ncmapi.model.SearchResources
 
+import kotlinx.coroutines.CancellationException
+
 class SearchPagingSource(
     private val keyword: String,
     private val searchType: SearchType
 ) : PagingSource<Int, SearchResources>() {
     override fun getRefreshKey(state: PagingState<Int, SearchResources>): Int? {
         return state.anchorPosition?.let { anchorPosition ->
-            state.closestPageToPosition(anchorPosition)?.prevKey?.plus(1)
-                ?: state.closestPageToPosition(anchorPosition)?.nextKey?.minus(1)
+            val anchorPage = state.closestPageToPosition(anchorPosition)
+            (anchorPage?.prevKey?.plus(anchorPage.data.size)
+                ?: anchorPage?.nextKey?.minus(anchorPage.data.size))?.coerceAtLeast(0)
         }
     }
 
@@ -26,16 +29,19 @@ class SearchPagingSource(
             if (response.isSuccess) {
                 val searchResponse = response.getOrThrow()
                 val data = searchResponse.data.resources
-                val nextKey = if (searchResponse.data.more) offset + limit else null
+                val nextKey = if (searchResponse.data.more && data.isNotEmpty()) offset + data.size else null
+                val prevKey = if (offset == 0) null else (offset - limit).coerceAtLeast(0)
 
                 LoadResult.Page(
                     data = data,
-                    prevKey = if (offset == 0) null else offset - limit,
+                    prevKey = prevKey,
                     nextKey = nextKey
                 )
             } else {
-                LoadResult.Error(Exception("Load data filed"))
+                LoadResult.Error(response.exceptionOrNull() ?: Exception("Load data failed"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             LoadResult.Error(e)
         }

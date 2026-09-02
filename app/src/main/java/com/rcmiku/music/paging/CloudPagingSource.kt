@@ -5,11 +5,14 @@ import androidx.paging.PagingState
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.model.CloudSong
 
+import kotlinx.coroutines.CancellationException
+
 class CloudPagingSource : PagingSource<Int, CloudSong>() {
     override fun getRefreshKey(state: PagingState<Int, CloudSong>): Int? {
         return state.anchorPosition?.let { anchorPosition ->
-            state.closestPageToPosition(anchorPosition)?.prevKey?.plus(1)
-                ?: state.closestPageToPosition(anchorPosition)?.nextKey?.minus(1)
+            val anchorPage = state.closestPageToPosition(anchorPosition)
+            (anchorPage?.prevKey?.plus(anchorPage.data.size)
+                ?: anchorPage?.nextKey?.minus(anchorPage.data.size))?.coerceAtLeast(0)
         }
     }
 
@@ -21,15 +24,18 @@ class CloudPagingSource : PagingSource<Int, CloudSong>() {
             if (response.isSuccess) {
                 val cloudSongResponse = response.getOrThrow()
                 val data = cloudSongResponse.data
-                val nextKey = if (cloudSongResponse.hasMore) offset + limit else null
+                val nextKey = if (cloudSongResponse.hasMore && data.isNotEmpty()) offset + data.size else null
+                val prevKey = if (offset == 0) null else (offset - limit).coerceAtLeast(0)
                 LoadResult.Page(
                     data = data,
-                    prevKey = if (offset == 0) null else offset - limit,
+                    prevKey = prevKey,
                     nextKey = nextKey
                 )
             } else {
-                LoadResult.Error(Exception("Load data filed"))
+                LoadResult.Error(response.exceptionOrNull() ?: Exception("Load data failed"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             LoadResult.Error(e)
         }
