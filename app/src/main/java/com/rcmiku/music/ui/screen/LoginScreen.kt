@@ -20,8 +20,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -45,7 +48,11 @@ fun LoginScreen(
 ) {
 
     var ncmCookie by rememberPreference(ncmCookieKey, "")
-    var webView: WebView? = null
+    var webView by remember { mutableStateOf<WebView?>(null) }
+
+    BackHandler(enabled = webView?.canGoBack() == true) {
+        webView?.goBack()
+    }
 
     Scaffold(
         topBar = {
@@ -76,11 +83,10 @@ fun LoginScreen(
                 .fillMaxSize()
         ) {
             AndroidView(
-                modifier = Modifier
-                    .fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 factory = { context ->
                     WebView(context).apply {
-                        this.layoutParams = ViewGroup.LayoutParams(
+                        layoutParams = ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
@@ -98,7 +104,7 @@ fun LoginScreen(
                                     cookieMap[CookieKeys.OS_VER] = Build.VERSION.RELEASE
                                     cookieMap[CookieKeys.MOBILE_NAME] = Build.MODEL
                                     ncmCookie = json.encodeToString(cookieMap)
-                                    webView?.clearCache(true)
+                                    clearCache(true)
                                     navController.navigate(Screen.Home.route)
                                 }
                             }
@@ -107,11 +113,18 @@ fun LoginScreen(
                             javaScriptEnabled = true
                             domStorageEnabled = true
                             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                            cacheMode
                         }
                         webView = this
                         loadUrl("https://music.163.com/m/login")
                     }
+                },
+                onRelease = { view ->
+                    view.stopLoading()
+                    view.loadUrl("about:blank")
+                    view.clearHistory()
+                    view.removeAllViews()
+                    view.destroy()
+                    webView = null
                 }
             )
         }
