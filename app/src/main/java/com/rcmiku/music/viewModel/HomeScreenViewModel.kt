@@ -43,7 +43,9 @@ class HomeScreenViewModel @Inject constructor(@ApplicationContext private val co
     private fun fetchFavoriteSongIds() {
         viewModelScope.launch {
             AccountApi.favoriteSongIds().getOrNull()?.ids?.let {
-                FavoriteSongIdsUtil.updateSongIds(context, it)
+                runCatching {
+                    FavoriteSongIdsUtil.updateSongIds(context, it)
+                }
             }
         }
     }

@@ -98,7 +98,8 @@ class SearchViewModel @Inject constructor(
                 config = PagingConfig(
                     pageSize = 100,
                     prefetchDistance = 50,
-                    enablePlaceholders = false
+                    enablePlaceholders = false,
+                    initialLoadSize = 100
                 ),
                 pagingSourceFactory = { SearchPagingSource(keyword, searchType) }
             ).flow
@@ -209,12 +210,14 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun saveSearchQuery(context: Context, query: String) {
-        context.searchHistoryDataStore.updateData { currentHistory ->
-            val historyList = currentHistory.historyList.toMutableList()
-            historyList.remove(query)
-            historyList.add(0, query)
-            if (historyList.size > 10) historyList.removeAt(historyList.lastIndex)
-            currentHistory.toBuilder().clearHistory().addAllHistory(historyList).build()
+        runCatching {
+            context.searchHistoryDataStore.updateData { currentHistory ->
+                val historyList = currentHistory.historyList.toMutableList()
+                historyList.remove(query)
+                historyList.add(0, query)
+                if (historyList.size > 10) historyList.removeAt(historyList.lastIndex)
+                currentHistory.toBuilder().clearHistory().addAllHistory(historyList).build()
+            }
         }
     }
 
@@ -230,17 +233,21 @@ class SearchViewModel @Inject constructor(
 
     fun clearSearchHistory() {
         viewModelScope.launch {
-            context.searchHistoryDataStore.updateData { currentHistory ->
-                currentHistory.toBuilder().clearHistory().build()
+            runCatching {
+                context.searchHistoryDataStore.updateData { currentHistory ->
+                    currentHistory.toBuilder().clearHistory().build()
+                }
             }
         }
     }
 
     private suspend fun removeSearchQuery(context: Context, query: String) {
-        context.searchHistoryDataStore.updateData { currentHistory ->
-            val historyList = currentHistory.historyList.toMutableList()
-            historyList.remove(query)
-            currentHistory.toBuilder().clearHistory().addAllHistory(historyList).build()
+        runCatching {
+            context.searchHistoryDataStore.updateData { currentHistory ->
+                val historyList = currentHistory.historyList.toMutableList()
+                historyList.remove(query)
+                currentHistory.toBuilder().clearHistory().addAllHistory(historyList).build()
+            }
         }
     }
 }
