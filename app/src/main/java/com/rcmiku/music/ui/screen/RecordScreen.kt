@@ -125,7 +125,7 @@ fun RecordScreen(
                 }
             }
             songRecord?.weekData?.let { data ->
-                itemsIndexed(data) { index, item ->
+                itemsIndexed(data, key = { _, item -> item.song.id }) { index, item ->
                     SongListItem(
                         song = item.song,
                         isPlaying = isPlaying,

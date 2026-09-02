@@ -562,7 +562,10 @@ fun SearchScreen(
         ) {
             when (searchType) {
                 SearchType.Song -> {
-                    items(searchResults.itemCount) { index ->
+                    items(
+                        count = searchResults.itemCount,
+                        key = { index -> searchResults.peek(index)?.song?.id ?: index }
+                    ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.song?.let { song ->
                                 Card(
@@ -602,7 +605,10 @@ fun SearchScreen(
                 }
 
                 SearchType.Playlist -> {
-                    items(searchResults.itemCount) { index ->
+                    items(
+                        count = searchResults.itemCount,
+                        key = { index -> searchResults.peek(index)?.toPlaylist()?.id ?: index }
+                    ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toPlaylist()?.let { playlist ->
                                 Card(
@@ -632,7 +638,10 @@ fun SearchScreen(
                 }
 
                 SearchType.VoiceList -> {
-                    items(searchResults.itemCount) { index ->
+                    items(
+                        count = searchResults.itemCount,
+                        key = { index -> searchResults.peek(index)?.baseInfo?.id ?: index }
+                    ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.baseInfo?.let { voice ->
                                 Card(
@@ -657,7 +666,10 @@ fun SearchScreen(
                 }
 
                 SearchType.Artist -> {
-                    items(searchResults.itemCount) { index ->
+                    items(
+                        count = searchResults.itemCount,
+                        key = { index -> searchResults.peek(index)?.toSearchArtist()?.id ?: index }
+                    ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toSearchArtist()?.let { artist ->
                                 Card(
@@ -682,7 +694,10 @@ fun SearchScreen(
                 }
 
                 SearchType.Album -> {
-                    items(searchResults.itemCount) { index ->
+                    items(
+                        count = searchResults.itemCount,
+                        key = { index -> searchResults.peek(index)?.toAlbumList()?.id ?: index }
+                    ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toAlbumList()?.let { album ->
                                 Card(
@@ -713,8 +728,11 @@ fun SearchScreen(
     SongMenuBottomSheet(
         navController = navController,
         song = selectSong,
-        onDismiss = { openBottomSheet = false },
-        openBottomSheet = openBottomSheet
+        onDismiss = {
+            openBottomSheet = false
+            selectSong = null
+        },
+        openBottomSheet = openBottomSheet && selectSong != null
     )
 }
 

@@ -7,7 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -114,7 +116,7 @@ fun TimePickerDialog(
             TextButton(onClick = {
                 onTimeSet(setTimes.value.inWholeSeconds)
             }) {
-                Text(text = stringResource(R.string.settings))
+                Text(text = stringResource(R.string.confirm))
             }
         },
         dismissButton = {
@@ -166,26 +168,35 @@ fun InteractiveButton(
             .scale(animateIconSize)
             .padding(padding)
             .clip(CircleShape)
-            .pointerInput(Unit) {
+            .pointerInput(interactionSource, onClick, onLongPress) {
                 awaitEachGesture {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val pressJob = scope.launch {
-                            delay(longPressDelay)
-                            while (down.pressed) {
-                                onLongPress()
-                                delay(repeatInterval)
-                            }
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val pressInteraction = PressInteraction.Press(down.position)
+                    scope.launch { interactionSource.emit(pressInteraction) }
+                    var isLongPress = false
+                    val pressJob = scope.launch {
+                        delay(longPressDelay)
+                        isLongPress = true
+                        while (down.pressed) {
+                            onLongPress()
+                            delay(repeatInterval)
                         }
-                        waitForUpOrCancellation()
-                        pressJob.cancel()
+                    }
+                    val up = waitForUpOrCancellation()
+                    pressJob.cancel()
+                    if (up != null) {
+                        scope.launch { interactionSource.emit(PressInteraction.Release(pressInteraction)) }
+                        if (!isLongPress) {
+                            onClick()
+                        }
+                    } else {
+                        scope.launch { interactionSource.emit(PressInteraction.Cancel(pressInteraction)) }
                     }
                 }
             }
-            .clickable(
+            .indication(
                 interactionSource = interactionSource,
-                indication = ripple(),
-                onClick = onClick
+                indication = ripple()
             )
     ) {
         Box(contentAlignment = Alignment.Center) {

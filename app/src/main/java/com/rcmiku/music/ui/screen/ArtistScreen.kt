@@ -175,7 +175,7 @@ fun ArtistScreen(
 
             1 -> {
                 artistTopSongState?.songs?.let {
-                    itemsIndexed(it) { index, song ->
+                    itemsIndexed(it, key = { _, song -> song.id }) { index, song ->
                         SongListItem(
                             song = song,
                             isPlaying = isPlaying,
@@ -202,7 +202,10 @@ fun ArtistScreen(
             }
 
             2 -> {
-                items(artistAlbumList.itemCount) { index ->
+                items(
+                    count = artistAlbumList.itemCount,
+                    key = { index -> artistAlbumList.peek(index)?.id ?: index }
+                ) { index ->
                     artistAlbumList[index]?.let {
                         AlbumListItem(album = it, modifier = Modifier.clickable {
                             navController.navigate(AlbumNav(albumId = it.id))

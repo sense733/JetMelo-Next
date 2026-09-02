@@ -264,7 +264,7 @@ fun PlayerQueue(
                                         contentAlignment = Alignment.CenterEnd
                                     ) {
                                         Text(
-                                            text = "删除",
+                                            text = stringResource(R.string.delete),
                                             color = MaterialTheme.colorScheme.onErrorContainer,
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold,

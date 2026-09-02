@@ -69,7 +69,10 @@ fun AlbumSublistScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(albumSublist.itemCount) { index ->
+            items(
+                count = albumSublist.itemCount,
+                key = { index -> albumSublist.peek(index)?.id ?: index }
+            ) { index ->
                 albumSublist[index]?.let {
                     with(sharedTransitionScope) {
                         AlbumListItem(

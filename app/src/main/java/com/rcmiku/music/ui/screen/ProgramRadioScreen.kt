@@ -162,7 +162,10 @@ fun ProgramRadioScreen(
 
                 }
 
-                items(radioList.itemCount) { index ->
+                items(
+                    count = radioList.itemCount,
+                    key = { index -> radioList.peek(index)?.id ?: index }
+                ) { index ->
                     radioList[index]?.let { item ->
                         RadioListItem(
                             radio = item,

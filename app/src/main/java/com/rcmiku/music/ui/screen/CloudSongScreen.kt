@@ -70,7 +70,10 @@ fun CloudSongScreen(
                 bottom = bottomContentPadding
             ),
         ) {
-            items(cloudSong.itemCount) { index ->
+            items(
+                count = cloudSong.itemCount,
+                key = { index -> cloudSong.peek(index)?.simpleSong?.id ?: index }
+            ) { index ->
                 cloudSong[index]?.let { item ->
                     CloudSongListItem(
                         songIndex = index + 1,
