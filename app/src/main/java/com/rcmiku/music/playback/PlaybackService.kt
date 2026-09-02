@@ -45,6 +45,7 @@ import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.music.utils.dataStore
 import com.rcmiku.music.utils.enumPreference
 import com.rcmiku.music.utils.preference
+import com.rcmiku.music.utils.toEnum
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.api.player.SongLevel
 import kotlinx.coroutines.CoroutineScope
@@ -68,8 +69,8 @@ class PlaybackService : MediaSessionService() {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaSession: MediaSession? = null
     private var favoriteSongIds: List<Long> by mutableStateOf(emptyList())
-    private val use40DpIcon by preference(this, use40DpIconKey, false, scope)
-    private val audioQuality by enumPreference(this, audioQualityKey, SongLevel.STANDARD, scope)
+    private var use40DpIcon by mutableStateOf(false)
+    private var audioQuality by mutableStateOf(SongLevel.STANDARD)
 
     private val favoriteButton: CommandButton
         get() = CommandButton.Builder(ICON_UNDEFINED)
@@ -102,6 +103,18 @@ class PlaybackService : MediaSessionService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        scope.launch(Dispatchers.IO) {
+            applicationContext.dataStore.data
+                .map { it[use40DpIconKey] ?: false }
+                .distinctUntilChanged()
+                .collect { use40DpIcon = it }
+        }
+        scope.launch(Dispatchers.IO) {
+            applicationContext.dataStore.data
+                .map { it[audioQualityKey].toEnum(SongLevel.STANDARD) }
+                .distinctUntilChanged()
+                .collect { audioQuality = it }
+        }
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
                 this,
