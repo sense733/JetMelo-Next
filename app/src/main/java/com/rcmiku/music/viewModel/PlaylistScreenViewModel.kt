@@ -11,10 +11,12 @@ import com.rcmiku.ncmapi.model.PlaylistDetailResponse
 import com.rcmiku.ncmapi.model.PlaylistInfoResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -55,17 +57,19 @@ class PlaylistScreenViewModel @Inject constructor(
         }
     }
 
+    @OptIn(FlowPreview::class)
     private fun fetchWithObserver() {
         viewModelScope.launch {
-            context.favoriteSongIdsDatastore.data.distinctUntilChanged().collectLatest {
-                playlistId?.let {
-                    AccountApi.favoriteSongLikeChange().onSuccess {
-                        _playlistDetail.value = PlaylistApi.playlistV6Detail(
-                            id = playlistId,
-                        ).getOrNull()
+            context.favoriteSongIdsDatastore.data
+                .debounce(500)
+                .distinctUntilChanged()
+                .collectLatest {
+                    playlistId?.let { id ->
+                        PlaylistApi.playlistV6Detail(id = id).onSuccess { detail ->
+                            _playlistDetail.value = detail
+                        }
                     }
                 }
-            }
         }
     }
 
@@ -80,7 +84,7 @@ class PlaylistScreenViewModel @Inject constructor(
     fun playlistSub(isSub: Boolean) {
         viewModelScope.launch {
             playlistId?.let {
-                PlaylistApi.playlistSub(id = it, isSub = isSub).onSuccess {
+                PlaylistApi.playlistSub(id = it, targetState = !isSub).onSuccess {
                     fetchPlaylistInfo()
                 }
             }
