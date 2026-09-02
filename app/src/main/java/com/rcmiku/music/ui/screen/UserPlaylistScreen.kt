@@ -27,8 +27,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -56,7 +56,7 @@ fun UserPlaylistScreen(
     bottomContentPadding: Dp = 0.dp
 ) {
     val type = userPlaylistScreenViewModel.userPlaylistType
-    val playlistState by userPlaylistScreenViewModel.playlist.collectAsState()
+    val playlistState by userPlaylistScreenViewModel.playlist.collectAsStateWithLifecycle()
 
     with(sharedTransitionScope) {
         Scaffold(

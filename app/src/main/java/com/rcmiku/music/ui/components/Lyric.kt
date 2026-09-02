@@ -35,8 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,7 +81,7 @@ fun Lyric(
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val lyric by lyricViewModel.lyric.collectAsState()
+    val lyric by lyricViewModel.lyric.collectAsStateWithLifecycle()
     val lrcLines = remember(lyric) { lyric?.lrc?.lyric?.parseLrc() }
     val tLrcLines = remember(lyric) { lyric?.tlyric?.lyric?.parseLrc()?.filter { it.text.isNotBlank() } }
     val tLrcMap = remember(tLrcLines) {
@@ -93,10 +93,8 @@ fun Lyric(
 
     LaunchedEffect(currentMediaId) {
         currentIndex = 0
-        coroutineScope.launch {
-            currentMediaId?.toLongOrNull()?.let {
-                lyricViewModel.fetchLyric(it)
-            }
+        currentMediaId?.toLongOrNull()?.let {
+            lyricViewModel.fetchLyric(it)
         }
     }
 

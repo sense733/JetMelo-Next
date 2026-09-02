@@ -39,8 +39,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -124,8 +124,9 @@ fun Player(
     }
     val context = LocalContext.current.applicationContext
     val mediaId = playerState?.currentMediaItem?.mediaId
-    val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
-        .collectAsState(emptyList())
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
     var currentSong by remember { mutableStateOf<Song?>(null) }
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var openPlayerBottomSheet by rememberSaveable { mutableStateOf(false) }
@@ -133,8 +134,11 @@ fun Player(
     val artworkColors = LocalArtworkColors.current
 
     LaunchedEffect(mediaId) {
-        playerState?.currentMediaItem?.mediaMetadata?.extras?.getString("song")?.let {
-            currentSong = json.decodeFromString<Song>(it)
+        val songJson = playerState?.currentMediaItem?.mediaMetadata?.extras?.getString("song")
+        currentSong = if (songJson != null) {
+            runCatching { json.decodeFromString<Song>(songJson) }.getOrNull()
+        } else {
+            null
         }
     }
 

@@ -28,12 +28,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,8 +78,9 @@ fun SongMenuBottomSheet(
     var openSongListBottomSheet by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val mediaController = LocalPlayerController.current.controller
-    val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
-        .collectAsState(emptyList())
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
 
     val scope = rememberCoroutineScope()
 

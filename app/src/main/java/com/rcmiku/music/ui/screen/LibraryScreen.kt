@@ -28,8 +28,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -73,8 +73,8 @@ fun LibraryScreen(
     bottomContentPadding: Dp = 0.dp
 ) {
     var ncmCookie by rememberPreference(ncmCookieKey, "")
-    val userInfoBatchState by libraryScreenViewModel.userInfo.collectAsState()
-    val favoriteSongState by libraryScreenViewModel.favoriteSong.collectAsState()
+    val userInfoBatchState by libraryScreenViewModel.userInfo.collectAsStateWithLifecycle()
+    val favoriteSongState by libraryScreenViewModel.favoriteSong.collectAsStateWithLifecycle()
     var logout by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(ncmCookie) {
@@ -354,6 +354,8 @@ fun LibraryScreen(
         Dialog(
             onConfirmation = {
                 ncmCookie = ""
+                com.rcmiku.ncmapi.utils.CookieProvider.clear()
+                android.webkit.CookieManager.getInstance().removeAllCookies(null)
                 logout = false
             },
             onDismissRequest = {

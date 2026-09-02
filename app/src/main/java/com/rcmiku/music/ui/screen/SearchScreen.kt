@@ -40,8 +40,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -115,22 +115,23 @@ fun SearchScreen(
 ) {
     var searchValue by rememberSaveable { mutableStateOf("") }
     var expanded by rememberSaveable { mutableStateOf(true) }
-    val currentSubmittedKeyword by searchViewModel.searchValue.collectAsState()
-    val searchType by searchViewModel.searchType.collectAsState()
+    val currentSubmittedKeyword by searchViewModel.searchValue.collectAsStateWithLifecycle()
+    val searchType by searchViewModel.searchType.collectAsStateWithLifecycle()
     val searchResults = searchViewModel.searchResults.collectAsLazyPagingItems()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId?.toLongOrNull()
-    val searchHistoryState by searchViewModel.searchHistory.collectAsState(initial = emptyList())
-    val suggestions by searchViewModel.suggestions.collectAsState()
-    val hotSearches by searchViewModel.hotSearches.collectAsState()
-    val isHotLoading by searchViewModel.isHotLoading.collectAsState()
+    val searchHistoryState by searchViewModel.searchHistory.collectAsStateWithLifecycle(initialValue = emptyList())
+    val suggestions by searchViewModel.suggestions.collectAsStateWithLifecycle()
+    val hotSearches by searchViewModel.hotSearches.collectAsStateWithLifecycle()
+    val isHotLoading by searchViewModel.isHotLoading.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
-    val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
-        .collectAsState(emptyList())
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
 
     val tabList = listOf(

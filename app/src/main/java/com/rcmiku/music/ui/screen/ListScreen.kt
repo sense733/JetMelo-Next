@@ -27,8 +27,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -54,7 +54,7 @@ fun ListScreen(
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp
 ) {
-    val topListState by exploreScreenViewModel.topList.collectAsState()
+    val topListState by exploreScreenViewModel.topList.collectAsStateWithLifecycle()
 
     with(sharedTransitionScope) {
         Scaffold(

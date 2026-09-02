@@ -36,13 +36,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,20 +88,21 @@ fun AlbumScreen(
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp
 ) {
-    val albumDetailState by albumScreenViewModel.albumDetail.collectAsState()
+    val albumDetailState by albumScreenViewModel.albumDetail.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val showAlbumTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
-    var playlistTitle by remember { mutableStateOf("") }
+    val albumTitle = albumDetailState?.getOrNull()?.album?.name.orEmpty()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId?.toLongOrNull()
-    val albumInfoState by albumScreenViewModel.albumInfo.collectAsState()
+    val albumInfoState by albumScreenViewModel.albumInfo.collectAsStateWithLifecycle()
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var selectSong by remember { mutableStateOf<Song?>(null) }
     val context = LocalContext.current
-    val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
-        .collectAsState(emptyList())
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -109,7 +110,7 @@ fun AlbumScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = if (showAlbumTitle) playlistTitle else stringResource(R.string.album),
+                            text = if (showAlbumTitle) albumTitle else stringResource(R.string.album),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -135,7 +136,6 @@ fun AlbumScreen(
         ) { padding ->
             val detail = albumDetailState?.getOrNull()
             if (detail != null) {
-                playlistTitle = detail.album.name
                 val pageArtworkColors = rememberArtworkColors(
                     artworkUri = detail.album.picUrl,
                     songId = detail.album.id.toString()

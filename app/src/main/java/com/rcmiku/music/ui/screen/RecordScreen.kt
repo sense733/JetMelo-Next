@@ -33,8 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,7 +74,7 @@ fun RecordScreen(
 
     var state by remember { mutableIntStateOf(0) }
     val titles = listOf(stringResource(R.string.week_record), stringResource(R.string.all_record))
-    val songRecord by recordScreenViewModel.songRecord.collectAsState()
+    val songRecord by recordScreenViewModel.songRecord.collectAsStateWithLifecycle()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true

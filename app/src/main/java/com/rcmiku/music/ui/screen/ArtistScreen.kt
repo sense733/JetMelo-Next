@@ -30,9 +30,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,8 +72,8 @@ fun ArtistScreen(
     artistScreenViewModel: ArtistScreenViewModel = hiltViewModel(),
     bottomContentPadding: Dp = 0.dp
 ) {
-    val artistHeadInfoState by artistScreenViewModel.artistHeadInfo.collectAsState()
-    val artistTopSongState by artistScreenViewModel.artistTopSong.collectAsState()
+    val artistHeadInfoState by artistScreenViewModel.artistHeadInfo.collectAsStateWithLifecycle()
+    val artistTopSongState by artistScreenViewModel.artistTopSong.collectAsStateWithLifecycle()
     val artistAlbumList = artistScreenViewModel.artistAlbumList.collectAsLazyPagingItems()
     val listState = rememberLazyListState()
     val showPlaylistTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }

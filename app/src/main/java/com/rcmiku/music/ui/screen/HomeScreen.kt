@@ -44,8 +44,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -102,9 +102,9 @@ fun HomeScreen(
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp
 ) {
-    val recommendSongsState by homeScreenViewModel.recommendSongs.collectAsState()
-    val recommendPlaylistState by homeScreenViewModel.recommendPlaylist.collectAsState()
-    val personalizedPlaylistState by homeScreenViewModel.personalizedPlaylist.collectAsState()
+    val recommendSongsState by homeScreenViewModel.recommendSongs.collectAsStateWithLifecycle()
+    val recommendPlaylistState by homeScreenViewModel.recommendPlaylist.collectAsStateWithLifecycle()
+    val personalizedPlaylistState by homeScreenViewModel.personalizedPlaylist.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
@@ -116,8 +116,9 @@ fun HomeScreen(
     val context = LocalContext.current
     val state = rememberPullToRefreshState()
     var isRefreshing by remember { mutableStateOf(false) }
-    val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
-        .collectAsState(emptyList())
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
     val coroutineScope = rememberCoroutineScope()
 
     val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }

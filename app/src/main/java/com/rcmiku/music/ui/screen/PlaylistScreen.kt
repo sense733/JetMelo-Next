@@ -40,8 +40,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,20 +96,21 @@ fun PlaylistScreen(
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp
 ) {
-    val playlistDetailState by playlistScreenViewModel.playlistDetail.collectAsState()
+    val playlistDetailState by playlistScreenViewModel.playlistDetail.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val showPlaylistTitle by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
-    var playlistTitle by remember { mutableStateOf("") }
+    val playlistTitle = playlistDetailState?.playlist?.name.orEmpty()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId?.toLongOrNull()
-    val playlistInfoState by playlistScreenViewModel.playlistInfo.collectAsState()
+    val playlistInfoState by playlistScreenViewModel.playlistInfo.collectAsStateWithLifecycle()
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var selectSong by remember { mutableStateOf<Song?>(null) }
     val context = LocalContext.current
-    val songIds by context.favoriteSongIdsDatastore.data.map { it.songIdsList }
-        .collectAsState(emptyList())
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
     val currentUserId by rememberPreference(userIdKey, 0L)
 
     with(sharedTransitionScope) {
@@ -143,7 +144,6 @@ fun PlaylistScreen(
             }
         ) { padding ->
             playlistDetailState?.let { detail ->
-                playlistTitle = detail.playlist.name
                 val isOwner = detail.playlist.userId == currentUserId && currentUserId != 0L
                 var tracks by remember(detail.playlist.tracks) { mutableStateOf(detail.playlist.tracks) }
 
@@ -322,22 +322,27 @@ fun PlaylistScreen(
                             val dismissState = rememberSwipeToDismissBoxState(
                                 confirmValueChange = { dismissValue ->
                                     if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                                        val removedSong = song
-                                        val removedIndex = index
-                                        tracks = tracks.toMutableList().apply { removeAt(index) }
-                                        playlistScreenViewModel.deleteTrack(song.id) { success ->
-                                            if (!success) {
-                                                tracks = tracks.toMutableList().apply {
-                                                    add(minOf(removedIndex, size), removedSong)
+                                        val currentIndex = tracks.indexOfFirst { it.id == song.id }
+                                        if (currentIndex != -1) {
+                                            val removedSong = song
+                                            val removedIndex = currentIndex
+                                            tracks = tracks.toMutableList().apply { removeAt(currentIndex) }
+                                            playlistScreenViewModel.deleteTrack(song.id) { success ->
+                                                if (!success) {
+                                                    tracks = tracks.toMutableList().apply {
+                                                        add(minOf(removedIndex, size), removedSong)
+                                                    }
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getString(R.string.delete_track_failed),
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getString(R.string.delete_track_failed),
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
                                             }
+                                            true
+                                        } else {
+                                            false
                                         }
-                                        true
                                     } else {
                                         false
                                     }

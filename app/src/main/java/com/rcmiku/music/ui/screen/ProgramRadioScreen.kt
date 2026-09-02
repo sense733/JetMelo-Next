@@ -26,8 +26,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -59,7 +59,7 @@ fun ProgramRadioScreen(
     bottomContentPadding: Dp = 0.dp
 ) {
 
-    val radioInfo by programRadioScreenViewModel.radioInfo.collectAsState()
+    val radioInfo by programRadioScreenViewModel.radioInfo.collectAsStateWithLifecycle()
     val radioList = programRadioScreenViewModel.radioList.collectAsLazyPagingItems()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
