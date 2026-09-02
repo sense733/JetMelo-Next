@@ -34,13 +34,19 @@ class CachedPreference<T>(
 
     init {
         scope.launch(Dispatchers.IO) {
-            cachedValue = context.applicationContext.dataStore.data
-                .map { it[key] ?: defaultValue }
-                .first()
-            context.applicationContext.dataStore.data
-                .map { it[key] ?: defaultValue }
-                .distinctUntilChanged()
-                .collect { cachedValue = it }
+            val targetContext = runCatching { context.applicationContext }.getOrNull() ?: context
+            runCatching {
+                targetContext.dataStore.data
+                    .map { it[key] ?: defaultValue }
+                    .first()
+            }.getOrNull()?.let { cachedValue = it }
+
+            runCatching {
+                targetContext.dataStore.data
+                    .map { it[key] ?: defaultValue }
+                    .distinctUntilChanged()
+                    .collect { cachedValue = it }
+            }
         }
     }
 
@@ -59,15 +65,19 @@ class CachedEnumPreference<T : Enum<T>>(
 
     init {
         scope.launch(Dispatchers.IO) {
-            cachedValue = toEnum(
-                context.applicationContext.dataStore.data
+            val targetContext = runCatching { context.applicationContext }.getOrNull() ?: context
+            runCatching {
+                targetContext.dataStore.data
                     .map { it[key] }
                     .first()
-            )
-            context.applicationContext.dataStore.data
-                .map { it[key] }
-                .distinctUntilChanged()
-                .collect { cachedValue = toEnum(it) }
+            }.getOrNull()?.let { cachedValue = toEnum(it) }
+
+            runCatching {
+                targetContext.dataStore.data
+                    .map { it[key] }
+                    .distinctUntilChanged()
+                    .collect { cachedValue = toEnum(it) }
+            }
         }
     }
 
