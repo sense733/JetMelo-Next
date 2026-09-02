@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -42,9 +44,20 @@ class MainActivity : ComponentActivity() {
             val themeMode by rememberEnumPreference(themeModeKey, ThemeMode.SYSTEM)
             val dynamicColor by rememberPreference(dynamicColorKey, true)
 
-            playerController.controller?.run {
-                init(applicationContext)
-                playerState = state(applicationContext)
+            val controller = playerController.controller
+
+            DisposableEffect(controller) {
+                if (controller != null) {
+                    playerState = controller.state(applicationContext)
+                }
+                onDispose {
+                    playerState?.dispose()
+                    playerState = null
+                }
+            }
+
+            LaunchedEffect(controller) {
+                controller?.init(applicationContext)
             }
             JetMeloTheme(
                 themeMode = themeMode,

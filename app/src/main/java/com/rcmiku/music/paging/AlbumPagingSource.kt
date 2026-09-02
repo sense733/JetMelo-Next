@@ -5,11 +5,14 @@ import androidx.paging.PagingState
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.model.SubAlbum
 
+import kotlinx.coroutines.CancellationException
+
 class AlbumPagingSource : PagingSource<Int, SubAlbum>() {
     override fun getRefreshKey(state: PagingState<Int, SubAlbum>): Int? {
         return state.anchorPosition?.let { anchorPosition ->
-            state.closestPageToPosition(anchorPosition)?.prevKey?.plus(1)
-                ?: state.closestPageToPosition(anchorPosition)?.nextKey?.minus(1)
+            val anchorPage = state.closestPageToPosition(anchorPosition)
+            (anchorPage?.prevKey?.plus(anchorPage.data.size)
+                ?: anchorPage?.nextKey?.minus(anchorPage.data.size))?.coerceAtLeast(0)
         }
     }
 
@@ -21,15 +24,18 @@ class AlbumPagingSource : PagingSource<Int, SubAlbum>() {
             if (response.isSuccess) {
                 val albumSublist = response.getOrThrow()
                 val data = albumSublist.data
-                val nextKey = if (albumSublist.hasMore) offset + limit else null
+                val nextKey = if (albumSublist.hasMore && data.isNotEmpty()) offset + data.size else null
+                val prevKey = if (offset == 0) null else (offset - limit).coerceAtLeast(0)
                 LoadResult.Page(
                     data = data,
-                    prevKey = if (offset == 0) null else offset - limit,
+                    prevKey = prevKey,
                     nextKey = nextKey
                 )
             } else {
-                LoadResult.Error(Exception("Load data filed"))
+                LoadResult.Error(response.exceptionOrNull() ?: Exception("Load data failed"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             LoadResult.Error(e)
         }
