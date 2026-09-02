@@ -27,7 +27,7 @@ object PlaylistApi {
 
     suspend fun playlistV3Detail(id: Long): Result<PlaylistDetailResponse> {
         return runCatching {
-            Log.w(TAG, "playlistV3Detail request id=$id")
+            if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV3Detail request id=$id")
             val body = HttpManager.request(
                 url = "/weapi/v3/playlist/detail",
                 data = mapOf(
@@ -39,7 +39,7 @@ object PlaylistApi {
             )
             json.decodeFromString(PlaylistDetailResponse.serializer(), body)
         }.recoverCatching { e ->
-            Log.w(TAG, "playlistV3Detail failed, fallback to v6. id=$id", e)
+            if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV3Detail failed, fallback to v6. id=$id", e)
             playlistV6Detail(id).getOrThrow()
         }
     }
@@ -47,7 +47,7 @@ object PlaylistApi {
     suspend fun playlistV6Detail(id: Long): Result<PlaylistDetailResponse> {
         return runCatching {
             // ref: module/playlist_detail.js => /api/v6/playlist/detail
-            Log.w(TAG, "playlistV6Detail request id=$id")
+            if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV6Detail request id=$id")
             val body = HttpManager.request(
                 url = "/api/v6/playlist/detail",
                 data = mapOf(
@@ -64,7 +64,7 @@ object PlaylistApi {
     suspend fun playlistV6DetailEapi(id: Long, n: Int = DEFAULT_TRACK_LIMIT, s: Int = 5): Result<PlaylistDetailResponse> {
         return runCatching {
             // EAPI for /api/v6/playlist/detail (liked songs playlist works reliably here)
-            Log.w(TAG, "playlistV6DetailEapi request id=$id n=$n s=$s")
+            if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV6DetailEapi request id=$id n=$n s=$s")
             val body = HttpManager.request(
                 url = "/api/v6/playlist/detail",
                 data = mapOf(

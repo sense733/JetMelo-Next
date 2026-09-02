@@ -45,11 +45,17 @@ object HttpManager {
     private const val TAG_PLAIN = "NcmApiPlain"
 
     private const val LOG_CHUNK_SIZE = 800
-    private const val MAX_DECOMPRESSED_SIZE = 10 * 1024 * 1024L // 10MB
+    // 32MB：兼容 n=100000 全量歌单详情等超大响应（万曲级解压后可达 20MB+），
+    // 同时保留对解压炸弹的防护上限
+    private const val MAX_DECOMPRESSED_SIZE = 32 * 1024 * 1024L
     private val warnedDebugDisabled = java.util.concurrent.atomic.AtomicBoolean(false)
     private val secureRandom = SecureRandom()
 
     var hostPackageName: String = "com.rcmiku.music"
+
+    // API 层调试日志的统一门控（与 request() 的 debugEnabled 同源）
+    internal val debugLogEnabled: Boolean
+        get() = defaultDebugEnabled
 
     private val isDebugHost: Boolean by lazy {
         runCatching {
@@ -111,7 +117,6 @@ object HttpManager {
 
     suspend fun request(
         url: String,
-        method: String = "POST",
         data: Map<String, Any> = emptyMap(),
         cookies: Map<String, String> = emptyMap(),
         crypto: CryptoType = CryptoType.WEAPI,
@@ -279,9 +284,9 @@ object HttpManager {
             val cookieKeys = currentCookies.keys.sorted().joinToString(",")
             Log.d(
                 TAG,
-                "request method=${method.uppercase()} crypto=$crypto url=$finalUrl host=$urlHost referer=${headers["Referer"]} ua=${headers["User-Agent"]} cookieKeys=[$cookieKeys] dataKeys=${data.keys.sorted()}"
+                "request crypto=$crypto url=$finalUrl host=$urlHost referer=${headers["Referer"]} ua=${headers["User-Agent"]} cookieKeys=[$cookieKeys] dataKeys=${data.keys.sorted()}"
             )
-            Log.d(TAG_REQ, "${method.uppercase()} crypto=$crypto debug=$debugEnabled url=$finalUrl")
+            Log.d(TAG_REQ, "POST crypto=$crypto debug=$debugEnabled url=$finalUrl")
             logChunked(TAG_PLAIN, "cookieKeys=[$cookieKeys] cookieLen=${headers["Cookie"]?.length ?: 0}", debugEnabled)
 
             val plainDump = data.entries
@@ -296,7 +301,7 @@ object HttpManager {
                 .sortedBy { it.key.lowercase() }
                 .joinToString(" | ") { (k, v) ->
                     if (k.equals("Cookie", ignoreCase = true)) {
-                        if (fullDump) {
+                        if (isFullDump) {
                             "$k=$v"
                         } else {
                             val maskedCookie = v.split(";").joinToString("; ") { part ->
@@ -370,7 +375,9 @@ object HttpManager {
                 }))
             }
         } catch (t: Throwable) {
-            Log.e(TAG_ERR, "request failed method=${method.uppercase()} crypto=$crypto url=$finalUrl", t)
+            if (debugEnabled) {
+                Log.e(TAG_ERR, "request failed crypto=$crypto url=$finalUrl", t)
+            }
             throw t
         }
 

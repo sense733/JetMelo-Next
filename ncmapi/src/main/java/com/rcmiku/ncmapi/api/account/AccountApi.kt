@@ -15,10 +15,6 @@ object AccountApi {
     private const val DEFAULT_USER_PLAYLIST_LIMIT = 1000
     private const val BATCH_USER_PLAYLIST_LIMIT = 1000
 
-    suspend fun checkMusic(): Result<Any> {
-        return Result.failure(NotImplementedError())
-    }
-    
     suspend fun getSubcount(): Result<GeneralResponse> {
         return runCatching {
             // ref: module/user_subcount.js => /api/subcount

@@ -88,7 +88,9 @@ object PlayerApi {
             )
             val resp = json.decodeFromString(SongUrlResponse.serializer(), body)
             val first = resp.data.firstOrNull()
-            Log.w("PlayerApi", "songPlayUrlV1 id=$id level=$finalLevel code=${resp.code} urlPresent=${first?.url != null}")
+            if (HttpManager.debugLogEnabled) {
+                Log.w("PlayerApi", "songPlayUrlV1 id=$id level=$finalLevel code=${resp.code} urlPresent=${first?.url != null}")
+            }
             resp
         }
     }

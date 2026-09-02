@@ -73,14 +73,20 @@ class NcmapiPipelineTest {
     fun testCryptoUtilsWeapiAndEapi() {
         val payload = """{"id":12345,"csrf_token":""}"""
         val weapiResult = CryptoUtils.weapi(payload)
-        assertTrue(weapiResult.containsKey("params"))
-        assertTrue(weapiResult.containsKey("encSecKey"))
-        assertTrue(weapiResult["params"]!!.isNotEmpty())
-        assertTrue(weapiResult["encSecKey"]!!.isNotEmpty())
+        val params = weapiResult["params"]!!
+        val encSecKey = weapiResult["encSecKey"]!!
+        assertTrue(params.isNotEmpty())
+        // encSecKey 为 RSA-1024 NoPadding 输出：128 字节 → 定长 256 位十六进制
+        assertTrue("encSecKey must be 256 hex chars", encSecKey.matches(Regex("^[0-9a-fA-F]{256}$")))
 
+        // eapi 为确定性 ECB：密文可解密回原始 message 结构（黄金向量式回环验证）
         val eapiResult = CryptoUtils.eapi("/api/v6/playlist/detail", payload)
-        assertTrue(eapiResult.containsKey("params"))
-        assertTrue(eapiResult["params"]!!.isNotEmpty())
+        val eapiParams = eapiResult["params"]!!
+        assertTrue(eapiParams.isNotEmpty())
+        assertTrue("eapi params must be hex", eapiParams.matches(Regex("^[0-9A-Fa-f]+$")))
+        assertEquals(0, eapiParams.length % 16)
+        val plain = CryptoUtils.eapiDecryptParams(eapiParams)
+        assertEquals(payload, plain)
     }
 
     @Test
