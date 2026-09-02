@@ -32,53 +32,40 @@ fun Song.toMediaItem() =
         .build()
 
 
-fun List<Song>.toMediaItemList() =
-    this.map { song ->
-        val extras = Bundle().apply { putString("song", json.encodeToString(song)) }
-        MediaItem.Builder()
-            .setUri(song.id.toString())
-            .setMediaId(song.id.toString())
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setArtist(song.ar.joinToString("/") { artist -> artist.name })
-                    .setTitle(song.name)
-                    .setArtworkUri(song.al.picUrl.toUri())
-                    .setExtras(extras)
-                    .build()
-            )
-            .build()
-    }
+fun List<Song>.toMediaItemList(): List<MediaItem> =
+    this.map { it.toMediaItem() }
 
+fun CloudSong.toMediaItem(uid: Long): MediaItem =
+    MediaItem.Builder()
+        .setUri("${this.simpleSong.id}_$uid")
+        .setMediaId(this.simpleSong.id.toString())
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setArtist(this.artist)
+                .setTitle(this.simpleSong.name)
+                .setArtworkUri(this.simpleSong.al?.picUrl?.toUri())
+                .build()
+        )
+        .build()
 
-fun List<CloudSong>.toCloudSongMediaItemList(uid: Long) =
-    this.map { cloudSong ->
-        MediaItem.Builder()
-            .setUri("${cloudSong.simpleSong.id}_$uid")
-            .setMediaId(cloudSong.simpleSong.id.toString())
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setArtist(cloudSong.artist)
-                    .setTitle(cloudSong.simpleSong.name)
-                    .setArtworkUri(cloudSong.simpleSong.al?.picUrl?.toUri())
-                    .build()
-            )
-            .build()
-    }
+fun List<CloudSong>.toCloudSongMediaItemList(uid: Long): List<MediaItem> =
+    this.map { it.toMediaItem(uid) }
 
-fun List<Radio>.toRadioMediaItemList() =
-    this.map { radio ->
-        MediaItem.Builder()
-            .setUri(radio.mainSong.id.toString())
-            .setMediaId(radio.mainSong.id.toString())
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setArtist(radio.mainSong.artists.joinToString { it.name })
-                    .setTitle(radio.mainSong.name)
-                    .setArtworkUri(radio.coverUrl.toUri())
-                    .build()
-            )
-            .build()
-    }
+fun Radio.toMediaItem(): MediaItem =
+    MediaItem.Builder()
+        .setUri(this.mainSong.id.toString())
+        .setMediaId(this.mainSong.id.toString())
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setArtist(this.mainSong.artists.joinToString { it.name })
+                .setTitle(this.mainSong.name)
+                .setArtworkUri(this.coverUrl.toUri())
+                .build()
+        )
+        .build()
+
+fun List<Radio>.toRadioMediaItemList(): List<MediaItem> =
+    this.map { it.toMediaItem() }
 
 suspend fun updateMediaItemUri(songId: String, songLevel: SongLevel): Uri? {
     return PlayerApi.songPlayUrlV1(songId, songLevel = songLevel)

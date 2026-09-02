@@ -59,6 +59,7 @@ import com.rcmiku.music.R
 import com.rcmiku.music.constants.MediaSessionConstants
 import com.rcmiku.music.extensions.currentMediaItems
 import com.rcmiku.music.extensions.playMediaAt
+import com.rcmiku.music.extensions.playMediaAtMediaId
 import com.rcmiku.music.extensions.removeSong
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
@@ -216,8 +217,10 @@ fun PlayerQueue(
                 }
             }
 
-            LaunchedEffect(playerState) {
-                cacheMediaItems = currentMediaItems
+            LaunchedEffect(playerState?.timeline) {
+                if (!reorderableLazyListState.isAnyItemDragging) {
+                    cacheMediaItems = currentMediaItems
+                }
             }
 
             LazyColumn(
@@ -275,7 +278,7 @@ fun PlayerQueue(
                                         .fillMaxWidth()
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
                                         .clickable {
-                                            mediaController?.playMediaAt(index)
+                                            mediaController?.playMediaAtMediaId(mediaItem.mediaId)
                                         },
                                     shape = JetMeloShapes.medium,
                                     colors = CardDefaults.cardColors(

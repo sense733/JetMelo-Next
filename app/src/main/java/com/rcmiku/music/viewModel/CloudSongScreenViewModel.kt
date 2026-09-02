@@ -20,7 +20,8 @@ class CloudSongScreenViewModel @Inject constructor(savedStateHandle: SavedStateH
         config = PagingConfig(
             pageSize = 500,
             prefetchDistance = 50,
-            enablePlaceholders = false
+            enablePlaceholders = false,
+            initialLoadSize = 500
         ),
         pagingSourceFactory = { CloudPagingSource() }
     ).flow.cachedIn(viewModelScope)
