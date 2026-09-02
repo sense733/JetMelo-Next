@@ -44,11 +44,11 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -115,11 +115,11 @@ fun HomeScreen(
     var selectSong by remember { mutableStateOf<Song?>(null) }
     val context = LocalContext.current
     val state = rememberPullToRefreshState()
-    var isRefreshing by remember { mutableStateOf(false) }
+    // 4.5：刷新指示器由 ViewModel 的真实加载完成态驱动
+    val isRefreshing by homeScreenViewModel.isRefreshing.collectAsStateWithLifecycle()
     val songIds by remember(context) {
         context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
     }.collectAsStateWithLifecycle(emptySet())
-    val coroutineScope = rememberCoroutineScope()
 
     val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val greeting = when (currentHour) {
@@ -129,12 +129,7 @@ fun HomeScreen(
     }
 
     val onRefresh: () -> Unit = {
-        isRefreshing = true
-        coroutineScope.launch {
-            homeScreenViewModel.refresh()
-            delay(1000)
-            isRefreshing = false
-        }
+        homeScreenViewModel.refresh()
     }
 
     with(sharedTransitionScope) {
@@ -384,6 +379,12 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    // 旋转/进程恢复兜底：openBottomSheet 为 saveable 而 selectSong 仅 remember，
+    // 恢复后 song 缺失时自动收起，避免空面板（与 SearchScreen 4.9 同款）
+    LaunchedEffect(openBottomSheet, selectSong) {
+        if (openBottomSheet && selectSong == null) openBottomSheet = false
     }
 
     SongMenuBottomSheet(
