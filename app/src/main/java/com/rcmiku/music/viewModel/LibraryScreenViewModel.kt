@@ -34,10 +34,8 @@ class LibraryScreenViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    private fun fetchFavoriteSong(userId: Long) {
-        viewModelScope.launch {
-            _favoriteSong.value = AccountApi.favoriteSong(userId).getOrNull()
-        }
+    private suspend fun fetchFavoriteSong(userId: Long) {
+        _favoriteSong.value = AccountApi.favoriteSong(userId).getOrNull()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -47,7 +45,11 @@ class LibraryScreenViewModel @Inject constructor() : ViewModel() {
                 .mapLatest { it?.account?.profile?.userId }
                 .distinctUntilChanged()
                 .collectLatest { userId ->
-                    userId?.let { fetchFavoriteSong(it) }
+                    if (userId != null) {
+                        fetchFavoriteSong(userId)
+                    } else {
+                        _favoriteSong.value = null
+                    }
                 }
         }
     }

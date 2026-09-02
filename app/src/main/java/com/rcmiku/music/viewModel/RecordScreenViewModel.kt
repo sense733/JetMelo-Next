@@ -26,18 +26,15 @@ class RecordScreenViewModel @Inject constructor(savedStateHandle: SavedStateHand
         _songRecordType.value = songRecordType
     }
 
-    private fun fetchSongRecord() {
-        viewModelScope.launch {
-            uid?.let {
-                _songRecord.value = AccountApi.songRecord(it, _songRecordType.value).getOrNull()
-            }
-        }
+    private suspend fun fetchSongRecord(type: SongRecordType) {
+        val currentUid = uid ?: return
+        _songRecord.value = AccountApi.songRecord(currentUid, type).getOrNull()
     }
 
     init {
         viewModelScope.launch {
-            songRecordType.collectLatest {
-                fetchSongRecord()
+            songRecordType.collectLatest { type ->
+                fetchSongRecord(type)
             }
         }
     }
