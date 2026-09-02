@@ -130,6 +130,7 @@ fun MainScreen() {
     CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     Column {
                         AnimatedVisibility(
@@ -178,9 +179,7 @@ fun MainScreen() {
                 },
                 content = { padding ->
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .consumeWindowInsets(padding)
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         NavGraph(
                             navController = navController,
