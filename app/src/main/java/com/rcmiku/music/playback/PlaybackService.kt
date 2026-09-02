@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player.REPEAT_MODE_ALL
-import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -162,16 +161,6 @@ class PlaybackService : MediaSessionService() {
                 setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             }.build()
 
-        val audioOffloadPreferences =
-            TrackSelectionParameters.AudioOffloadPreferences.Builder()
-                .setAudioOffloadMode(TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
-                .setIsGaplessSupportRequired(true)
-                .build()
-        player.trackSelectionParameters =
-            player.trackSelectionParameters
-                .buildUpon()
-                .setAudioOffloadPreferences(audioOffloadPreferences)
-                .build()
         player.repeatMode = REPEAT_MODE_ALL
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(
