@@ -2,9 +2,6 @@ package com.rcmiku.music.utils
 
 import android.content.Context
 import com.rcmiku.music.data.favoriteSongIdsDatastore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 object FavoriteSongIdsUtil {
 
@@ -28,13 +25,6 @@ object FavoriteSongIdsUtil {
     suspend fun updateSongIds(context: Context, songIds: List<Long>) {
         context.favoriteSongIdsDatastore.updateData { currentData ->
             currentData.toBuilder().clearSongIds().addAllSongIds(songIds).build()
-        }
-    }
-
-    fun getAllSongIds(context: Context): MutableList<Long> {
-        return runBlocking(Dispatchers.IO) {
-            context.favoriteSongIdsDatastore.data.first().songIdsList
-                ?: emptyList<Long>().toMutableList()
         }
     }
 }

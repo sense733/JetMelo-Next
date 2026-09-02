@@ -20,8 +20,9 @@ import com.rcmiku.ncmapi.utils.FileProvider
 import com.rcmiku.ncmapi.utils.UserAgentProvider
 import com.rcmiku.ncmapi.utils.json
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -29,22 +30,30 @@ import kotlinx.coroutines.launch
 @HiltAndroidApp
 class JetMeloApp : Application(), SingletonImageLoader.Factory {
 
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     @androidx.annotation.OptIn(UnstableApi::class)
-    @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
         PlayerController.init(this)
         FileProvider.init(cacheDir.resolve("ncm"))
         SongListUtil.init(filesDir.resolve("playlist"))
         UserAgentProvider.init(UserAgentUtil.DEFAULT_USER_AGENT)
-        GlobalScope.launch {
-            UserAgentProvider.init(UserAgentUtil.DEFAULT_USER_AGENT)
+        applicationScope.launch {
+            var hadCookie = false
             dataStore.data
                 .map { it[ncmCookieKey] }
                 .distinctUntilChanged()
                 .collect { ncmCookie ->
-                    if (ncmCookie?.isNotEmpty() == true)
-                        CookieProvider.init(json.decodeFromString(ncmCookie))
+                    if (!ncmCookie.isNullOrEmpty()) {
+                        runCatching {
+                            CookieProvider.init(json.decodeFromString(ncmCookie))
+                            hadCookie = true
+                        }
+                    } else if (hadCookie) {
+                        CookieProvider.clear()
+                        hadCookie = false
+                    }
                 }
         }
     }
@@ -55,18 +64,16 @@ class JetMeloApp : Application(), SingletonImageLoader.Factory {
             .memoryCachePolicy(CachePolicy.ENABLED)
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizeBytes(64 * 1024 * 1024L)
-                    .strongReferencesEnabled(true)
+                    .maxSizePercent(context, 0.25)
                     .build()
             }
             .diskCachePolicy(CachePolicy.ENABLED)
             .diskCache {
                 DiskCache.Builder()
-                    .maxSizeBytes(512 * 1024 * 1024L)
+                    .maxSizeBytes(256 * 1024 * 1024L)
                     .directory(cacheDir.resolve("coil"))
                     .build()
             }
             .build()
     }
-
 }
