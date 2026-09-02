@@ -164,6 +164,7 @@ fun SettingsScreen(
                 SongLevel.EXHIGH -> stringResource(R.string.exhigh)
                 SongLevel.LOSSLESS -> stringResource(R.string.lossless)
                 SongLevel.HIRES -> stringResource(R.string.hi_res)
+                SongLevel.SKY -> stringResource(R.string.sky)
             },
             imageVector = GraphicEq,
             onClick = {
@@ -353,6 +354,8 @@ fun SettingsScreen(
         Dialog(
             onConfirmation = {
                 ncmCookie = ""
+                com.rcmiku.ncmapi.utils.CookieProvider.clear()
+                android.webkit.CookieManager.getInstance().removeAllCookies(null)
                 logout = false
             },
             onDismissRequest = {

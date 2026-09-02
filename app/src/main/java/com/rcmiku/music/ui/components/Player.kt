@@ -40,11 +40,15 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.Player.STATE_READY
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -61,6 +65,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaMetadata
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import com.rcmiku.music.R
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.MediaSessionConstants
@@ -95,22 +100,15 @@ import kotlinx.coroutines.flow.map
 @Composable
 fun Player(
     mediaMetadata: MediaMetadata,
-    position: Long,
-    duration: Long,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
     onBackPressed: () -> Unit = {},
     onClick: () -> Unit = {},
     onContainerClick: () -> Unit = {},
-    onPositionUpdate: (Long) -> Unit,
     navController: NavHostController
 ) {
     BackHandler {
         onBackPressed()
-    }
-
-    var sliderPosition by rememberSaveable {
-        mutableStateOf<Long?>(null)
     }
 
     val playerState = LocalPlayerState.current
@@ -174,7 +172,7 @@ fun Player(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "正在播放",
+                        text = stringResource(R.string.now_playing),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.65f),
                         fontWeight = FontWeight.Medium
@@ -287,63 +285,10 @@ fun Player(
 
 
 
-                // Progress Slider Section
-                Column(
+                PlayerProgressSlider(
+                    accentColor = artworkColors.accentColor,
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val currentPos = sliderPosition ?: position
-                    val safeDuration = if (duration > 0 && duration != C.TIME_UNSET) duration else 0L
-
-                    Slider(
-                        value = currentPos.toFloat().coerceIn(0f, maxOf(1f, safeDuration.toFloat())),
-                        valueRange = 0f..maxOf(1f, safeDuration.toFloat()),
-                        onValueChange = { sliderPosition = it.toLong() },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                mediaController?.seekTo(it)
-                                onPositionUpdate(it)
-                            }
-                            sliderPosition = null
-                        },
-                        colors = SliderDefaults.colors(
-                            thumbColor = artworkColors.accentColor,
-                            activeTrackColor = artworkColors.accentColor,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.25f)
-                        ),
-                        track = { sliderState ->
-                            SliderDefaults.Track(
-                                sliderState = sliderState,
-                                thumbTrackGapSize = 2.dp,
-                                modifier = Modifier.height(4.dp)
-                            )
-                        },
-                        thumb = {
-                            SliderDefaults.Thumb(
-                                interactionSource = interactionSource,
-                                thumbSize = DpSize(6.dp, 18.dp)
-                            )
-                        }
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = makeTimeString(currentPos),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = makeTimeString(safeDuration),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White.copy(alpha = 0.7f)
-                        )
-                    }
-                }
+                )
 
                 // Playback Controls Row
                 Row(
@@ -576,6 +521,103 @@ fun ArtistBottomSheet(
                     Spacer(Modifier.height(12.dp))
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayerProgressSlider(
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val playerController = LocalPlayerController.current.controller
+    val playerState = LocalPlayerState.current
+    val playbackState = playerState?.playbackState
+    val isPlaying = playerState?.isPlaying == true
+    val currentMediaId = playerState?.currentMediaItem?.mediaId
+
+    var position by rememberSaveable(playerState) {
+        mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
+    }
+    var duration by rememberSaveable(playerState) {
+        mutableLongStateOf(playerState?.player?.duration ?: 0L)
+    }
+    var sliderPosition by rememberSaveable {
+        mutableStateOf<Long?>(null)
+    }
+
+    LaunchedEffect(playbackState, isPlaying) {
+        if (playbackState == STATE_READY && isPlaying) {
+            while (isActive) {
+                position = playerState?.player?.currentPosition ?: 0L
+                val dur = playerState?.player?.duration ?: 0L
+                duration = if (dur > 0) dur else 0L
+                delay(100)
+            }
+        } else if (playbackState == STATE_READY) {
+            position = playerState?.player?.currentPosition ?: 0L
+            val dur = playerState?.player?.duration ?: 0L
+            duration = if (dur > 0) dur else 0L
+        }
+    }
+
+    LaunchedEffect(currentMediaId) {
+        position = 0L
+    }
+
+    Column(modifier = modifier) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val currentPos = sliderPosition ?: position
+        val safeDuration = if (duration > 0 && duration != C.TIME_UNSET) duration else 0L
+
+        Slider(
+            value = currentPos.toFloat().coerceIn(0f, maxOf(1f, safeDuration.toFloat())),
+            valueRange = 0f..maxOf(1f, safeDuration.toFloat()),
+            onValueChange = { sliderPosition = it.toLong() },
+            onValueChangeFinished = {
+                sliderPosition?.let {
+                    playerController?.seekTo(it)
+                    position = it
+                }
+                sliderPosition = null
+            },
+            colors = SliderDefaults.colors(
+                thumbColor = accentColor,
+                activeTrackColor = accentColor,
+                inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+            ),
+            track = { sliderState ->
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    thumbTrackGapSize = 2.dp,
+                    modifier = Modifier.height(4.dp)
+                )
+            },
+            thumb = {
+                SliderDefaults.Thumb(
+                    interactionSource = interactionSource,
+                    thumbSize = DpSize(6.dp, 18.dp)
+                )
+            }
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = makeTimeString(currentPos),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+            Text(
+                text = makeTimeString(safeDuration),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.7f)
+            )
         }
     }
 }

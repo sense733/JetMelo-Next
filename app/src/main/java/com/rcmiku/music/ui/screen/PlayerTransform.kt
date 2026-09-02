@@ -72,9 +72,6 @@ fun PlayerTransform(
     onClick: () -> Unit = {},
     onBackPressed: () -> Unit = {},
     mediaMetadata: MediaMetadata,
-    position: Long,
-    duration: Long,
-    onPositionUpdate: (Long) -> Unit,
     navController: NavHostController,
 ) {
 
@@ -126,8 +123,6 @@ fun PlayerTransform(
                     Player(
                         navController = navController,
                         mediaMetadata = mediaMetadata,
-                        duration = duration,
-                        position = position,
                         imageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(
                                 key = coverKey
@@ -158,9 +153,6 @@ fun PlayerTransform(
                         },
                         onContainerClick = {
                             show = PLAY_QUEUE
-                        },
-                        onPositionUpdate = { position ->
-                            onPositionUpdate(position)
                         }
                     )
                 }
@@ -196,7 +188,6 @@ fun PlayerTransform(
 
                 LYRIC_VIEW -> {
                     Lyric(
-                        position = position,
                         mediaMetadata = mediaMetadata,
                         imageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(
@@ -227,8 +218,6 @@ fun PlayerTransform(
                 else -> {
                     MiniPlayer(
                         mediaMetadata = mediaMetadata,
-                        duration = duration,
-                        position = position,
                         onClick = {
                             show = FULL_PLAYER
                             onClick()

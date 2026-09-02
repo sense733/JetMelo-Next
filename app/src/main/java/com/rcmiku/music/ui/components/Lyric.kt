@@ -36,12 +36,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.Player.STATE_READY
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -65,11 +70,9 @@ import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.parseLrc
 import com.rcmiku.music.viewModel.LyricViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun Lyric(
-    position: Long,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
     mediaMetadata: MediaMetadata,
@@ -78,9 +81,10 @@ fun Lyric(
 ) {
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
+    val playbackState = playerState?.playbackState
+    val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
     val lyric by lyricViewModel.lyric.collectAsStateWithLifecycle()
     val lrcLines = remember(lyric) { lyric?.lrc?.lyric?.parseLrc() }
     val tLrcLines = remember(lyric) { lyric?.tlyric?.lyric?.parseLrc()?.filter { it.text.isNotBlank() } }
@@ -91,7 +95,23 @@ fun Lyric(
     var autoScrollEnabled by remember { mutableStateOf(true) }
     val artworkColors = LocalArtworkColors.current
 
+    var position by rememberSaveable(playerState) {
+        mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
+    }
+
+    LaunchedEffect(playbackState, isPlaying) {
+        if (playbackState == STATE_READY && isPlaying) {
+            while (isActive) {
+                position = playerState?.player?.currentPosition ?: 0L
+                delay(100)
+            }
+        } else if (playbackState == STATE_READY) {
+            position = playerState?.player?.currentPosition ?: 0L
+        }
+    }
+
     LaunchedEffect(currentMediaId) {
+        position = 0L
         currentIndex = 0
         currentMediaId?.toLongOrNull()?.let {
             lyricViewModel.fetchLyric(it)
@@ -171,33 +191,32 @@ fun Lyric(
 
             // Lyric Scrolling Content
             lrcLines?.let { lines ->
-                LaunchedEffect(listState.isScrollInProgress) {
-                    autoScrollEnabled = !listState.isScrollInProgress
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.isScrollInProgress }
+                        .collect { inProgress ->
+                            autoScrollEnabled = !inProgress
+                        }
                 }
 
-                LaunchedEffect(position) {
+                LaunchedEffect(position, lines) {
                     val index = lines.indexOfLast { it.time <= position }
                     if (index != currentIndex) {
                         currentIndex = index
-                        if (autoScrollEnabled) {
-                            coroutineScope.launch {
-                                if (index > 0) {
-                                    val targetIndex = maxOf(currentIndex - 2, 0)
-                                    val visibleItem =
-                                        listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-                                    if (visibleItem == null) {
-                                        listState.scrollToItem(targetIndex)
-                                    } else {
-                                        val itemOffset = visibleItem.offset
-                                        listState.animateScrollBy(
-                                            itemOffset.toFloat(),
-                                            animationSpec = tween(
-                                                durationMillis = 500,
-                                                easing = EaseInOutCubic
-                                            )
-                                        )
-                                    }
-                                }
+                        if (autoScrollEnabled && index > 0) {
+                            val targetIndex = maxOf(currentIndex - 2, 0)
+                            val visibleItem =
+                                listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+                            if (visibleItem == null) {
+                                listState.scrollToItem(targetIndex)
+                            } else {
+                                val itemOffset = visibleItem.offset
+                                listState.animateScrollBy(
+                                    itemOffset.toFloat(),
+                                    animationSpec = tween(
+                                        durationMillis = 500,
+                                        easing = EaseInOutCubic
+                                    )
+                                )
                             }
                         }
                     }
@@ -217,6 +236,7 @@ fun Lyric(
 
                     items(
                         count = lines.size,
+                        key = { lines[it].time }
                     ) { index ->
                         val isCurrent = index == currentIndex
                         val line = lines[index]
@@ -233,9 +253,7 @@ fun Lyric(
                                     .clickable {
                                         line.time.let {
                                             mediaController?.seekTo(it)
-                                            coroutineScope.launch {
-                                                currentIndex = index
-                                            }
+                                            currentIndex = index
                                         }
                                     }
                                     .padding(vertical = 8.dp, horizontal = 4.dp)

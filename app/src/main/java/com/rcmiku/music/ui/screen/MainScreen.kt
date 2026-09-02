@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,17 +30,14 @@ import androidx.compose.runtime.LaunchedEffect
 import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.media3.common.Player.STATE_READY
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -57,8 +55,6 @@ import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.utils.CookieProvider
 import com.rcmiku.ncmapi.utils.json
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 
 @Composable
 fun MainScreen() {
@@ -72,15 +68,8 @@ fun MainScreen() {
     val ncmCookie by rememberPreference(ncmCookieKey, "")
     var userId by rememberPreference(userIdKey, 0L)
     val playerState = LocalPlayerState.current
-    var position by rememberSaveable(playerState) {
-        mutableLongStateOf(playerState?.player?.currentPosition ?: 0)
-    }
-    var duration by rememberSaveable(playerState) {
-        mutableLongStateOf(playerState?.player?.duration ?: 0)
-    }
-    val playbackState = playerState?.playbackState
     val showMiniPlayer =
-        (playerState?.player?.mediaItemCount ?: 0) != 0 && !isSearchScreen
+        (playerState?.timeline?.windowCount ?: 0) != 0 && !isSearchScreen
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     var currentPlayMediaId by rememberPreference(currentPlayMediaIdKey, 0)
     val isPlaying = playerState?.isPlaying == true
@@ -91,24 +80,7 @@ fun MainScreen() {
         songId = currentMediaId
     )
 
-    LaunchedEffect(playbackState, isPlaying) {
-        if (playbackState == STATE_READY && isPlaying) {
-            while (isActive) {
-                val currentPos = playerState?.player?.currentPosition ?: 0L
-                val dur = playerState?.player?.duration ?: 0L
-                position = currentPos
-                duration = if (dur > 0) dur else 0L
-                delay(100)
-            }
-        } else if (playbackState == STATE_READY) {
-            position = playerState?.player?.currentPosition ?: 0L
-            val dur = playerState?.player?.duration ?: 0L
-            duration = if (dur > 0) dur else 0L
-        }
-    }
-
     LaunchedEffect(currentMediaId) {
-        position = 0L
         currentMediaId?.toLongOrNull()?.let {
             currentPlayMediaId = it
         }
@@ -122,6 +94,8 @@ fun MainScreen() {
             AccountApi.account().getOrNull()?.profile?.userId?.let {
                 userId = it
             }
+        } else {
+            userId = 0L
         }
     }
 
@@ -204,7 +178,9 @@ fun MainScreen() {
                 },
                 content = { padding ->
                     Box(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .consumeWindowInsets(padding)
                     ) {
                         NavGraph(
                             navController = navController,
@@ -244,13 +220,8 @@ fun MainScreen() {
                         playerState?.mediaMetadata?.let {
                             PlayerTransform(
                                 mediaMetadata = it,
-                                position = position,
-                                duration = duration,
                                 onBackPressed = { showPlayer = false },
                                 onClick = { showPlayer = true },
-                                onPositionUpdate = { updatePosition ->
-                                    position = updatePosition
-                                },
                                 navController = navController
                             )
                         }

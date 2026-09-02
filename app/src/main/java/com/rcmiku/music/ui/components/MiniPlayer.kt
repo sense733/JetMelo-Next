@@ -21,7 +21,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player.STATE_READY
 import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
@@ -41,12 +46,12 @@ import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @Composable
 fun MiniPlayer(
     mediaMetadata: MediaMetadata,
-    position: Long,
-    duration: Long,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
     onClick: () -> Unit = {},
@@ -55,14 +60,7 @@ fun MiniPlayer(
     val playerState = LocalPlayerState.current
     val artworkColors = LocalArtworkColors.current
 
-    val showMiniPlayer = (playerState?.player?.mediaItemCount ?: 0) != 0
-
-    val progressTarget = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
-    val animatedProgress by animateFloatAsState(
-        targetValue = progressTarget,
-        animationSpec = tween(durationMillis = 150, easing = LinearEasing),
-        label = "mini_player_progress"
-    )
+    val showMiniPlayer = (playerState?.timeline?.windowCount ?: 0) != 0
 
     if (showMiniPlayer) {
         Box(
@@ -72,10 +70,10 @@ fun MiniPlayer(
                 .height(MiniPlayerHeight - 12.dp)
                 .shadow(elevation = 6.dp, shape = JetMeloShapes.medium)
                 .clip(JetMeloShapes.medium)
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .border(
                     width = 1.dp,
-                    color = Color(0x1F000000),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     shape = JetMeloShapes.medium
                 )
                 .clickable(onClick = onClick)
@@ -104,7 +102,7 @@ fun MiniPlayer(
                     Icon(
                         imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
                         contentDescription = null,
-                        tint = Color(0xFF1C1B1F)
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -116,19 +114,17 @@ fun MiniPlayer(
                     Icon(
                         imageVector = SkipNext,
                         contentDescription = null,
-                        tint = Color(0xFF1C1B1F)
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
-            LinearProgressIndicator(
-                progress = { animatedProgress },
+            MiniPlayerProgressBar(
+                accentColor = artworkColors.accentColor,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.5.dp)
-                    .align(Alignment.BottomCenter),
-                color = artworkColors.accentColor,
-                trackColor = Color(0x1F000000)
+                    .align(Alignment.BottomCenter)
             )
         }
     }
@@ -162,7 +158,7 @@ fun MiniMediaInfo(
                 Text(
                     text = it.toString(),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF1C1B1F),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -173,7 +169,7 @@ fun MiniMediaInfo(
                 Text(
                     text = it.toString(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF49454F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.basicMarquee()
@@ -181,4 +177,55 @@ fun MiniMediaInfo(
             }
         }
     }
+}
+
+@Composable
+private fun MiniPlayerProgressBar(
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val playerState = LocalPlayerState.current
+    val playbackState = playerState?.playbackState
+    val isPlaying = playerState?.isPlaying == true
+    val currentMediaId = playerState?.currentMediaItem?.mediaId
+
+    var position by rememberSaveable(playerState) {
+        mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
+    }
+    var duration by rememberSaveable(playerState) {
+        mutableLongStateOf(playerState?.player?.duration ?: 0L)
+    }
+
+    LaunchedEffect(playbackState, isPlaying) {
+        if (playbackState == STATE_READY && isPlaying) {
+            while (isActive) {
+                position = playerState?.player?.currentPosition ?: 0L
+                val dur = playerState?.player?.duration ?: 0L
+                duration = if (dur > 0) dur else 0L
+                delay(200)
+            }
+        } else if (playbackState == STATE_READY) {
+            position = playerState?.player?.currentPosition ?: 0L
+            val dur = playerState?.player?.duration ?: 0L
+            duration = if (dur > 0) dur else 0L
+        }
+    }
+
+    LaunchedEffect(currentMediaId) {
+        position = 0L
+    }
+
+    val progressTarget = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
+    val animatedProgress by animateFloatAsState(
+        targetValue = progressTarget,
+        animationSpec = tween(durationMillis = 150, easing = LinearEasing),
+        label = "mini_player_progress"
+    )
+
+    LinearProgressIndicator(
+        progress = { animatedProgress },
+        modifier = modifier,
+        color = accentColor,
+        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    )
 }

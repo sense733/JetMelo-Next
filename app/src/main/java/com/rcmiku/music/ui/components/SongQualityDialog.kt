@@ -66,6 +66,7 @@ fun SongQualityDialog(
                                 SongLevel.EXHIGH -> stringResource(R.string.exhigh)
                                 SongLevel.LOSSLESS -> stringResource(R.string.lossless)
                                 SongLevel.HIRES -> stringResource(R.string.hi_res)
+                                SongLevel.SKY -> stringResource(R.string.sky)
                             }
                         )
                     }
