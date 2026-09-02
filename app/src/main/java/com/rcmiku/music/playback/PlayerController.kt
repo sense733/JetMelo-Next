@@ -9,6 +9,8 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
 @UnstableApi
@@ -27,16 +29,34 @@ object PlayerController {
             appContext = context.applicationContext
         }
 
-        if (controller != null) return
+        if (controller != null || controllerFuture != null) return
 
-        controllerFuture =
-            controllerFuture ?: MediaController.Builder(appContext, sessionToken).buildAsync()
-                .apply {
-                    addListener(
-                        { controller = get() },
-                        ContextCompat.getMainExecutor(appContext)
-                    )
+        val future = MediaController.Builder(appContext, sessionToken).buildAsync()
+        controllerFuture = future
+        Futures.addCallback(
+            future,
+            object : FutureCallback<MediaController> {
+                override fun onSuccess(result: MediaController) {
+                    controller = result
                 }
+
+                override fun onFailure(t: Throwable) {
+                    MediaController.releaseFuture(future)
+                    controllerFuture = null
+                    controller = null
+                }
+            },
+            ContextCompat.getMainExecutor(appContext)
+        )
+    }
+
+    fun release() {
+        controllerFuture?.let { future ->
+            MediaController.releaseFuture(future)
+            controllerFuture = null
+        }
+        controller?.release()
+        controller = null
     }
 }
 
