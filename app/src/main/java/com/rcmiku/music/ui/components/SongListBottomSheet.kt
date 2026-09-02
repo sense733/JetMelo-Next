@@ -59,12 +59,17 @@ fun SongListBottomSheet(
     var removeSong by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
-    LaunchedEffect(song) {
-        if (song != null) {
+    LaunchedEffect(song, openBottomSheet) {
+        if (openBottomSheet && song != null) {
             AccountApi.userPlaylistV1(userId = userId, trackIds = listOf(song.id))
                 .onSuccess {
                     playlistResponse = it
                 }
+        } else if (!openBottomSheet) {
+            playlistResponse = null
+            selectedPlaylistId.value = null
+            selectedRemovePlaylistId.value = null
+            removeSong = false
         }
     }
 
