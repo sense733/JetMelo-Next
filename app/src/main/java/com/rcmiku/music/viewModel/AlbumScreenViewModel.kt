@@ -47,7 +47,7 @@ class AlbumScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandl
     fun albumSub(isSub: Boolean) {
         viewModelScope.launch {
             albumId?.let {
-                AlbumApi.albumSub(id = albumId, isSub = isSub).onSuccess {
+                AlbumApi.albumSub(id = albumId, targetState = !isSub).onSuccess {
                     fetchAlbumInfo()
                 }
             }

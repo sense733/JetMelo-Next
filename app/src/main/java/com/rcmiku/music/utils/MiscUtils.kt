@@ -10,6 +10,18 @@ import java.net.URLEncoder
 import java.util.Locale
 import java.util.UUID
 
+fun getDeviceID(context: android.content.Context): String {
+    val prefs = context.getSharedPreferences("device_identity", android.content.Context.MODE_PRIVATE)
+    var deviceId = prefs.getString("device_id", null)
+    if (deviceId == null) {
+        val uuid = UUID.randomUUID().toString().replace("-", "").take(16)
+        val raw = "null 02:00:00:00:00:00 $uuid unknown"
+        deviceId = urlEncode(base64Encode(raw.toByteArray()))
+        prefs.edit().putString("device_id", deviceId).apply()
+    }
+    return deviceId
+}
+
 fun getDeviceID(): String {
     val uuid = UUID.randomUUID().toString().replace("-", "").take(16)
     val deviceID = "null 02:00:00:00:00:00 $uuid unknown"

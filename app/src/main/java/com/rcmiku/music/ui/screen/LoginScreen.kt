@@ -93,7 +93,8 @@ fun LoginScreen(
                                     val cookie = CookieManager.getInstance().getCookie(url)
                                     val cookieMap =
                                         parseCookieString(cookie.trimIndent()).toMutableMap()
-                                    cookieMap[CookieKeys.DEVICE_ID] = getDeviceID()
+                                    val currentContext = view?.context ?: navController.context
+                                    cookieMap[CookieKeys.DEVICE_ID] = getDeviceID(currentContext)
                                     cookieMap[CookieKeys.OS_VER] = Build.VERSION.RELEASE
                                     cookieMap[CookieKeys.MOBILE_NAME] = Build.MODEL
                                     ncmCookie = json.encodeToString(cookieMap)
