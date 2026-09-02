@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -335,6 +336,11 @@ fun AlbumScreen(
                 }
             }
         }
+    }
+
+    // 旋转/进程恢复兜底：openBottomSheet 为 saveable 而 selectSong 仅 remember（4.9 同款）
+    LaunchedEffect(openBottomSheet, selectSong) {
+        if (openBottomSheet && selectSong == null) openBottomSheet = false
     }
 
     SongMenuBottomSheet(

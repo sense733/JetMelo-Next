@@ -5,7 +5,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rcmiku.music.data.favoriteSongIdsDatastore
-import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.model.PlaylistDetailResponse
 import com.rcmiku.ncmapi.model.PlaylistInfoResponse

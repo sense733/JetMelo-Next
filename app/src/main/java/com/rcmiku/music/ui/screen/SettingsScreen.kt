@@ -237,7 +237,7 @@ fun SettingsScreen(
                 )
             }
 
-            itemsIndexed(appearanceSettingItems) { index, item ->
+            itemsIndexed(appearanceSettingItems, key = { _, item -> item.title }) { index, item ->
                 val shape = getItemShape(
                     prevItem = appearanceSettingItems.getOrNull(index - 1),
                     nextItem = appearanceSettingItems.getOrNull(index + 1),
@@ -270,7 +270,7 @@ fun SettingsScreen(
                 )
             }
 
-            itemsIndexed(baseSettingItems) { index, item ->
+            itemsIndexed(baseSettingItems, key = { _, item -> item.title }) { index, item ->
                 val shape = getItemShape(
                     prevItem = baseSettingItems.getOrNull(index - 1),
                     nextItem = baseSettingItems.getOrNull(index + 1),
@@ -303,7 +303,7 @@ fun SettingsScreen(
                 )
             }
 
-            itemsIndexed(settingsItems) { index, item ->
+            itemsIndexed(settingsItems, key = { _, item -> item.title }) { index, item ->
                 val shape = getItemShape(
                     prevItem = settingsItems.getOrNull(index - 1),
                     nextItem = settingsItems.getOrNull(index + 1),

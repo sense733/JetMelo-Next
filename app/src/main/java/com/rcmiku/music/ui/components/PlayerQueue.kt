@@ -52,12 +52,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.HapticFeedbackConstantsCompat
 import androidx.core.view.ViewCompat
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Timeline
 import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
 import com.rcmiku.music.constants.MediaSessionConstants
-import com.rcmiku.music.extensions.currentMediaItems
 import com.rcmiku.music.extensions.playMediaAt
 import com.rcmiku.music.extensions.playMediaAtMediaId
 import com.rcmiku.music.extensions.removeSong
@@ -85,10 +85,16 @@ fun PlayerQueue(
     val isPlaying = playerState?.isPlaying == true
     val repeatMode = playerState?.repeatMode ?: 0
     val shuffleMode = playerState?.shuffleModeEnabled == true
-    val currentMediaItems = playerState?.player?.currentMediaItems
-    val currentMediaId = playerState?.player?.currentMediaItem?.mediaId
-    val currentIndex = playerState?.player?.currentMediaItemIndex
-    var cacheMediaItems by remember { mutableStateOf(currentMediaItems) }
+    // 2.12：全部改读 PlayerState 的可观测快照状态，禁止直读 MediaController 非观测属性
+    val timeline = playerState?.timeline
+    val currentMediaId = playerState?.currentMediaItem?.mediaId
+    val currentIndex = playerState?.mediaItemIndex
+    val timelineItems = remember(timeline) {
+        timeline?.let { tl ->
+            List(tl.windowCount) { tl.getWindow(it, Timeline.Window()).mediaItem }
+        }
+    }
+    var cacheMediaItems by remember { mutableStateOf(timelineItems) }
     val artworkColors = LocalArtworkColors.current
 
     val repeatIcon = when (repeatMode) {
@@ -134,7 +140,7 @@ fun PlayerQueue(
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
-                    currentMediaItems?.size?.let { size ->
+                    timelineItems?.size?.let { size ->
                         Text(
                             text = stringResource(R.string.song_size, size),
                             style = MaterialTheme.typography.labelMedium,
@@ -219,7 +225,7 @@ fun PlayerQueue(
 
             LaunchedEffect(playerState?.timeline) {
                 if (!reorderableLazyListState.isAnyItemDragging) {
-                    cacheMediaItems = currentMediaItems
+                    cacheMediaItems = timelineItems
                 }
             }
 

@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -98,6 +99,8 @@ fun Lyric(
     var position by rememberSaveable(playerState) {
         mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
     }
+    // 供 snapshotFlow 观测的最新 position（组合层级声明，rememberUpdatedState 必须在组合中调用）
+    val currentPositionState = rememberUpdatedState(position)
 
     LaunchedEffect(playbackState, isPlaying) {
         if (playbackState == STATE_READY && isPlaying) {
@@ -198,28 +201,35 @@ fun Lyric(
                         }
                 }
 
-                LaunchedEffect(position, lines) {
-                    val index = lines.indexOfLast { it.time <= position }
-                    if (index != currentIndex) {
-                        currentIndex = index
-                        if (autoScrollEnabled && index > 0) {
-                            val targetIndex = maxOf(currentIndex - 2, 0)
-                            val visibleItem =
-                                listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-                            if (visibleItem == null) {
-                                listState.scrollToItem(targetIndex)
-                            } else {
-                                val itemOffset = visibleItem.offset
-                                listState.animateScrollBy(
-                                    itemOffset.toFloat(),
-                                    animationSpec = tween(
-                                        durationMillis = 500,
-                                        easing = EaseInOutCubic
-                                    )
-                                )
+                LaunchedEffect(lines) {
+                    // 修复：以 currentIndex 驱动滚动动画。此前以 100ms 轮询的 position 作为
+                    // LaunchedEffect key，每次 position 更新都会重启 effect，把 500ms 的
+                    // animateScrollBy 截断成跳变。snapshotFlow 观测 rememberUpdatedState
+                    // 包装的 position，动画执行期间新值合并（conflate），不再打断动画。
+                    snapshotFlow { currentPositionState.value }
+                        .collect { pos ->
+                            val index = lines.indexOfLast { it.time <= pos }
+                            if (index != currentIndex) {
+                                currentIndex = index
+                                if (autoScrollEnabled && index > 0) {
+                                    val targetIndex = maxOf(currentIndex - 2, 0)
+                                    val visibleItem =
+                                        listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+                                    if (visibleItem == null) {
+                                        listState.scrollToItem(targetIndex)
+                                    } else {
+                                        val itemOffset = visibleItem.offset
+                                        listState.animateScrollBy(
+                                            itemOffset.toFloat(),
+                                            animationSpec = tween(
+                                                durationMillis = 500,
+                                                easing = EaseInOutCubic
+                                            )
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
                 }
 
                 LazyColumn(
