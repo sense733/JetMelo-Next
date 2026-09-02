@@ -22,7 +22,14 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.text.CueGroup
 import com.rcmiku.music.constants.autoSkipNextOnErrorKey
 import com.rcmiku.music.utils.dataStore
-import com.rcmiku.music.utils.get
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 fun Player.state(context: Context): PlayerState {
     return PlayerStateImpl(this, context)
@@ -105,6 +112,10 @@ internal class PlayerStateImpl(
     override val player: Player,
     context: Context
 ) : PlayerState {
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @Volatile
+    private var autoSkipNextOnError: Boolean = false
 
     override var remainingTime by mutableLongStateOf(0L)
         private set
@@ -335,9 +346,7 @@ internal class PlayerStateImpl(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            if (context.dataStore.get(autoSkipNextOnErrorKey, false) &&
-                player.hasNextMediaItem()
-            ) {
+            if (autoSkipNextOnError && player.hasNextMediaItem()) {
                 player.seekToNext()
                 player.prepare()
                 player.playWhenReady = true
@@ -347,9 +356,19 @@ internal class PlayerStateImpl(
 
     init {
         player.addListener(listener)
+        scope.launch {
+            autoSkipNextOnError = context.dataStore.data
+                .map { it[autoSkipNextOnErrorKey] ?: false }
+                .first()
+            context.dataStore.data
+                .map { it[autoSkipNextOnErrorKey] ?: false }
+                .distinctUntilChanged()
+                .collect { autoSkipNextOnError = it }
+        }
     }
 
     override fun dispose() {
         player.removeListener(listener)
+        scope.cancel()
     }
 }
