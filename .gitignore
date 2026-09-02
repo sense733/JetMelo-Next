@@ -37,3 +37,6 @@ proguard-project.txt
 .kotlin/
 /.opencode/
 /design/
+# 内部审查工作文档（不入库，保留本地）
+docs/review/
+docs/CODE_REVIEW.md
