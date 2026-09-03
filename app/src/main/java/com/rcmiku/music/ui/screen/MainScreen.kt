@@ -174,7 +174,28 @@ fun MainScreen() {
 
     CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
         Box(modifier = Modifier.fillMaxSize()) {
+            val p = transitionProgress
+            val deviceCornerRadius = rememberDeviceCornerRadius()
+
             Scaffold(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = 1f - 0.05f * p
+                        scaleY = 1f - 0.05f * p
+                        transformOrigin = TransformOrigin(0.5f, 0.5f)
+                        if (p > 0f) {
+                            shape = RoundedCornerShape(deviceCornerRadius * p)
+                            clip = true
+                        }
+                    }
+                    .then(
+                        if (p > 0f && Build.VERSION.SDK_INT >= 31) {
+                            Modifier.blur((p * 24).dp)
+                        } else {
+                            Modifier
+                        }
+                    ),
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     Column {
@@ -226,41 +247,23 @@ fun MainScreen() {
                     }
                 },
                 content = { padding ->
-                    val p = transitionProgress
-                    val deviceCornerRadius = rememberDeviceCornerRadius()
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .consumeWindowInsets(padding)
-                            .graphicsLayer {
-                                scaleX = 1f - 0.05f * p
-                                scaleY = 1f - 0.05f * p
-                                transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                if (p > 0f) {
-                                    shape = RoundedCornerShape(deviceCornerRadius * p)
-                                    clip = true
-                                }
-                            }
-                            .then(
-                                if (p > 0f && Build.VERSION.SDK_INT >= 31) {
-                                    Modifier.blur((p * 24).dp)
-                                } else {
-                                    Modifier
-                                }
-                            )
                     ) {
                         NavGraph(
                             navController = navController,
                             bottomContentPadding = bottomContentPadding
                         )
 
-                        if (showMiniPlayer && transitionProgress < 0.20f) {
+                        if (showMiniPlayer) {
                             BottomFogOverlay(
                                 bottomPadding = fogBottomPadding,
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .graphicsLayer {
-                                        alpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
+                                        alpha = (1f - p).coerceIn(0f, 1f)
                                     }
                             )
                         }
@@ -268,7 +271,6 @@ fun MainScreen() {
                 }
             )
 
-            val p = transitionProgress
             if (p > 0f) {
                 Box(
                     modifier = Modifier

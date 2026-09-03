@@ -204,7 +204,27 @@ fun PlayerTransform(
             )
         }
 
-        // 2. 物理形变视口（Container Transform Window）：以全屏尺寸承载所有内容，通过动态裁剪窗扩展，彻底杜绝内容被高度挤压或尺寸坍缩
+        // 2. Mini 栏描边：严格跟随容器边界与圆角同步伸缩，展开 0%~15% 渐隐，收起 15%~0% 渐显
+        val borderAlpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
+        if (borderAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
+                    .size(
+                        width = with(density) { containerRect.width.toDp() },
+                        height = with(density) { containerRect.height.toDp() }
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(
+                            alpha = 0.5f * borderAlpha
+                        ),
+                        shape = RoundedCornerShape(containerCornerRadius)
+                    )
+            )
+        }
+
+        // 3. 物理形变视口（Container Transform Window）：以全屏尺寸承载所有内容，通过动态裁剪窗扩展，彻底杜绝内容被高度挤压或尺寸坍缩
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -244,33 +264,14 @@ fun PlayerTransform(
                 )
             }
 
-            // Mini 栏描边（0%~15% 渐隐）
-            if (transitionProgress < 0.15f) {
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(miniLeftPx.roundToInt(), miniTopPx.roundToInt()) }
-                        .size(
-                            width = with(density) { (miniRightPx - miniLeftPx).toDp() },
-                            height = with(density) { miniHeightPx.toDp() }
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(
-                                alpha = 0.5f * (1f - transitionProgress / 0.15f)
-                            ),
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                )
-            }
-
-            // Mini 控件层：锚定在底栏槽位，展开 0%~15% 极速淡出
+            // Mini 控件层：随容器顶部同步位移，展开 0%~15% 极速淡出
             val miniAlpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
             if (miniAlpha > 0f) {
                 Box(
                     modifier = Modifier
-                        .offset { IntOffset(miniLeftPx.roundToInt(), miniTopPx.roundToInt()) }
+                        .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
                         .size(
-                            width = with(density) { (miniRightPx - miniLeftPx).toDp() },
+                            width = with(density) { containerRect.width.toDp() },
                             height = with(density) { miniHeightPx.toDp() }
                         )
                         .graphicsLayer { alpha = miniAlpha }
