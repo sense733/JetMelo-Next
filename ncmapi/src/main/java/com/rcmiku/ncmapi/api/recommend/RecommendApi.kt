@@ -2,6 +2,7 @@ package com.rcmiku.ncmapi.api.recommend
 
 import com.rcmiku.ncmapi.model.DailySongsResponse
 import com.rcmiku.ncmapi.model.NewAlbumResponse
+import com.rcmiku.ncmapi.model.HomepageBlockResponse
 import com.rcmiku.ncmapi.model.PersonalizedPlaylistResponse
 import com.rcmiku.ncmapi.model.RecommendPlaylistResponse
 import com.rcmiku.ncmapi.utils.HttpManager
@@ -76,6 +77,32 @@ object RecommendApi {
                 json.decodeFromString(RecommendPlaylistResponse.serializer(), body)
             }.getOrElse { e ->
                 Log.w(TAG, "decode failed: /api/v1/discovery/recommend/resource bodyPrefix=${body.take(400)}", e)
+                throw e
+            }
+        }
+    }
+
+    suspend fun homepageBlockPage(
+        refresh: Boolean = false,
+        cursor: String? = null
+    ): Result<HomepageBlockResponse> {
+        return runCatching {
+            val body = HttpManager.request(
+                url = "/api/homepage/block/page",
+                data = mapOf(
+                    "refresh" to refresh.toString(),
+                    "cursor" to (cursor ?: ""),
+                    "header" to "{}",
+                    "e_r" to "true"
+                ),
+                crypto = HttpManager.CryptoType.EAPI
+            )
+            runCatching {
+                json.decodeFromString(HomepageBlockResponse.serializer(), body)
+            }.getOrElse { e ->
+                if (HttpManager.debugLogEnabled) {
+                    Log.w(TAG, "decode failed: /api/homepage/block/page bodyPrefix=${body.take(400)}", e)
+                }
                 throw e
             }
         }

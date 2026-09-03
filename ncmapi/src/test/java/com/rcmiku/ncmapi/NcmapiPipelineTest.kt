@@ -142,4 +142,86 @@ class NcmapiPipelineTest {
         val decompressed = HttpManager.gunzipToString(bos.toByteArray())
         assertEquals(original, decompressed)
     }
+
+    @Test
+    fun testHomepageBlockResponseDeserialization() {
+        val jsonString = """
+        {
+            "code": 200,
+            "data": {
+                "cursor": "cursor_token_123",
+                "hasMore": true,
+                "blockCodeOrderList": ["HOMEPAGE_BANNER", "HOMEPAGE_BLOCK_PLAYLIST_RCMD"],
+                "blocks": [
+                    {
+                        "blockCode": "HOMEPAGE_BANNER",
+                        "showType": "BANNER",
+                        "extInfo": {
+                            "banners": [
+                                {
+                                    "pic": "https://p1.music.126.net/banner1.jpg",
+                                    "bannerId": "1001",
+                                    "targetId": 123456,
+                                    "targetType": 1,
+                                    "typeTitle": "新歌首发"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "blockCode": "HOMEPAGE_BLOCK_PLAYLIST_RCMD",
+                        "showType": "HOMEPAGE_SLIDE_PLAYLIST",
+                        "uiElement": {
+                            "subTitle": { "title": "推荐歌单" }
+                        },
+                        "creatives": [
+                            {
+                                "creativeType": "scroll_playlist",
+                                "creativeId": "2001",
+                                "uiElement": {
+                                    "mainTitle": { "title": "今日专属雷达" },
+                                    "image": { "imageUrl": "https://p1.music.126.net/radar.jpg" }
+                                },
+                                "resources": [
+                                    {
+                                        "resourceId": "3001",
+                                        "resourceType": "playlist",
+                                        "uiElement": {
+                                            "mainTitle": { "title": "华语精选歌单" },
+                                            "subTitle": { "title": "播放量 100万" },
+                                            "image": { "imageUrl": "https://p1.music.126.net/cover.jpg" }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        """.trimIndent()
+
+        val response = json.decodeFromString(com.rcmiku.ncmapi.model.HomepageBlockResponse.serializer(), jsonString)
+        assertEquals(200, response.code)
+        assertEquals("cursor_token_123", response.data.cursor)
+        assertTrue(response.data.hasMore)
+        assertEquals(2, response.data.blocks.size)
+
+        // Banner 提取验证
+        val bannerBlock = response.data.blocks[0]
+        val banners = bannerBlock.extractBanners()
+        assertEquals(1, banners.size)
+        assertEquals("1001", banners[0].bannerId)
+        assertEquals(123456L, banners[0].targetId)
+        assertEquals("新歌首发", banners[0].typeTitle)
+
+        // 歌单提取验证
+        val playlistBlock = response.data.blocks[1]
+        val playlists = playlistBlock.extractPlaylists()
+        assertEquals(1, playlists.size)
+        assertEquals(3001L, playlists[0].id)
+        assertEquals("华语精选歌单", playlists[0].name)
+        assertEquals("https://p1.music.126.net/cover.jpg", playlists[0].coverUrl)
+        assertEquals("播放量 100万", playlists[0].playCountText)
+    }
 }
