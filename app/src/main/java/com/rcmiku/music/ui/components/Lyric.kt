@@ -259,7 +259,7 @@ fun Lyric(
 
                     items(
                         count = lines.size,
-                        key = { lines[it].time }
+                        key = { "${lines[it].time}_$it" }
                     ) { index ->
                         val isCurrent = index == currentIndex
                         val line = lines[index]
