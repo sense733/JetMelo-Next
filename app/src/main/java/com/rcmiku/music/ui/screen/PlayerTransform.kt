@@ -395,6 +395,8 @@ fun PlayerTransform(
 
             val mediaId = playerState?.currentMediaItem?.mediaId ?: mediaMetadata.title?.toString() ?: "unknown"
             val coverKey = "cover_$mediaId"
+            val titleKey = "title_$mediaId"
+            val artistKey = "artist_$mediaId"
 
             if (fullControlsAlpha > 0f) {
                 SharedTransitionLayout(
@@ -432,12 +434,26 @@ fun PlayerTransform(
                             clipInOverlayDuringTransition = OverlayClip(AdaptiveArtworkShape)
                         )
 
+                        val sharedTitleModifier = Modifier.sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = titleKey),
+                            animatedVisibilityScope = this,
+                            boundsTransform = AlbumArtBoundsTransform
+                        )
+
+                        val sharedArtistModifier = Modifier.sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = artistKey),
+                            animatedVisibilityScope = this,
+                            boundsTransform = AlbumArtBoundsTransform
+                        )
+
                         when (targetView) {
                             FULL_PLAYER -> {
                                 Player(
                                     navController = navController,
                                     mediaMetadata = mediaMetadata,
                                     imageModifier = sharedImageModifier,
+                                    titleModifier = sharedTitleModifier,
+                                    artistModifier = sharedArtistModifier,
                                     onBackPressed = onBackPressed,
                                     onClick = { currentView = LYRIC_VIEW },
                                     onContainerClick = { currentView = PLAY_QUEUE },
@@ -456,6 +472,8 @@ fun PlayerTransform(
                                 PlayerQueue(
                                     mediaMetadata = mediaMetadata,
                                     imageModifier = sharedImageModifier,
+                                    titleModifier = sharedTitleModifier,
+                                    artistModifier = sharedArtistModifier,
                                     onBackPressed = { currentView = FULL_PLAYER },
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -464,6 +482,8 @@ fun PlayerTransform(
                                 Lyric(
                                     mediaMetadata = mediaMetadata,
                                     imageModifier = sharedImageModifier,
+                                    titleModifier = sharedTitleModifier,
+                                    artistModifier = sharedArtistModifier,
                                     onBackPressed = { currentView = FULL_PLAYER },
                                     modifier = Modifier.fillMaxSize()
                                 )

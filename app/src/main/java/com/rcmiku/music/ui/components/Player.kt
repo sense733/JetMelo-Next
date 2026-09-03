@@ -111,6 +111,8 @@ fun Player(
     mediaMetadata: MediaMetadata,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
+    artistModifier: Modifier = Modifier,
     onBackPressed: () -> Unit = {},
     onClick: () -> Unit = {},
     onContainerClick: () -> Unit = {},
@@ -275,6 +277,7 @@ fun Player(
                                 style = TitleHeroLarge,
                                 color = Color.White,
                                 modifier = Modifier
+                                    .then(titleModifier)
                                     .basicMarquee()
                                     .clickable { openBottomSheet = true }
                             )
@@ -286,6 +289,7 @@ fun Player(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.White.copy(alpha = 0.75f),
                                 modifier = Modifier
+                                    .then(artistModifier)
                                     .basicMarquee()
                                     .clickable { openBottomSheet = true }
                             )

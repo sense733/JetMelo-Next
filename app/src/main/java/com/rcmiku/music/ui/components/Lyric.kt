@@ -80,6 +80,8 @@ import com.rcmiku.music.viewModel.LyricViewModel
 fun Lyric(
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
+    artistModifier: Modifier = Modifier,
     mediaMetadata: MediaMetadata,
     onBackPressed: () -> Unit = {},
     lyricViewModel: LyricViewModel = hiltViewModel()
@@ -186,14 +188,18 @@ fun Lyric(
                             style = MaterialTheme.typography.titleMedium,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.basicMarquee()
+                            modifier = Modifier
+                                .then(titleModifier)
+                                .basicMarquee()
                         )
                         Text(
                             text = mediaMetadata.artist?.toString() ?: "",
                             maxLines = 1,
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.basicMarquee()
+                            modifier = Modifier
+                                .then(artistModifier)
+                                .basicMarquee()
                         )
                     }
                 }

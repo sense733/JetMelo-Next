@@ -78,6 +78,8 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun PlayerQueue(
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
+    titleModifier: Modifier = Modifier,
+    artistModifier: Modifier = Modifier,
     mediaMetadata: MediaMetadata,
     onBackPressed: () -> Unit = {},
 ) {
@@ -328,14 +330,16 @@ fun PlayerQueue(
                                                 color = if (isCurrent) artworkColors.accentColor else Color.White,
                                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                                                 maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = if (isCurrent) titleModifier else Modifier
                                             )
                                             Text(
                                                 text = mediaItem.mediaMetadata.artist?.toString() ?: "",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = Color.White.copy(alpha = 0.65f),
                                                 maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = if (isCurrent) artistModifier else Modifier
                                             )
                                         }
 
