@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,7 +42,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +69,7 @@ import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.icons.DragHandle
 import com.rcmiku.music.ui.icons.Repeat
 import com.rcmiku.music.ui.icons.RepeatOne
+import com.rcmiku.music.ui.icons.Remove
 import com.rcmiku.music.ui.icons.Shuffle
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
@@ -269,25 +273,53 @@ fun PlayerQueue(
                                 state = dismissState,
                                 enableDismissFromStartToEnd = false,
                                 backgroundContent = {
-                                    val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled ||
-                                        dismissState.currentValue != SwipeToDismissBoxValue.Settled ||
-                                        dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
-                                    if (isSwiping) {
+                                    val currentOffset = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
+                                    val dragDistancePx = (-currentOffset).coerceAtLeast(0f)
+                                    val density = LocalDensity.current
+                                    val dragDistanceDp = with(density) { dragDistancePx.toDp() }
+
+                                    if (dragDistanceDp > 0.dp) {
                                         Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                                .clip(JetMeloShapes.medium)
-                                                .background(Color(0xFFE53935).copy(alpha = 0.9f)),
+                                            modifier = Modifier.fillMaxSize(),
                                             contentAlignment = Alignment.CenterEnd
                                         ) {
-                                            Text(
-                                                text = stringResource(R.string.delete),
-                                                color = Color.White,
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(end = 16.dp)
-                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxHeight()
+                                                    .width(dragDistanceDp)
+                                                    .padding(top = 2.dp, bottom = 2.dp, end = 8.dp)
+                                                    .clip(JetMeloShapes.medium)
+                                                    .background(Color(0xFFE53935)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (dragDistanceDp > 36.dp) {
+                                                    val contentAlpha = ((dragDistanceDp - 36.dp) / 24.dp).coerceIn(0f, 1f)
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center,
+                                                        modifier = Modifier
+                                                            .graphicsLayer { alpha = contentAlpha }
+                                                            .padding(horizontal = 4.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Remove,
+                                                            contentDescription = stringResource(R.string.delete),
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                        if (dragDistanceDp > 72.dp) {
+                                                            Spacer(modifier = Modifier.width(4.dp))
+                                                            Text(
+                                                                text = stringResource(R.string.delete),
+                                                                color = Color.White,
+                                                                style = MaterialTheme.typography.labelMedium,
+                                                                fontWeight = FontWeight.Bold,
+                                                                maxLines = 1
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
