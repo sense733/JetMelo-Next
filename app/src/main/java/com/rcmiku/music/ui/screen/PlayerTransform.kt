@@ -159,10 +159,11 @@ fun PlayerTransform(
             Rect(0f, 0f, screenWidthPx, screenHeightPx)
         }
 
-        val defaultFullArtworkRect = remember(screenWidthPx, statusBarInsetPx) {
+        val defaultFullArtworkRect = remember(screenWidthPx, screenHeightPx, statusBarInsetPx) {
             val fullWidthPx = screenWidthPx * 0.88f
             val fullLeftPx = (screenWidthPx - fullWidthPx) / 2f
-            val fullTopPx = statusBarInsetPx + with(density) { (56.dp + 16.dp).toPx() }
+            val availableHeight = screenHeightPx - statusBarInsetPx - with(density) { (56.dp + 284.dp).toPx() }
+            val fullTopPx = statusBarInsetPx + with(density) { 56.dp.toPx() } + ((availableHeight - fullWidthPx) / 2f).coerceAtLeast(0f)
             Rect(fullLeftPx, fullTopPx, fullLeftPx + fullWidthPx, fullTopPx + fullWidthPx)
         }
         val miniArtworkRect = remember(miniLeftPx, miniTopPx) {
@@ -202,7 +203,14 @@ fun PlayerTransform(
                         )
                     } else Modifier
                 )
-                .clickable(enabled = transitionProgress == 0f, onClick = onClick)
+                .clickable(
+                    interactionSource = null,
+                    indication = null
+                ) {
+                    if (transitionProgress == 0f) {
+                        onClick()
+                    }
+                }
         ) {
             // 容器实底沉浸背景：严格受限在形变卡片内部，彻底消除全屏半透明滤镜与文字穿透
             ImmersiveBackground(
@@ -303,10 +311,20 @@ fun PlayerTransform(
             }
             val fullControlsOffsetY = 12.dp * (1f - fullControlsAlpha)
 
-            if (fullControlsAlpha > 0f) {
+            // 保持 FullPlayer 始终以全屏视口尺寸布局，锚定在屏幕根坐标系，绝不随容器高度伸缩而挤压变形
+            if (isExpanded || transitionProgress > 0f) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .size(
+                            width = with(density) { screenWidthPx.toDp() },
+                            height = with(density) { screenHeightPx.toDp() }
+                        )
+                        .offset {
+                            IntOffset(
+                                -containerRect.left.roundToInt(),
+                                -containerRect.top.roundToInt()
+                            )
+                        }
                         .graphicsLayer {
                             alpha = fullControlsAlpha
                             translationY = fullControlsOffsetY.toPx()
@@ -324,7 +342,11 @@ fun PlayerTransform(
                                 controlsOffsetY = 0.dp,
                                 showArtwork = false,
                                 showBackground = false,
-                                onArtworkPositioned = { fullArtworkRect = it }
+                                onArtworkPositioned = { rect ->
+                                    if (fullArtworkRect == null || fullArtworkRect != rect) {
+                                        fullArtworkRect = rect
+                                    }
+                                }
                             )
                         }
                         PLAY_QUEUE -> {
