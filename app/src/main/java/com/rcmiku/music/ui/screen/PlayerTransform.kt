@@ -3,9 +3,11 @@ package com.rcmiku.music.ui.screen
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.BoundsTransform
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +16,13 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import com.rcmiku.music.constants.DURATION
+import com.rcmiku.music.constants.DURATION_ENTER
+import com.rcmiku.music.constants.DURATION_EXIT_SHORT
+import com.rcmiku.music.constants.EmphasizedAccelerateEasing
+import com.rcmiku.music.constants.EmphasizedDecelerateEasing
+import com.rcmiku.music.constants.EmphasizedEasing
+import androidx.compose.ui.graphics.Path
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -85,6 +94,7 @@ import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
+import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import kotlin.math.roundToInt
 
@@ -101,6 +111,12 @@ private fun lerpRect(start: Rect, stop: Rect, fraction: Float): Rect =
         androidx.compose.ui.util.lerp(start.bottom, stop.bottom, fraction)
     )
 
+@OptIn(ExperimentalSharedTransitionApi::class)
+private val AlbumArtBoundsTransform = BoundsTransform { _, _ ->
+    tween(durationMillis = DURATION, easing = EmphasizedEasing)
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun PlayerTransform(
     onClick: () -> Unit = {},
@@ -203,17 +219,8 @@ fun PlayerTransform(
 
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
         val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, transitionProgress)
-        val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 28.dp, transitionProgress)
+        val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, transitionProgress)
         val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, transitionProgress)
-
-        val artworkAlpha by animateFloatAsState(
-            targetValue = if (currentView == FULL_PLAYER) 1f else 0f,
-            animationSpec = tween(
-                durationMillis = if (currentView == FULL_PLAYER) 280 else 200,
-                easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
-            ),
-            label = "floating_artwork_alpha"
-        )
 
         // 1. 物理形变容器阴影（卡片背后投影，随进度向全屏扩展并逐渐淡出）
         if (transitionProgress < 1f) {
@@ -385,7 +392,10 @@ fun PlayerTransform(
             }
             val fullControlsOffsetY = 12.dp * (1f - fullControlsAlpha)
 
-            Box(
+            val mediaId = playerState?.currentMediaItem?.mediaId ?: mediaMetadata.title?.toString() ?: "unknown"
+            val coverKey = "cover_$mediaId"
+
+            SharedTransitionLayout(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
@@ -396,69 +406,42 @@ fun PlayerTransform(
                 AnimatedContent(
                     targetState = currentView,
                     transitionSpec = {
-                        when {
-                            // FULL_PLAYER -> LYRIC_VIEW: 歌词页自下方轻微上浮淡入，播放页淡出
-                            initialState == FULL_PLAYER && targetState == LYRIC_VIEW -> {
-                                (fadeIn(animationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f))) +
-                                        slideInVertically(
-                                            animationSpec = tween(320, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)),
-                                            initialOffsetY = { it / 8 }
-                                        )) togetherWith
-                                        fadeOut(animationSpec = tween(200, easing = LinearEasing))
-                            }
-                            // LYRIC_VIEW -> FULL_PLAYER: 歌词页下浮淡出，播放页淡入
-                            initialState == LYRIC_VIEW && targetState == FULL_PLAYER -> {
-                                fadeIn(animationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f))) togetherWith
-                                        (fadeOut(animationSpec = tween(200, easing = LinearEasing)) +
-                                                slideOutVertically(
-                                                    animationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)),
-                                                    targetOffsetY = { it / 8 }
-                                                ))
-                            }
-                            // FULL_PLAYER -> PLAY_QUEUE: 队列从屏幕下方滑入（Bottom Sheet 感），播放页缩放淡出
-                            initialState == FULL_PLAYER && targetState == PLAY_QUEUE -> {
-                                (slideInVertically(
-                                    animationSpec = tween(320, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)),
-                                    initialOffsetY = { it / 4 }
-                                ) + fadeIn(animationSpec = tween(260))) togetherWith
-                                        (fadeOut(animationSpec = tween(180)) +
-                                                scaleOut(
-                                                    animationSpec = tween(280),
-                                                    targetScale = 0.96f
-                                                ))
-                            }
-                            // PLAY_QUEUE -> FULL_PLAYER: 队列滑出，播放页缩放回弹淡入
-                            initialState == PLAY_QUEUE && targetState == FULL_PLAYER -> {
-                                (fadeIn(animationSpec = tween(260)) +
-                                        scaleIn(
-                                            animationSpec = tween(280),
-                                            initialScale = 0.96f
-                                        )) togetherWith
-                                        (slideOutVertically(
-                                            animationSpec = tween(300, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)),
-                                            targetOffsetY = { it / 4 }
-                                        ) + fadeOut(animationSpec = tween(200)))
-                            }
-                            // 默认平滑淡入淡出
-                            else -> {
-                                fadeIn(animationSpec = tween(240)) togetherWith fadeOut(animationSpec = tween(200))
-                            }
-                        }
+                        fadeIn(
+                            animationSpec = tween(
+                                delayMillis = DURATION_EXIT_SHORT,
+                                durationMillis = DURATION_ENTER,
+                                easing = EmphasizedDecelerateEasing
+                            )
+                        ) togetherWith fadeOut(
+                            animationSpec = tween(
+                                durationMillis = DURATION_EXIT_SHORT,
+                                easing = EmphasizedAccelerateEasing
+                            )
+                        )
                     },
-                    label = "player_subview_transition",
+                    label = "player_subview_shared_transition",
                     modifier = Modifier.fillMaxSize()
                 ) { targetView ->
+                    val sharedImageModifier = Modifier.sharedElement(
+                        sharedContentState = rememberSharedContentState(key = coverKey),
+                        animatedVisibilityScope = this,
+                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
+                        boundsTransform = AlbumArtBoundsTransform,
+                        clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
+                    )
+
                     when (targetView) {
                         FULL_PLAYER -> {
                             Player(
                                 navController = navController,
                                 mediaMetadata = mediaMetadata,
+                                imageModifier = sharedImageModifier,
                                 onBackPressed = onBackPressed,
                                 onClick = { currentView = LYRIC_VIEW },
                                 onContainerClick = { currentView = PLAY_QUEUE },
                                 controlsAlpha = 1f,
                                 controlsOffsetY = 0.dp,
-                                showArtwork = false,
+                                showArtwork = (transitionProgress == 1f),
                                 showBackground = false,
                                 onArtworkPositioned = { rect ->
                                     if (fullArtworkRect == null || fullArtworkRect != rect) {
@@ -470,6 +453,7 @@ fun PlayerTransform(
                         PLAY_QUEUE -> {
                             PlayerQueue(
                                 mediaMetadata = mediaMetadata,
+                                imageModifier = sharedImageModifier,
                                 onBackPressed = { currentView = FULL_PLAYER },
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -477,6 +461,7 @@ fun PlayerTransform(
                         LYRIC_VIEW -> {
                             Lyric(
                                 mediaMetadata = mediaMetadata,
+                                imageModifier = sharedImageModifier,
                                 onBackPressed = { currentView = FULL_PLAYER },
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -486,8 +471,8 @@ fun PlayerTransform(
             }
         }
 
-        // 4. 单一物理封面：1:1 与容器同步位移与缩放，子视图切换时平滑淡入淡出
-        if (artworkAlpha > 0f) {
+        // 4. 单一物理封面：用于 Mini ↔ Full 容器形变转场（在展开/收起全程精确插值，并在满展时移交由 SharedTransition 接管）
+        if (transitionProgress < 1f) {
             Box(
                 modifier = Modifier
                     .offset { IntOffset(currentArtworkRect.left.roundToInt(), currentArtworkRect.top.roundToInt()) }
@@ -495,20 +480,14 @@ fun PlayerTransform(
                         width = with(density) { currentArtworkRect.width.toDp() },
                         height = with(density) { currentArtworkRect.height.toDp() }
                     )
-                    .graphicsLayer { alpha = artworkAlpha }
                     .shadow(currentArtworkElevation, shape = RoundedCornerShape(currentArtworkCorner))
                     .clip(RoundedCornerShape(currentArtworkCorner))
                     .clickable(
                         interactionSource = null,
                         indication = null,
-                        enabled = artworkAlpha > 0.8f
-                    ) {
-                        if (transitionProgress == 1f) {
-                            currentView = LYRIC_VIEW
-                        } else if (transitionProgress == 0f) {
-                            onClick()
-                        }
-                    }
+                        enabled = transitionProgress == 0f,
+                        onClick = onClick
+                    )
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)

@@ -61,10 +61,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.C
 import androidx.media3.common.MediaMetadata
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import com.rcmiku.music.R
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
@@ -223,25 +226,20 @@ fun Player(
                                 onArtworkPositioned?.invoke(coords.boundsInRoot())
                             }
                         }
-                        .then(
-                            if (showArtwork) {
-                                Modifier
-                                    .shadow(elevation = 16.dp, shape = JetMeloShapes.large)
-                                    .clip(JetMeloShapes.large)
-                                    .clickable(onClick = onClick)
-                            } else {
-                                Modifier
-                            }
-                        )
                 ) {
                     if (showArtwork) {
                         AsyncImage(
-                            model = mediaMetadata.artworkUri,
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(mediaMetadata.artworkUri)
+                                .size(Size.ORIGINAL)
+                                .build(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = imageModifier
                                 .fillMaxSize()
+                                .shadow(elevation = 16.dp, shape = JetMeloShapes.large)
                                 .clip(JetMeloShapes.large)
+                                .clickable(onClick = onClick)
                         )
                     }
                 }
