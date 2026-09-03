@@ -1,8 +1,10 @@
 package com.rcmiku.music.ui.screen
 
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -39,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -139,13 +142,22 @@ fun MainScreen() {
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val navBarBaseHeight = 64.dp
 
-    val dockedBottomPadding = if (showNavigationBar) {
+    val targetDockedBottomPadding = if (showNavigationBar) {
         navBarBaseHeight + navBarInset
     } else if (showMiniPlayer) {
         navBarInset
     } else {
         0.dp
     }
+
+    val dockedBottomPadding by animateDpAsState(
+        targetValue = targetDockedBottomPadding,
+        animationSpec = tween(
+            durationMillis = 280,
+            easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
+        ),
+        label = "docked_bottom_padding"
+    )
 
     val fogBottomPadding = if (showNavigationBar && showMiniPlayer) {
         dockedBottomPadding + (MiniPlayerHeight / 2)
@@ -165,7 +177,15 @@ fun MainScreen() {
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     Column {
-                        if (showNavigationBar) {
+                        AnimatedVisibility(
+                            visible = showNavigationBar,
+                            enter = expandVertically(
+                                animationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f))
+                            ),
+                            exit = shrinkVertically(
+                                animationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f))
+                            )
+                        ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -205,16 +225,23 @@ fun MainScreen() {
                     }
                 },
                 content = { padding ->
+                    val p = transitionProgress
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .consumeWindowInsets(padding)
                             .graphicsLayer {
-                                val p = transitionProgress
-                                scaleX = 1f - 0.04f * p
-                                scaleY = 1f - 0.04f * p
+                                scaleX = 1f - 0.05f * p
+                                scaleY = 1f - 0.05f * p
                                 transformOrigin = TransformOrigin(0.5f, 0.5f)
                             }
+                            .then(
+                                if (p > 0f && Build.VERSION.SDK_INT >= 31) {
+                                    Modifier.blur((p * 24).dp)
+                                } else {
+                                    Modifier
+                                }
+                            )
                     ) {
                         NavGraph(
                             navController = navController,
@@ -234,6 +261,15 @@ fun MainScreen() {
                     }
                 }
             )
+
+            val p = transitionProgress
+            if (p > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = p * 0.35f))
+                )
+            }
 
             if (showMiniPlayer || transitionProgress > 0f) {
                 Box(
