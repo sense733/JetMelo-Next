@@ -95,7 +95,7 @@ fun PlayerQueue(
             List(tl.windowCount) { tl.getWindow(it, Timeline.Window()).mediaItem }
         }
     }
-    var cacheMediaItems by remember { mutableStateOf(timelineItems) }
+    var cacheMediaItems by remember(timelineItems) { mutableStateOf(timelineItems) }
     val artworkColors = LocalArtworkColors.current
 
     val repeatIcon = when (repeatMode) {
@@ -187,14 +187,21 @@ fun PlayerQueue(
             }
 
             val view = LocalView.current
-            val lazyListState = rememberLazyListState()
+            val initialIndex = remember {
+                val idx = currentIndex ?: 0
+                (idx - 1).coerceAtLeast(0)
+            }
+            val lazyListState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
             var dragInfo by remember {
                 mutableStateOf<Pair<Int, Int>?>(null)
             }
 
-            LaunchedEffect(Unit) {
-                if (currentIndex != null) {
-                    lazyListState.scrollToItem(currentIndex)
+            LaunchedEffect(currentIndex) {
+                if (currentIndex != null && !lazyListState.isScrollInProgress) {
+                    val visibleIndices = lazyListState.layoutInfo.visibleItemsInfo.map { it.index }
+                    if (currentIndex !in visibleIndices) {
+                        lazyListState.animateScrollToItem(currentIndex)
+                    }
                 }
             }
 
