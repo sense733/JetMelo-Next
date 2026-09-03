@@ -1,5 +1,6 @@
 package com.rcmiku.music.ui.screen
 
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,9 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -96,11 +99,27 @@ fun MainScreen() {
 
     var showPlayer by rememberSaveable { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val animatorScale = remember(context) {
+        try {
+            Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f
+            )
+        } catch (_: Exception) {
+            1f
+        }
+    }
+
+    val enterDuration = (520 * animatorScale).roundToInt().coerceAtLeast(0)
+    val exitDuration = (420 * animatorScale).roundToInt().coerceAtLeast(0)
+
     val transitionProgress by animateFloatAsState(
         targetValue = if (showPlayer) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 450,
-            easing = CubicBezierEasing(0.2f, 0.9f, 0.3f, 1.0f)
+            durationMillis = if (showPlayer) enterDuration else exitDuration,
+            easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
         ),
         label = "player_transition_progress"
     )
@@ -153,7 +172,7 @@ fun MainScreen() {
                                     .background(MaterialTheme.colorScheme.background)
                                     .graphicsLayer {
                                         translationY = (navBarBaseHeight + navBarInset).toPx() * transitionProgress
-                                        alpha = (1f - transitionProgress / 0.20f).coerceIn(0f, 1f)
+                                        alpha = (1f - transitionProgress / 0.25f).coerceIn(0f, 1f)
                                     }
                             ) {
                                 if (showMiniPlayer) {
@@ -223,7 +242,7 @@ fun MainScreen() {
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .graphicsLayer {
-                                        alpha = (1f - transitionProgress / 0.20f).coerceIn(0f, 1f)
+                                        alpha = (1f - transitionProgress / 0.25f).coerceIn(0f, 1f)
                                     }
                             )
                         }

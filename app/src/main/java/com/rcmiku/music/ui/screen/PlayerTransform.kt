@@ -51,8 +51,6 @@ const val PLAY_QUEUE = 1
 const val MINI_PLAYER = 2
 const val LYRIC_VIEW = 3
 
-private val PlayerMotionEasing = CubicBezierEasing(0.2f, 0.9f, 0.3f, 1.0f)
-
 @Composable
 fun PlayerTransform(
     onClick: () -> Unit = {},
@@ -133,8 +131,8 @@ fun PlayerTransform(
         val startRect = miniArtworkRect ?: defaultMiniRect
         val endRect = fullArtworkRect ?: defaultFullRect
 
-        // 1. 全屏沉浸式底色：展开 0%~20% 快速铺满；收起 20%~0% 渐隐
-        val bgAlpha = (transitionProgress / 0.20f).coerceIn(0f, 1f)
+        // 1. 全屏沉浸式底色：展开 0%~25% 快速铺满；收起 25%~0% 渐隐
+        val bgAlpha = (transitionProgress / 0.25f).coerceIn(0f, 1f)
         if (transitionProgress > 0f) {
             ImmersiveBackground(
                 modifier = Modifier
@@ -144,10 +142,10 @@ fun PlayerTransform(
             ) {}
         }
 
-        // 2. Mini 控件层：展开 0%~15% 快速淡出并微下沉；收起 15%~0% 渐显
-        val miniAlpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
-        val miniOffsetY = 8.dp * (transitionProgress / 0.15f).coerceIn(0f, 1f)
-        if (transitionProgress < 0.20f) {
+        // 2. Mini 控件层：展开 0%~18% 快速淡出并微下沉；收起 18%~0% 渐显
+        val miniAlpha = (1f - transitionProgress / 0.18f).coerceIn(0f, 1f)
+        val miniOffsetY = 8.dp * (transitionProgress / 0.18f).coerceIn(0f, 1f)
+        if (transitionProgress < 0.25f) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -168,11 +166,11 @@ fun PlayerTransform(
             }
         }
 
-        // 3. 全屏播放器控件层：展开 40%~100% 错峰浮入；收起 100%~60% 优先淡出
+        // 3. 全屏播放器控件层：展开 35%~100% 错峰浮入；收起 100%~50% 优先淡出
         val fullControlsAlpha = if (isExpanded) {
-            ((transitionProgress - 0.40f) / 0.60f).coerceIn(0f, 1f)
+            ((transitionProgress - 0.35f) / 0.65f).coerceIn(0f, 1f)
         } else {
-            ((transitionProgress - 0.60f) / 0.40f).coerceIn(0f, 1f)
+            ((transitionProgress - 0.50f) / 0.50f).coerceIn(0f, 1f)
         }
         val fullControlsOffsetY = 16.dp * (1f - fullControlsAlpha)
 
@@ -213,9 +211,9 @@ fun PlayerTransform(
             }
         }
 
-        // 4. 单一物理浮动封面：转场期间沿贝塞尔曲线唯一运动，杜绝双封面重叠与圆角失真
+        // 4. 单一物理浮动封面：转场期间沿单次缓动曲线平滑运动，杜绝双封面重叠与圆角失真
         if (transitionProgress > 0f && transitionProgress < 1f) {
-            val easedT = PlayerMotionEasing.transform(transitionProgress)
+            val easedT = transitionProgress
 
             val leftPx = androidx.compose.ui.util.lerp(startRect.left, endRect.left, easedT)
             val topPx = androidx.compose.ui.util.lerp(startRect.top, endRect.top, easedT)
