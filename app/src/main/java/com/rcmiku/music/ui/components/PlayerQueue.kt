@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -252,10 +253,21 @@ fun PlayerQueue(
                     }) { index, mediaItem ->
 
                         val isCurrent = currentMediaId == mediaItem.mediaId
+                        val density = LocalDensity.current
+                        val minDeleteDistanceDp = 140.dp
+                        val minDeleteDistancePx = with(density) { minDeleteDistanceDp.toPx() }
+                        var dismissStateRef: SwipeToDismissBoxState? = null
                         val dismissState = rememberSwipeToDismissBoxState(
-                            positionalThreshold = { totalDistance -> totalDistance },
+                            positionalThreshold = { totalDistance ->
+                                minDeleteDistancePx.coerceAtLeast(totalDistance * 0.4f)
+                            },
                             confirmValueChange = { dismissValue ->
                                 if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                    val currentOffset = runCatching { dismissStateRef?.requireOffset() }.getOrNull() ?: 0f
+                                    val dragDistancePx = (-currentOffset).coerceAtLeast(0f)
+                                    if (dragDistancePx < minDeleteDistancePx) {
+                                        return@rememberSwipeToDismissBoxState false
+                                    }
                                     cacheMediaItems = cacheMediaItems?.toMutableList()?.apply {
                                         removeIf { it.mediaId == mediaItem.mediaId }
                                     }
@@ -264,6 +276,7 @@ fun PlayerQueue(
                                 true
                             }
                         )
+                        dismissStateRef = dismissState
 
                         ReorderableItem(
                             reorderableLazyListState,
@@ -275,10 +288,10 @@ fun PlayerQueue(
                                 backgroundContent = {
                                     val currentOffset = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
                                     val dragDistancePx = (-currentOffset).coerceAtLeast(0f)
-                                    val density = LocalDensity.current
                                     val dragDistanceDp = with(density) { dragDistancePx.toDp() }
 
                                     if (dragDistanceDp > 0.dp) {
+                                        val willDelete = dragDistanceDp >= minDeleteDistanceDp
                                         Box(
                                             modifier = Modifier.fillMaxSize(),
                                             contentAlignment = Alignment.CenterEnd
@@ -289,16 +302,21 @@ fun PlayerQueue(
                                                     .width(dragDistanceDp)
                                                     .padding(top = 2.dp, bottom = 2.dp, end = 8.dp)
                                                     .clip(JetMeloShapes.medium)
-                                                    .background(Color(0xFFE53935)),
+                                                    .background(if (willDelete) Color(0xFFD32F2F) else Color(0xFFE53935)),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 if (dragDistanceDp > 36.dp) {
                                                     val contentAlpha = ((dragDistanceDp - 36.dp) / 24.dp).coerceIn(0f, 1f)
+                                                    val scale = if (willDelete) 1.08f else 1f
                                                     Row(
                                                         verticalAlignment = Alignment.CenterVertically,
                                                         horizontalArrangement = Arrangement.Center,
                                                         modifier = Modifier
-                                                            .graphicsLayer { alpha = contentAlpha }
+                                                            .graphicsLayer {
+                                                                alpha = contentAlpha
+                                                                scaleX = scale
+                                                                scaleY = scale
+                                                            }
                                                             .padding(horizontal = 4.dp)
                                                     ) {
                                                         Icon(
