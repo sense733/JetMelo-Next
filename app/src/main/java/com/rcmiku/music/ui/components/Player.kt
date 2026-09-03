@@ -87,6 +87,11 @@ import com.rcmiku.music.ui.icons.SkipPreviousFill
 import com.rcmiku.music.ui.navigation.AlbumNav
 import com.rcmiku.music.ui.navigation.ArtistNav
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.Dp
 import com.rcmiku.music.ui.theme.TitleHeroLarge
 import com.rcmiku.music.utils.getItemShape
 import com.rcmiku.music.utils.makeTimeString
@@ -105,7 +110,12 @@ fun Player(
     onBackPressed: () -> Unit = {},
     onClick: () -> Unit = {},
     onContainerClick: () -> Unit = {},
-    navController: NavHostController
+    navController: NavHostController,
+    controlsAlpha: Float = 1f,
+    controlsOffsetY: Dp = 0.dp,
+    showArtwork: Boolean = true,
+    showBackground: Boolean = true,
+    onArtworkPositioned: ((Rect) -> Unit)? = null
 ) {
     BackHandler {
         onBackPressed()
@@ -140,10 +150,7 @@ fun Player(
         }
     }
 
-    ImmersiveBackground(
-        modifier = modifier.fillMaxSize(),
-        artworkUri = mediaMetadata.artworkUri
-    ) {
+    val playerContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -156,7 +163,11 @@ fun Player(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(56.dp)
+                    .graphicsLayer {
+                        alpha = controlsAlpha
+                        translationY = controlsOffsetY.toPx()
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -207,18 +218,32 @@ fun Player(
                     modifier = Modifier
                         .fillMaxWidth(0.88f)
                         .aspectRatio(1f)
-                        .shadow(elevation = 16.dp, shape = JetMeloShapes.large)
-                        .clip(JetMeloShapes.large)
-                        .clickable(onClick = onClick)
+                        .onGloballyPositioned { coords ->
+                            if (coords.isAttached) {
+                                onArtworkPositioned?.invoke(coords.boundsInRoot())
+                            }
+                        }
+                        .then(
+                            if (showArtwork) {
+                                Modifier
+                                    .shadow(elevation = 16.dp, shape = JetMeloShapes.large)
+                                    .clip(JetMeloShapes.large)
+                                    .clickable(onClick = onClick)
+                            } else {
+                                Modifier
+                            }
+                        )
                 ) {
-                    AsyncImage(
-                        model = mediaMetadata.artworkUri,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = imageModifier
-                            .fillMaxSize()
-                            .clip(JetMeloShapes.large)
-                    )
+                    if (showArtwork) {
+                        AsyncImage(
+                            model = mediaMetadata.artworkUri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = imageModifier
+                                .fillMaxSize()
+                                .clip(JetMeloShapes.large)
+                        )
+                    }
                 }
             }
 
@@ -226,7 +251,11 @@ fun Player(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 12.dp)
+                    .graphicsLayer {
+                        alpha = controlsAlpha
+                        translationY = controlsOffsetY.toPx()
+                    },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Title, Artist, and Favorite button
@@ -426,6 +455,19 @@ fun Player(
             onDismiss = { openPlayerBottomSheet = false },
             openBottomSheet = openPlayerBottomSheet
         )
+    }
+
+    if (showBackground) {
+        ImmersiveBackground(
+            modifier = modifier.fillMaxSize(),
+            artworkUri = mediaMetadata.artworkUri
+        ) {
+            playerContent()
+        }
+    } else {
+        Box(modifier = modifier.fillMaxSize()) {
+            playerContent()
+        }
     }
 }
 

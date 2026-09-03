@@ -37,6 +37,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player.STATE_READY
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
@@ -55,6 +60,10 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
     onClick: () -> Unit = {},
+    controlsAlpha: Float = 1f,
+    controlsOffsetY: Dp = 0.dp,
+    showArtwork: Boolean = true,
+    onArtworkPositioned: ((Rect) -> Unit)? = null
 ) {
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
@@ -87,35 +96,47 @@ fun MiniPlayer(
                 Box(modifier = Modifier.weight(1f)) {
                     MiniMediaInfo(
                         mediaMetadata = mediaMetadata,
-                        imageModifier = imageModifier
+                        imageModifier = imageModifier,
+                        controlsAlpha = controlsAlpha,
+                        controlsOffsetY = controlsOffsetY,
+                        showArtwork = showArtwork,
+                        onArtworkPositioned = onArtworkPositioned
                     )
                 }
 
-                IconButton(
-                    onClick = {
-                        if (playerState?.isPlaying == true)
-                            mediaController?.pause()
-                        else
-                            mediaController?.play()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = controlsAlpha
+                        translationY = controlsOffsetY.toPx()
                     }
                 ) {
-                    Icon(
-                        imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                    IconButton(
+                        onClick = {
+                            if (playerState?.isPlaying == true)
+                                mediaController?.pause()
+                            else
+                                mediaController?.play()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-                IconButton(
-                    onClick = {
-                        mediaController?.seekToNext()
+                    IconButton(
+                        onClick = {
+                            mediaController?.seekToNext()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = SkipNext,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = SkipNext,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
                 }
             }
 
@@ -125,6 +146,9 @@ fun MiniPlayer(
                     .fillMaxWidth()
                     .height(2.5.dp)
                     .align(Alignment.BottomCenter)
+                    .graphicsLayer {
+                        alpha = controlsAlpha
+                    }
             )
         }
     }
@@ -135,24 +159,44 @@ fun MiniMediaInfo(
     mediaMetadata: MediaMetadata,
     modifier: Modifier = Modifier,
     imageModifier: Modifier = Modifier,
+    controlsAlpha: Float = 1f,
+    controlsOffsetY: Dp = 0.dp,
+    showArtwork: Boolean = true,
+    onArtworkPositioned: ((Rect) -> Unit)? = null
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
     ) {
-        AsyncImage(
-            model = mediaMetadata.artworkUri,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = imageModifier
+        Box(
+            modifier = Modifier
                 .size(44.dp)
-                .clip(JetMeloShapes.small)
-        )
+                .onGloballyPositioned { coords ->
+                    if (coords.isAttached) {
+                        onArtworkPositioned?.invoke(coords.boundsInRoot())
+                    }
+                }
+        ) {
+            if (showArtwork) {
+                AsyncImage(
+                    model = mediaMetadata.artworkUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = imageModifier
+                        .fillMaxSize()
+                        .clip(JetMeloShapes.small)
+                )
+            }
+        }
 
         Column(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 10.dp)
+                .graphicsLayer {
+                    alpha = controlsAlpha
+                    translationY = controlsOffsetY.toPx()
+                }
         ) {
             mediaMetadata.title?.let {
                 Text(
