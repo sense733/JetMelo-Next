@@ -224,7 +224,7 @@ fun MiniMediaInfo(
 }
 
 @Composable
-private fun MiniPlayerProgressBar(
+fun MiniPlayerProgressBar(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {

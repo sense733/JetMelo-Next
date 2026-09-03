@@ -170,10 +170,6 @@ fun MainScreen() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(MaterialTheme.colorScheme.background)
-                                    .graphicsLayer {
-                                        translationY = (navBarBaseHeight + navBarInset).toPx() * transitionProgress
-                                        alpha = (1f - transitionProgress / 0.25f).coerceIn(0f, 1f)
-                                    }
                             ) {
                                 if (showMiniPlayer) {
                                     Spacer(modifier = Modifier.height(MiniPlayerHeight / 2))
@@ -215,12 +211,9 @@ fun MainScreen() {
                             .consumeWindowInsets(padding)
                             .graphicsLayer {
                                 val p = transitionProgress
-                                scaleX = 1f - 0.05f * p
-                                scaleY = 1f - 0.05f * p
-                                translationY = 8.dp.toPx() * p
+                                scaleX = 1f - 0.04f * p
+                                scaleY = 1f - 0.04f * p
                                 transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                shape = RoundedCornerShape((16 * p).dp)
-                                clip = p > 0.01f
                             }
                     ) {
                         NavGraph(
@@ -228,21 +221,13 @@ fun MainScreen() {
                             bottomContentPadding = bottomContentPadding
                         )
 
-                        if (transitionProgress > 0.01f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.30f * transitionProgress))
-                            )
-                        }
-
-                        if (showMiniPlayer) {
+                        if (showMiniPlayer && transitionProgress < 0.20f) {
                             BottomFogOverlay(
                                 bottomPadding = fogBottomPadding,
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .graphicsLayer {
-                                        alpha = (1f - transitionProgress / 0.25f).coerceIn(0f, 1f)
+                                        alpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
                                     }
                             )
                         }
