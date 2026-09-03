@@ -395,76 +395,78 @@ fun PlayerTransform(
             val mediaId = playerState?.currentMediaItem?.mediaId ?: mediaMetadata.title?.toString() ?: "unknown"
             val coverKey = "cover_$mediaId"
 
-            SharedTransitionLayout(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = fullControlsAlpha
-                        translationY = fullControlsOffsetY.toPx()
-                    }
-            ) {
-                AnimatedContent(
-                    targetState = currentView,
-                    transitionSpec = {
-                        fadeIn(
-                            animationSpec = tween(
-                                delayMillis = DURATION_EXIT_SHORT,
-                                durationMillis = DURATION_ENTER,
-                                easing = EmphasizedDecelerateEasing
+            if (fullControlsAlpha > 0f) {
+                SharedTransitionLayout(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            alpha = fullControlsAlpha
+                            translationY = fullControlsOffsetY.toPx()
+                        }
+                ) {
+                    AnimatedContent(
+                        targetState = currentView,
+                        transitionSpec = {
+                            fadeIn(
+                                animationSpec = tween(
+                                    delayMillis = DURATION_EXIT_SHORT,
+                                    durationMillis = DURATION_ENTER,
+                                    easing = EmphasizedDecelerateEasing
+                                )
+                            ) togetherWith fadeOut(
+                                animationSpec = tween(
+                                    durationMillis = DURATION_EXIT_SHORT,
+                                    easing = EmphasizedAccelerateEasing
+                                )
                             )
-                        ) togetherWith fadeOut(
-                            animationSpec = tween(
-                                durationMillis = DURATION_EXIT_SHORT,
-                                easing = EmphasizedAccelerateEasing
-                            )
+                        },
+                        label = "player_subview_shared_transition",
+                        modifier = Modifier.fillMaxSize()
+                    ) { targetView ->
+                        val sharedImageModifier = Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = coverKey),
+                            animatedVisibilityScope = this,
+                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
+                            boundsTransform = AlbumArtBoundsTransform,
+                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
                         )
-                    },
-                    label = "player_subview_shared_transition",
-                    modifier = Modifier.fillMaxSize()
-                ) { targetView ->
-                    val sharedImageModifier = Modifier.sharedElement(
-                        sharedContentState = rememberSharedContentState(key = coverKey),
-                        animatedVisibilityScope = this,
-                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
-                        boundsTransform = AlbumArtBoundsTransform,
-                        clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
-                    )
 
-                    when (targetView) {
-                        FULL_PLAYER -> {
-                            Player(
-                                navController = navController,
-                                mediaMetadata = mediaMetadata,
-                                imageModifier = sharedImageModifier,
-                                onBackPressed = onBackPressed,
-                                onClick = { currentView = LYRIC_VIEW },
-                                onContainerClick = { currentView = PLAY_QUEUE },
-                                controlsAlpha = 1f,
-                                controlsOffsetY = 0.dp,
-                                showArtwork = (transitionProgress == 1f),
-                                showBackground = false,
-                                onArtworkPositioned = { rect ->
-                                    if (fullArtworkRect == null || fullArtworkRect != rect) {
-                                        fullArtworkRect = rect
+                        when (targetView) {
+                            FULL_PLAYER -> {
+                                Player(
+                                    navController = navController,
+                                    mediaMetadata = mediaMetadata,
+                                    imageModifier = sharedImageModifier,
+                                    onBackPressed = onBackPressed,
+                                    onClick = { currentView = LYRIC_VIEW },
+                                    onContainerClick = { currentView = PLAY_QUEUE },
+                                    controlsAlpha = 1f,
+                                    controlsOffsetY = 0.dp,
+                                    showArtwork = (transitionProgress == 1f),
+                                    showBackground = false,
+                                    onArtworkPositioned = { rect ->
+                                        if (fullArtworkRect == null || fullArtworkRect != rect) {
+                                            fullArtworkRect = rect
+                                        }
                                     }
-                                }
-                            )
-                        }
-                        PLAY_QUEUE -> {
-                            PlayerQueue(
-                                mediaMetadata = mediaMetadata,
-                                imageModifier = sharedImageModifier,
-                                onBackPressed = { currentView = FULL_PLAYER },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        LYRIC_VIEW -> {
-                            Lyric(
-                                mediaMetadata = mediaMetadata,
-                                imageModifier = sharedImageModifier,
-                                onBackPressed = { currentView = FULL_PLAYER },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                                )
+                            }
+                            PLAY_QUEUE -> {
+                                PlayerQueue(
+                                    mediaMetadata = mediaMetadata,
+                                    imageModifier = sharedImageModifier,
+                                    onBackPressed = { currentView = FULL_PLAYER },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            LYRIC_VIEW -> {
+                                Lyric(
+                                    mediaMetadata = mediaMetadata,
+                                    imageModifier = sharedImageModifier,
+                                    onBackPressed = { currentView = FULL_PLAYER },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     }
                 }
