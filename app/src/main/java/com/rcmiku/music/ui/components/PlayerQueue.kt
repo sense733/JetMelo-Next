@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -271,44 +269,48 @@ fun PlayerQueue(
                                 state = dismissState,
                                 enableDismissFromStartToEnd = false,
                                 backgroundContent = {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                                            .clip(JetMeloShapes.medium)
-                                            .background(MaterialTheme.colorScheme.errorContainer),
-                                        contentAlignment = Alignment.CenterEnd
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.delete),
-                                            color = MaterialTheme.colorScheme.onErrorContainer,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(end = 16.dp)
-                                        )
+                                    val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled ||
+                                        dismissState.currentValue != SwipeToDismissBoxValue.Settled ||
+                                        dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
+                                    if (isSwiping) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                                .clip(JetMeloShapes.medium)
+                                                .background(Color(0xFFE53935).copy(alpha = 0.9f)),
+                                            contentAlignment = Alignment.CenterEnd
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.delete),
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(end = 16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             ) {
-                                Card(
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 3.dp)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        .clip(JetMeloShapes.medium)
+                                        .background(
+                                            if (isCurrent)
+                                                artworkColors.accentColor.copy(alpha = 0.22f)
+                                            else
+                                                Color.Transparent
+                                        )
                                         .clickable {
                                             mediaController?.playMediaAtMediaId(mediaItem.mediaId)
-                                        },
-                                    shape = JetMeloShapes.medium,
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isCurrent)
-                                            artworkColors.accentColor.copy(alpha = 0.25f)
-                                        else
-                                            Color.White.copy(alpha = 0.08f)
-                                    )
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 8.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         AsyncImage(
                                             model = mediaItem.mediaMetadata.artworkUri,
@@ -336,7 +338,10 @@ fun PlayerQueue(
                                             Text(
                                                 text = mediaItem.mediaMetadata.artist?.toString() ?: "",
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = Color.White.copy(alpha = 0.65f),
+                                                color = if (isCurrent)
+                                                    artworkColors.accentColor.copy(alpha = 0.75f)
+                                                else
+                                                    Color.White.copy(alpha = 0.65f),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                                 modifier = if (isCurrent) artistModifier else Modifier
