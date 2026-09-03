@@ -94,6 +94,7 @@ import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
+import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import kotlin.math.roundToInt
@@ -426,9 +427,9 @@ fun PlayerTransform(
                         val sharedImageModifier = Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState(key = coverKey),
                             animatedVisibilityScope = this,
-                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
+                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
                             boundsTransform = AlbumArtBoundsTransform,
-                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
+                            clipInOverlayDuringTransition = OverlayClip(AdaptiveArtworkShape)
                         )
 
                         when (targetView) {

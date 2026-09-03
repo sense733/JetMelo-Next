@@ -12,9 +12,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 val JetMeloM3Shapes = Shapes(
@@ -32,6 +41,31 @@ object JetMeloShapes {
     val large = RoundedCornerShape(24.dp)
     val extraLarge = RoundedCornerShape(28.dp)
     val full = CircleShape
+}
+
+val AdaptiveArtworkShape: Shape = object : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val minPx = with(density) { 44.dp.toPx() }
+        val maxPx = with(density) { 280.dp.toPx() }
+        val fraction = if (maxPx > minPx) {
+            ((size.width - minPx) / (maxPx - minPx)).coerceIn(0f, 1f)
+        } else {
+            1f
+        }
+        val cornerRadiusPx = with(density) {
+            (8.dp.toPx() + (24.dp.toPx() - 8.dp.toPx()) * fraction)
+        }
+        return Outline.Rounded(
+            RoundRect(
+                rect = Rect(Offset.Zero, size),
+                cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+            )
+        )
+    }
 }
 
 @Composable

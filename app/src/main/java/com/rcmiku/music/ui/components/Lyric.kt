@@ -71,6 +71,7 @@ import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.ChevronDown
+import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.parseLrc
 import com.rcmiku.music.viewModel.LyricViewModel
@@ -171,7 +172,7 @@ fun Lyric(
                         contentScale = ContentScale.Crop,
                         modifier = imageModifier
                             .size(44.dp)
-                            .clip(JetMeloShapes.small)
+                            .clip(AdaptiveArtworkShape)
                     )
 
                     Spacer(modifier = Modifier.width(12.dp))

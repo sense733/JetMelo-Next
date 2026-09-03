@@ -69,6 +69,7 @@ import com.rcmiku.music.ui.icons.DragHandle
 import com.rcmiku.music.ui.icons.Repeat
 import com.rcmiku.music.ui.icons.RepeatOne
 import com.rcmiku.music.ui.icons.Shuffle
+import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -306,7 +307,7 @@ fun PlayerQueue(
                                             contentScale = ContentScale.Crop,
                                             modifier = (if (isCurrent) imageModifier else Modifier)
                                                 .size(44.dp)
-                                                .clip(JetMeloShapes.small)
+                                                .clip(AdaptiveArtworkShape)
                                         )
 
                                         Spacer(modifier = Modifier.width(12.dp))

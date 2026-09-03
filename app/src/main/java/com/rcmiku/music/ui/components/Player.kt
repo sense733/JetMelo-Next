@@ -89,6 +89,7 @@ import com.rcmiku.music.ui.icons.SkipNextFill
 import com.rcmiku.music.ui.icons.SkipPreviousFill
 import com.rcmiku.music.ui.navigation.AlbumNav
 import com.rcmiku.music.ui.navigation.ArtistNav
+import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
@@ -237,8 +238,8 @@ fun Player(
                             contentScale = ContentScale.Crop,
                             modifier = imageModifier
                                 .fillMaxSize()
-                                .shadow(elevation = 16.dp, shape = JetMeloShapes.large)
-                                .clip(JetMeloShapes.large)
+                                .shadow(elevation = 16.dp, shape = AdaptiveArtworkShape)
+                                .clip(AdaptiveArtworkShape)
                                 .clickable(onClick = onClick)
                         )
                     }
