@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -144,6 +146,7 @@ fun MiniPlayer(
                 accentColor = artworkColors.accentColor,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(start = 60.dp, end = 12.dp)
                     .height(2.5.dp)
                     .align(Alignment.BottomCenter)
                     .graphicsLayer {
@@ -233,12 +236,13 @@ fun MiniPlayerProgressBar(
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId
 
-    var position by rememberSaveable(playerState) {
+    var position by remember(playerState?.player) {
         mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
     }
-    var duration by rememberSaveable(playerState) {
-        mutableLongStateOf(playerState?.player?.duration ?: 0L)
+    var duration by remember(playerState?.player) {
+        mutableLongStateOf(playerState?.player?.duration?.coerceAtLeast(0L) ?: 0L)
     }
+    var lastMediaId by remember { mutableStateOf(currentMediaId) }
 
     LaunchedEffect(playbackState, isPlaying) {
         if (playbackState == STATE_READY && isPlaying) {
@@ -256,10 +260,13 @@ fun MiniPlayerProgressBar(
     }
 
     LaunchedEffect(currentMediaId) {
-        position = 0L
+        if (lastMediaId != currentMediaId) {
+            lastMediaId = currentMediaId
+            position = 0L
+        }
     }
 
-    val progressTarget = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
+    val progressTarget = if (duration > 0L) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
     val animatedProgress by animateFloatAsState(
         targetValue = progressTarget,
         animationSpec = tween(durationMillis = 150, easing = LinearEasing),

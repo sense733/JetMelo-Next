@@ -275,6 +275,12 @@ fun PlayerTransform(
                             height = with(density) { miniHeightPx.toDp() }
                         )
                         .graphicsLayer { alpha = miniAlpha }
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            enabled = transitionProgress == 0f,
+                            onClick = onClick
+                        )
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -285,7 +291,7 @@ fun PlayerTransform(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(end = 6.dp)
+                                .padding(end = 4.dp)
                         ) {
                             mediaMetadata.title?.let {
                                 Text(
@@ -314,7 +320,8 @@ fun PlayerTransform(
                             onClick = {
                                 if (playerState?.isPlaying == true) mediaController?.pause()
                                 else mediaController?.play()
-                            }
+                            },
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
@@ -323,7 +330,10 @@ fun PlayerTransform(
                             )
                         }
 
-                        IconButton(onClick = { mediaController?.seekToNext() }) {
+                        IconButton(
+                            onClick = { mediaController?.seekToNext() },
+                            modifier = Modifier.size(48.dp)
+                        ) {
                             Icon(
                                 imageVector = SkipNext,
                                 contentDescription = null,
@@ -336,6 +346,7 @@ fun PlayerTransform(
                         accentColor = artworkColors.accentColor,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(start = 60.dp, end = 12.dp)
                             .height(2.5.dp)
                             .align(Alignment.BottomCenter)
                     )
@@ -393,26 +404,9 @@ fun PlayerTransform(
                     }
                 }
             }
-
-            // 折叠态点击展开拦截区（仅在完全折叠时响应点击）
-            if (transitionProgress == 0f) {
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(miniLeftPx.roundToInt(), miniTopPx.roundToInt()) }
-                        .size(
-                            width = with(density) { (miniRightPx - miniLeftPx).toDp() },
-                            height = with(density) { miniHeightPx.toDp() }
-                        )
-                        .clickable(
-                            interactionSource = null,
-                            indication = null,
-                            onClick = onClick
-                        )
-                )
-            }
         }
 
-        // 2. 单一物理封面：1:1 与容器同步位移与缩放，杜绝双封面重叠与视差脱节
+        // 4. 单一物理封面：1:1 与容器同步位移与缩放，杜绝双封面重叠与视差脱节
         if (currentView == FULL_PLAYER) {
             Box(
                 modifier = Modifier
@@ -423,11 +417,16 @@ fun PlayerTransform(
                     )
                     .shadow(currentArtworkElevation, shape = RoundedCornerShape(currentArtworkCorner))
                     .clip(RoundedCornerShape(currentArtworkCorner))
-                    .then(
+                    .clickable(
+                        interactionSource = null,
+                        indication = null
+                    ) {
                         if (transitionProgress == 1f) {
-                            Modifier.clickable { currentView = LYRIC_VIEW }
-                        } else Modifier
-                    )
+                            currentView = LYRIC_VIEW
+                        } else if (transitionProgress == 0f) {
+                            onClick()
+                        }
+                    }
             ) {
                 AsyncImage(
                     model = mediaMetadata.artworkUri,
