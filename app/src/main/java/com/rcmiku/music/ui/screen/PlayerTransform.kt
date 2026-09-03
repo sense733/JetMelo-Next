@@ -36,7 +36,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -44,8 +49,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.media3.common.MediaMetadata
@@ -182,37 +189,44 @@ fun PlayerTransform(
         val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 28.dp, transitionProgress)
         val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, transitionProgress)
 
-        // 1. 物理形变容器（Container Transform）：从 MiniBar 向上扩展为全屏实底卡片
+        // 1. 物理形变容器阴影（卡片背后投影，随进度向全屏扩展并逐渐淡出）
+        if (transitionProgress < 1f) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
+                    .size(
+                        width = with(density) { containerRect.width.toDp() },
+                        height = with(density) { containerRect.height.toDp() }
+                    )
+                    .shadow(containerElevation, shape = RoundedCornerShape(containerCornerRadius))
+            )
+        }
+
+        // 2. 物理形变视口（Container Transform Window）：以全屏尺寸承载所有内容，通过动态裁剪窗扩展，彻底杜绝内容被高度挤压或尺寸坍缩
         Box(
             modifier = Modifier
-                .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
-                .size(
-                    width = with(density) { containerRect.width.toDp() },
-                    height = with(density) { containerRect.height.toDp() }
-                )
-                .shadow(containerElevation, shape = RoundedCornerShape(containerCornerRadius))
-                .clip(RoundedCornerShape(containerCornerRadius))
-                .then(
-                    if (transitionProgress < 0.15f) {
-                        Modifier.border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(
-                                alpha = 0.5f * (1f - transitionProgress / 0.15f)
-                            ),
-                            shape = RoundedCornerShape(containerCornerRadius)
-                        )
-                    } else Modifier
-                )
-                .clickable(
-                    interactionSource = null,
-                    indication = null
-                ) {
-                    if (transitionProgress == 0f) {
-                        onClick()
+                .fillMaxSize()
+                .graphicsLayer {
+                    clip = transitionProgress < 1f
+                    if (transitionProgress < 1f) {
+                        shape = object : Shape {
+                            override fun createOutline(
+                                size: Size,
+                                layoutDirection: LayoutDirection,
+                                density: Density
+                            ): Outline {
+                                return Outline.Rounded(
+                                    RoundRect(
+                                        rect = containerRect,
+                                        cornerRadius = CornerRadius(with(density) { containerCornerRadius.toPx() })
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
         ) {
-            // 容器实底沉浸背景：严格受限在形变卡片内部，彻底消除全屏半透明滤镜与文字穿透
+            // 容器实底沉浸背景：严格受限在动态裁剪窗内部，实底且平滑揭示
             ImmersiveBackground(
                 modifier = Modifier.fillMaxSize(),
                 artworkUri = mediaMetadata.artworkUri
@@ -228,19 +242,41 @@ fun PlayerTransform(
                 )
             }
 
-            // Mini 控件层：展开 0%~15% 极速淡出；收起 15%~0% 恢复
+            // Mini 栏描边（0%~15% 渐隐）
+            if (transitionProgress < 0.15f) {
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(miniLeftPx.roundToInt(), miniTopPx.roundToInt()) }
+                        .size(
+                            width = with(density) { (miniRightPx - miniLeftPx).toDp() },
+                            height = with(density) { miniHeightPx.toDp() }
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                alpha = 0.5f * (1f - transitionProgress / 0.15f)
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                )
+            }
+
+            // Mini 控件层：锚定在底栏槽位，展开 0%~15% 极速淡出
             val miniAlpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
             if (miniAlpha > 0f) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .offset { IntOffset(miniLeftPx.roundToInt(), miniTopPx.roundToInt()) }
+                        .size(
+                            width = with(density) { (miniRightPx - miniLeftPx).toDp() },
+                            height = with(density) { miniHeightPx.toDp() }
+                        )
                         .graphicsLayer { alpha = miniAlpha }
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(with(density) { miniHeightPx.toDp() })
+                            .fillMaxSize()
                             .padding(start = 60.dp, end = 4.dp)
                     ) {
                         Column(
@@ -303,7 +339,7 @@ fun PlayerTransform(
                 }
             }
 
-            // Full 控件层：展开 60%~100% 错峰浮入；收起 100%~70% 优先淡出
+            // Full 控件层：以完整全屏尺寸布局，展开 60%~100% 错峰浮入；收起 100%~70% 优先淡出
             val fullControlsAlpha = if (isExpanded) {
                 ((transitionProgress - 0.60f) / 0.40f).coerceIn(0f, 1f)
             } else {
@@ -311,60 +347,65 @@ fun PlayerTransform(
             }
             val fullControlsOffsetY = 12.dp * (1f - fullControlsAlpha)
 
-            // 保持 FullPlayer 始终以全屏视口尺寸布局，锚定在屏幕根坐标系，绝不随容器高度伸缩而挤压变形
-            if (isExpanded || transitionProgress > 0f) {
-                Box(
-                    modifier = Modifier
-                        .size(
-                            width = with(density) { screenWidthPx.toDp() },
-                            height = with(density) { screenHeightPx.toDp() }
-                        )
-                        .offset {
-                            IntOffset(
-                                -containerRect.left.roundToInt(),
-                                -containerRect.top.roundToInt()
-                            )
-                        }
-                        .graphicsLayer {
-                            alpha = fullControlsAlpha
-                            translationY = fullControlsOffsetY.toPx()
-                        }
-                ) {
-                    when (currentView) {
-                        FULL_PLAYER -> {
-                            Player(
-                                navController = navController,
-                                mediaMetadata = mediaMetadata,
-                                onBackPressed = onBackPressed,
-                                onClick = { currentView = LYRIC_VIEW },
-                                onContainerClick = { currentView = PLAY_QUEUE },
-                                controlsAlpha = 1f,
-                                controlsOffsetY = 0.dp,
-                                showArtwork = false,
-                                showBackground = false,
-                                onArtworkPositioned = { rect ->
-                                    if (fullArtworkRect == null || fullArtworkRect != rect) {
-                                        fullArtworkRect = rect
-                                    }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = fullControlsAlpha
+                        translationY = fullControlsOffsetY.toPx()
+                    }
+            ) {
+                when (currentView) {
+                    FULL_PLAYER -> {
+                        Player(
+                            navController = navController,
+                            mediaMetadata = mediaMetadata,
+                            onBackPressed = onBackPressed,
+                            onClick = { currentView = LYRIC_VIEW },
+                            onContainerClick = { currentView = PLAY_QUEUE },
+                            controlsAlpha = 1f,
+                            controlsOffsetY = 0.dp,
+                            showArtwork = false,
+                            showBackground = false,
+                            onArtworkPositioned = { rect ->
+                                if (fullArtworkRect == null || fullArtworkRect != rect) {
+                                    fullArtworkRect = rect
                                 }
-                            )
-                        }
-                        PLAY_QUEUE -> {
-                            PlayerQueue(
-                                mediaMetadata = mediaMetadata,
-                                onBackPressed = { currentView = FULL_PLAYER },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        LYRIC_VIEW -> {
-                            Lyric(
-                                mediaMetadata = mediaMetadata,
-                                onBackPressed = { currentView = FULL_PLAYER },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
+                            }
+                        )
+                    }
+                    PLAY_QUEUE -> {
+                        PlayerQueue(
+                            mediaMetadata = mediaMetadata,
+                            onBackPressed = { currentView = FULL_PLAYER },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    LYRIC_VIEW -> {
+                        Lyric(
+                            mediaMetadata = mediaMetadata,
+                            onBackPressed = { currentView = FULL_PLAYER },
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
+            }
+
+            // 折叠态点击展开拦截区（仅在完全折叠时响应点击）
+            if (transitionProgress == 0f) {
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(miniLeftPx.roundToInt(), miniTopPx.roundToInt()) }
+                        .size(
+                            width = with(density) { (miniRightPx - miniLeftPx).toDp() },
+                            height = with(density) { miniHeightPx.toDp() }
+                        )
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = onClick
+                        )
+                )
             }
         }
 
