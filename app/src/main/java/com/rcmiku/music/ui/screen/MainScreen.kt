@@ -65,6 +65,7 @@ import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.navigation.NavGraph
 import com.rcmiku.music.ui.navigation.Screen
+import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.utils.CookieProvider
@@ -226,6 +227,7 @@ fun MainScreen() {
                 },
                 content = { padding ->
                     val p = transitionProgress
+                    val deviceCornerRadius = rememberDeviceCornerRadius()
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -234,6 +236,10 @@ fun MainScreen() {
                                 scaleX = 1f - 0.05f * p
                                 scaleY = 1f - 0.05f * p
                                 transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                if (p > 0f) {
+                                    shape = RoundedCornerShape(deviceCornerRadius * p)
+                                    clip = true
+                                }
                             }
                             .then(
                                 if (p > 0f && Build.VERSION.SDK_INT >= 31) {

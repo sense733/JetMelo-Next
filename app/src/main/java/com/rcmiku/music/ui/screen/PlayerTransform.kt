@@ -70,6 +70,7 @@ import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
+import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import kotlin.math.roundToInt
 
 const val FULL_PLAYER = 0
@@ -181,7 +182,8 @@ fun PlayerTransform(
         }
 
         val containerRect = lerpRect(miniRect, fullRect, transitionProgress)
-        val containerCornerRadius = androidx.compose.ui.unit.lerp(16.dp, 0.dp, transitionProgress)
+        val deviceCornerRadius = rememberDeviceCornerRadius()
+        val containerCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, transitionProgress)
         val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, transitionProgress)
 
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
