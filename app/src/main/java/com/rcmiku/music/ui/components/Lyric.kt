@@ -133,6 +133,12 @@ fun Lyric(
 
     KeepScreenOn()
 
+    var canClickLyrics by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(400)
+        canClickLyrics = true
+    }
+
     ImmersiveBackground(
         modifier = modifier.fillMaxSize(),
         artworkUri = mediaMetadata.artworkUri
@@ -162,7 +168,7 @@ fun Lyric(
                     modifier = Modifier
                         .weight(1f)
                         .clip(JetMeloShapes.small)
-                        .clickable(onClick = onBackPressed)
+                        .clickable(enabled = canClickLyrics, onClick = onBackPressed)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     AsyncImage(
@@ -273,7 +279,7 @@ fun Lyric(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(JetMeloShapes.medium)
-                                    .clickable {
+                                    .clickable(enabled = canClickLyrics) {
                                         line.time.let {
                                             mediaController?.seekTo(it)
                                             currentIndex = index

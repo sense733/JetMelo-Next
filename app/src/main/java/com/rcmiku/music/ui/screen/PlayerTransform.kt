@@ -1,6 +1,7 @@
 package com.rcmiku.music.ui.screen
 
 import android.app.Activity
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.BoundsTransform
@@ -11,6 +12,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -24,6 +26,8 @@ import com.rcmiku.music.constants.DURATION_EXIT_SHORT
 import com.rcmiku.music.constants.EmphasizedAccelerateEasing
 import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.constants.EmphasizedEasing
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Path
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -51,6 +55,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -135,6 +140,15 @@ fun PlayerTransform(
 ) {
     var currentView by rememberSaveable {
         mutableIntStateOf(FULL_PLAYER)
+    }
+
+    var lastViewSwitchTime by remember { mutableLongStateOf(0L) }
+    val safeSwitchView: (Int) -> Unit = { target ->
+        val now = SystemClock.uptimeMillis()
+        if (now - lastViewSwitchTime > 400L && currentView != target) {
+            lastViewSwitchTime = now
+            currentView = target
+        }
     }
 
     LaunchedEffect(isExpanded) {
@@ -412,87 +426,107 @@ fun PlayerTransform(
                             translationY = fullControlsOffsetY.toPx()
                         }
                 ) {
-                    AnimatedContent(
+                    val subViewTransition = updateTransition(
                         targetState = currentView,
-                        transitionSpec = {
-                            fadeIn(
-                                animationSpec = tween(
-                                    delayMillis = DURATION_EXIT_SHORT,
-                                    durationMillis = DURATION_ENTER,
-                                    easing = EmphasizedDecelerateEasing
+                        label = "player_subview_shared_transition"
+                    )
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        subViewTransition.AnimatedContent(
+                            transitionSpec = {
+                                fadeIn(
+                                    animationSpec = tween(
+                                        delayMillis = DURATION_EXIT_SHORT,
+                                        durationMillis = DURATION_ENTER,
+                                        easing = EmphasizedDecelerateEasing
+                                    )
+                                ) togetherWith fadeOut(
+                                    animationSpec = tween(
+                                        durationMillis = DURATION_EXIT_SHORT,
+                                        easing = EmphasizedAccelerateEasing
+                                    )
                                 )
-                            ) togetherWith fadeOut(
-                                animationSpec = tween(
-                                    durationMillis = DURATION_EXIT_SHORT,
-                                    easing = EmphasizedAccelerateEasing
-                                )
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        ) { targetView ->
+                            val sharedImageModifier = Modifier.sharedElement(
+                                sharedContentState = rememberSharedContentState(key = coverKey),
+                                animatedVisibilityScope = this,
+                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                boundsTransform = AlbumArtBoundsTransform,
+                                clipInOverlayDuringTransition = OverlayClip(AdaptiveArtworkShape)
                             )
-                        },
-                        label = "player_subview_shared_transition",
-                        modifier = Modifier.fillMaxSize()
-                    ) { targetView ->
-                        val sharedImageModifier = Modifier.sharedElement(
-                            sharedContentState = rememberSharedContentState(key = coverKey),
-                            animatedVisibilityScope = this,
-                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                            boundsTransform = AlbumArtBoundsTransform,
-                            clipInOverlayDuringTransition = OverlayClip(AdaptiveArtworkShape)
-                        )
 
-                        val sharedTitleModifier = Modifier.sharedBounds(
-                            sharedContentState = rememberSharedContentState(key = titleKey),
-                            animatedVisibilityScope = this,
-                            boundsTransform = AlbumArtBoundsTransform
-                        )
+                            val sharedTitleModifier = Modifier.sharedBounds(
+                                sharedContentState = rememberSharedContentState(key = titleKey),
+                                animatedVisibilityScope = this,
+                                boundsTransform = AlbumArtBoundsTransform
+                            )
 
-                        val sharedArtistModifier = Modifier.sharedBounds(
-                            sharedContentState = rememberSharedContentState(key = artistKey),
-                            animatedVisibilityScope = this,
-                            boundsTransform = AlbumArtBoundsTransform
-                        )
+                            val sharedArtistModifier = Modifier.sharedBounds(
+                                sharedContentState = rememberSharedContentState(key = artistKey),
+                                animatedVisibilityScope = this,
+                                boundsTransform = AlbumArtBoundsTransform
+                            )
 
-                        when (targetView) {
-                            FULL_PLAYER -> {
-                                Player(
-                                    navController = navController,
-                                    mediaMetadata = mediaMetadata,
-                                    imageModifier = sharedImageModifier,
-                                    titleModifier = sharedTitleModifier,
-                                    artistModifier = sharedArtistModifier,
-                                    onBackPressed = onBackPressed,
-                                    onClick = { currentView = LYRIC_VIEW },
-                                    onContainerClick = { currentView = PLAY_QUEUE },
-                                    controlsAlpha = 1f,
-                                    controlsOffsetY = 0.dp,
-                                    showArtwork = (transitionProgress == 1f),
-                                    showBackground = false,
-                                    onArtworkPositioned = { rect ->
-                                        if (fullArtworkRect == null || fullArtworkRect != rect) {
-                                            fullArtworkRect = rect
+                            when (targetView) {
+                                FULL_PLAYER -> {
+                                    Player(
+                                        navController = navController,
+                                        mediaMetadata = mediaMetadata,
+                                        imageModifier = sharedImageModifier,
+                                        titleModifier = sharedTitleModifier,
+                                        artistModifier = sharedArtistModifier,
+                                        onBackPressed = onBackPressed,
+                                        onClick = { safeSwitchView(LYRIC_VIEW) },
+                                        onContainerClick = { safeSwitchView(PLAY_QUEUE) },
+                                        controlsAlpha = 1f,
+                                        controlsOffsetY = 0.dp,
+                                        showArtwork = (transitionProgress == 1f),
+                                        showBackground = false,
+                                        onArtworkPositioned = { rect ->
+                                            if (fullArtworkRect == null || fullArtworkRect != rect) {
+                                                fullArtworkRect = rect
+                                            }
+                                        }
+                                    )
+                                }
+                                PLAY_QUEUE -> {
+                                    PlayerQueue(
+                                        mediaMetadata = mediaMetadata,
+                                        imageModifier = sharedImageModifier,
+                                        titleModifier = sharedTitleModifier,
+                                        artistModifier = sharedArtistModifier,
+                                        onBackPressed = { safeSwitchView(FULL_PLAYER) },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                LYRIC_VIEW -> {
+                                    Lyric(
+                                        mediaMetadata = mediaMetadata,
+                                        imageModifier = sharedImageModifier,
+                                        titleModifier = sharedTitleModifier,
+                                        artistModifier = sharedArtistModifier,
+                                        onBackPressed = { safeSwitchView(FULL_PLAYER) },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                        }
+
+                        if (subViewTransition.currentState != subViewTransition.targetState) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                                event.changes.forEach { it.consume() }
+                                            }
                                         }
                                     }
-                                )
-                            }
-                            PLAY_QUEUE -> {
-                                PlayerQueue(
-                                    mediaMetadata = mediaMetadata,
-                                    imageModifier = sharedImageModifier,
-                                    titleModifier = sharedTitleModifier,
-                                    artistModifier = sharedArtistModifier,
-                                    onBackPressed = { currentView = FULL_PLAYER },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                            LYRIC_VIEW -> {
-                                Lyric(
-                                    mediaMetadata = mediaMetadata,
-                                    imageModifier = sharedImageModifier,
-                                    titleModifier = sharedTitleModifier,
-                                    artistModifier = sharedArtistModifier,
-                                    onBackPressed = { currentView = FULL_PLAYER },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
+                            )
                         }
                     }
                 }
