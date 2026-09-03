@@ -8,6 +8,8 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -114,7 +116,10 @@ private fun lerpRect(start: Rect, stop: Rect, fraction: Float): Rect =
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 private val AlbumArtBoundsTransform = BoundsTransform { _, _ ->
-    tween(durationMillis = DURATION, easing = EmphasizedEasing)
+    spring(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow
+    )
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
