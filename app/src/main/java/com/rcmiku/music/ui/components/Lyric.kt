@@ -60,9 +60,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.MediaMetadata
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.ui.design.ImmersiveBackground
@@ -160,7 +163,10 @@ fun Lyric(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     AsyncImage(
-                        model = mediaMetadata.artworkUri,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(mediaMetadata.artworkUri)
+                            .size(Size.ORIGINAL)
+                            .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = imageModifier

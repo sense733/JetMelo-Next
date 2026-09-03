@@ -38,10 +38,6 @@ fun ImmersiveBackground(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .clickable(
-                interactionSource = null,
-                indication = null
-            ) {}
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (artworkUri != null) {
