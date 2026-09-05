@@ -1,15 +1,17 @@
 package com.rcmiku.music.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,30 +21,23 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.rcmiku.music.R
+import com.rcmiku.music.ui.design.TopFogOverlay
 import com.rcmiku.music.ui.icons.PlayArrowFill
 import com.rcmiku.music.ui.theme.JetMeloShapes
 
-/**
- * 歌单与专辑页面的粘性「播放全部」操作条 (Sticky Play All Bar)
- * 严格遵循《橙色框折叠效果完整实现文档》规范：
- * - stickyContentHeight = 64.dp
- * - 未吸顶状态：顶部圆角 16dp (StickyBackground 灰白交界过渡)
- * - 吸顶状态：平角且背景切换为实底 surfaceContainer，阻止下方歌曲穿透
- * - 播放按钮：44dp 圆形按钮，内嵌比例缩放的 PlayArrowFill
- */
 @Composable
 fun StickyPlayAllBar(
     trackCount: Int,
@@ -60,39 +55,51 @@ fun StickyPlayAllBar(
         label = "stickyCornerRadius"
     )
 
-    val containerColor by animateColorAsState(
-        targetValue = if (isSticky)
-            MaterialTheme.colorScheme.surfaceContainer
-        else
-            MaterialTheme.colorScheme.surface,
+    val stickyAlpha by animateFloatAsState(
+        targetValue = if (isSticky) 1f else 0f,
         animationSpec = tween(180),
-        label = "stickyContainerColor"
+        label = "stickyFogAlpha"
     )
 
-    val elevation by animateDpAsState(
-        targetValue = if (isSticky) 3.dp else 0.dp,
-        animationSpec = tween(180),
-        label = "stickyElevation"
-    )
+    val baseColor = MaterialTheme.colorScheme.background
 
-    val shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
-
-    Surface(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
-            .shadow(elevation = elevation, shape = shape),
-        shape = shape,
-        color = containerColor
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {}
     ) {
+        if (stickyAlpha < 1f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = 1f - stickyAlpha }
+                    .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
+                    .background(baseColor)
+            )
+        }
+
+        if (stickyAlpha > 0f) {
+            TopFogOverlay(
+                height = 64.dp,
+                baseColor = baseColor,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = stickyAlpha }
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .align(Alignment.CenterStart),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Left: Play all button + title + count
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -103,7 +110,6 @@ fun StickyPlayAllBar(
                     }
                     .padding(vertical = 6.dp)
             ) {
-                // Circular Play Button (44dp, icon scaled 38/44)
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -136,7 +142,6 @@ fun StickyPlayAllBar(
                 }
             }
 
-            // Right: Optional trailing actions (e.g. Subscribe/Collect, Multi-select, Sort)
             if (trailingContent != null) {
                 trailingContent()
             }
