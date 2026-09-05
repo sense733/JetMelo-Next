@@ -1,5 +1,3 @@
-import com.android.build.gradle.tasks.PackageAndroidArtifact
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -30,6 +28,18 @@ android {
             enableV2Signing = true
             enableV3Signing = true
             enableV4Signing = true
+
+            val storeFilePath = System.getenv("RELEASE_STORE_FILE") ?: (project.findProperty("release.storeFile") as? String)
+            val storePasswordVal = System.getenv("RELEASE_STORE_PASSWORD") ?: (project.findProperty("release.storePassword") as? String)
+            val keyAliasVal = System.getenv("RELEASE_KEY_ALIAS") ?: (project.findProperty("release.keyAlias") as? String)
+            val keyPasswordVal = System.getenv("RELEASE_KEY_PASSWORD") ?: (project.findProperty("release.keyPassword") as? String)
+
+            if (!storeFilePath.isNullOrBlank() && !storePasswordVal.isNullOrBlank() && !keyAliasVal.isNullOrBlank() && !keyPasswordVal.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = storePasswordVal
+                keyAlias = keyAliasVal
+                keyPassword = keyPasswordVal
+            }
         }
     }
 
@@ -41,7 +51,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")?.takeIf { it.storeFile != null }
+                ?: signingConfigs.getByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -79,16 +90,11 @@ android {
             pickFirsts += "META-INF/androidx.compose.ui_ui.version" // For Layout Inspector
         }
     }
-
-    // https://stackoverflow.com/a/77745844
-    tasks.withType<PackageAndroidArtifact> {
-        doFirst { appMetadata.asFile.orNull?.writeText("") }
-    }
 }
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:4.29.1"
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobufKotlinLite.get()}"
     }
     generateProtoTasks {
         all().forEach { task ->

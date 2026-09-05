@@ -23,6 +23,8 @@ reorderable = "2.4.3"
 protobufKotlinLite = "4.29.1"
 protobuf = "0.9.4"
 paletteKtx = "1.0.0"
+serializationJson = "1.7.3"
+coroutinesCore = "1.9.0"
 
 
 [libraries]
@@ -63,6 +65,8 @@ ktor-client-encoding = { group = "io.ktor", name = "ktor-client-encoding", versi
 ktor-serialization-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 protobuf-kotlin-lite = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "protobufKotlinLite" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutinesCore" }
 
 
 [plugins]
