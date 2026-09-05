@@ -51,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -62,7 +63,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import com.rcmiku.music.ui.components.StickyPlayAllBar
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -116,9 +120,26 @@ fun PlaylistScreen(
     val isLoading by playlistScreenViewModel.isLoading.collectAsStateWithLifecycle()
     val loadError by playlistScreenViewModel.loadError.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    var headerHeightPx by remember { mutableFloatStateOf(1f) }
+    val collapseFraction by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else if (headerHeightPx > 0f) {
+                (listState.firstVisibleItemScrollOffset.toFloat() / headerHeightPx).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+        }
+    }
+    val isSticky by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0
+        }
+    }
     val isScrolled by remember {
         derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 180
+            collapseFraction > 0.45f
         }
     }
     val topBarContainerColor by animateColorAsState(
@@ -126,7 +147,7 @@ fun PlaylistScreen(
             MaterialTheme.colorScheme.surfaceContainer
         else
             Color.Transparent,
-        animationSpec = tween(250),
+        animationSpec = tween(200),
         label = "topBarBg"
     )
     val playlistTitle = playlistDetailState?.playlist?.name.orEmpty()
@@ -223,154 +244,154 @@ fun PlaylistScreen(
                         songId = detail.playlist.id.toString()
                     )
 
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = bottomContentPadding),
-                        state = listState
-                    ) {
-                        // 1. Solaris Immersive Hero Header
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                pageArtworkColors.dominantColor.copy(alpha = 0.6f),
-                                                MaterialTheme.colorScheme.background
-                                            )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Atmospheric background gradient from top of screen behind TopAppBar
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(420.dp)
+                                .graphicsLayer {
+                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                }
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            pageArtworkColors.dominantColor.copy(alpha = 0.65f),
+                                            MaterialTheme.colorScheme.background
                                         )
                                     )
-                                    .padding(top = padding.calculateTopPadding())
-                                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                )
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                top = padding.calculateTopPadding(),
+                                bottom = bottomContentPadding
+                            ),
+                            state = listState
+                        ) {
+                            // 1. Solaris Immersive Hero Header (随滚顶出 + 渐隐)
+                            item(key = "hero_header") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onSizeChanged { size ->
+                                            if (size.height > 0) {
+                                                headerHeightPx = size.height.toFloat()
+                                            }
+                                        }
+                                        .graphicsLayer {
+                                            alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                        }
+                                        .padding(horizontal = 20.dp, vertical = 16.dp)
                                 ) {
-                                    // Cover Artwork
-                                    Box(
-                                        modifier = Modifier
-                                            .size(220.dp)
-                                            .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
-                                            .clip(JetMeloShapes.medium)
-                                    ) {
-                                        AsyncImage(
-                                            model = detail.playlist.coverImgUrl,
-                                            contentDescription = detail.playlist.name,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .sharedElement(
-                                                    sharedTransitionScope.rememberSharedContentState(
-                                                        key = "cover_${detail.playlist.id}"
-                                                    ),
-                                                    animatedVisibilityScope = animatedContentScope
-                                                )
-                                        )
-                                    }
-
-                                    Spacer(Modifier.height(16.dp))
-
-                                    // Title
-                                    Text(
-                                        text = detail.playlist.name,
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    Spacer(Modifier.height(6.dp))
-
-                                    // Meta (Play count & Update time)
-                                    Row(
+                                    Column(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text(
-                                            text = stringResource(
-                                                R.string.total_play_count,
-                                                formatPlayCount(detail.playlist.playCount)
-                                            ),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = " • ",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = formatTimestamp(detail.playlist.trackUpdateTime),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-
-                                    val description = detail.playlist.description
-                                    if (!description.isNullOrEmpty()) {
-                                        Spacer(Modifier.height(6.dp))
-                                        Text(
-                                            text = description,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 3,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(horizontal = 12.dp)
-                                        )
-                                    }
-
-                                    Spacer(Modifier.height(16.dp))
-
-                                    // Action Buttons Row
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        // Play All Button (CTA bound to page Artwork Accent Color)
-                                        Button(
-                                            onClick = {
-                                                if (tracks.isNotEmpty()) {
-                                                    mediaController?.setPlaylist(tracks)
-                                                    mediaController?.playMediaAt(0)
-                                                }
-                                            },
-                                            shape = JetMeloShapes.full,
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = pageArtworkColors.accentColor,
-                                                contentColor = pageArtworkColors.onAccentColor
-                                            ),
-                                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+                                        // Cover Artwork
+                                        Box(
                                             modifier = Modifier
-                                                .height(48.dp)
-                                                .weight(1f)
+                                                .size(220.dp)
+                                                .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                                .clip(JetMeloShapes.medium)
                                         ) {
-                                            Icon(
-                                                imageVector = PlayArrowFill,
-                                                contentDescription = stringResource(R.string.play_all),
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(
-                                                text = stringResource(R.string.play_all),
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.Bold
+                                            AsyncImage(
+                                                model = detail.playlist.coverImgUrl,
+                                                contentDescription = detail.playlist.name,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .sharedElement(
+                                                        sharedTransitionScope.rememberSharedContentState(
+                                                            key = "cover_${detail.playlist.id}"
+                                                        ),
+                                                        animatedVisibilityScope = animatedContentScope
+                                                    )
                                             )
                                         }
 
-                                        // Subscribe / Collect Button
+                                        Spacer(Modifier.height(16.dp))
+
+                                        // Title
+                                        Text(
+                                            text = detail.playlist.name,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+
+                                        Spacer(Modifier.height(6.dp))
+
+                                        // Meta (Play count & Update time)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.total_play_count,
+                                                    formatPlayCount(detail.playlist.playCount)
+                                                ),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = " • ",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = formatTimestamp(detail.playlist.trackUpdateTime),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        val description = detail.playlist.description
+                                        if (!description.isNullOrEmpty()) {
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(
+                                                text = description,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 3,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(horizontal = 12.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 2. 粘性「播放全部」操作条 (Sticky Play All Bar)
+                            stickyHeader(key = "sticky_play_all") {
+                                StickyPlayAllBar(
+                                    trackCount = tracks.size,
+                                    onPlayAllClick = {
+                                        if (tracks.isNotEmpty()) {
+                                            mediaController?.setPlaylist(tracks)
+                                            mediaController?.playMediaAt(0)
+                                        }
+                                    },
+                                    isSticky = isSticky,
+                                    accentColor = pageArtworkColors.accentColor,
+                                    onAccentColor = pageArtworkColors.onAccentColor,
+                                    isLoading = isLoading,
+                                    trailingContent = {
                                         FilledTonalIconButton(
                                             onClick = {
                                                 playlistInfoState?.subscribed?.let {
                                                     playlistScreenViewModel.playlistSub(isSub = it)
                                                 }
                                             },
-                                            modifier = Modifier.size(48.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
                                                 imageVector = if (playlistInfoState?.subscribed == true)
@@ -378,31 +399,13 @@ fun PlaylistScreen(
                                                 else
                                                     LibraryAdd,
                                                 contentDescription = stringResource(R.string.favorite),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(20.dp)
                                             )
                                         }
                                     }
-                                }
-                            }
-                        }
-
-                        // 2. Track List Header
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.song_size, tracks.size),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
-                        }
 
                         // 3. Track Items (Clean fluid list with dedicated index & active indicator)
                         itemsIndexed(
@@ -539,6 +542,7 @@ fun PlaylistScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }
