@@ -37,12 +37,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -134,23 +128,9 @@ fun PlaylistScreen(
     }
     val isSticky by remember {
         derivedStateOf {
-            listState.firstVisibleItemIndex > 0
+            listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.99f
         }
     }
-    val isScrolled by remember {
-        derivedStateOf {
-            collapseFraction > 0.45f
-        }
-    }
-    val topBarContainerColor by animateColorAsState(
-        targetValue = if (isScrolled)
-            MaterialTheme.colorScheme.surfaceContainer
-        else
-            Color.Transparent,
-        animationSpec = tween(200),
-        label = "topBarBg"
-    )
-    val playlistTitle = playlistDetailState?.playlist?.name.orEmpty()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true
@@ -178,19 +158,13 @@ fun PlaylistScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        AnimatedContent(
-                            targetState = isScrolled,
-                            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                            label = "topBarTitle"
-                        ) { scrolled ->
-                            Text(
-                                text = if (scrolled) playlistTitle else stringResource(R.string.playlist),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.playlist),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = { navController.navigateUp() }) {
@@ -201,7 +175,7 @@ fun PlaylistScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarContainerColor
+                        containerColor = Color.Transparent
                     )
                 )
             },

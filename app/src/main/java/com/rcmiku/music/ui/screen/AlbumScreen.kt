@@ -1,15 +1,9 @@
 package com.rcmiku.music.ui.screen
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -123,20 +117,6 @@ fun AlbumScreen(
             listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.99f
         }
     }
-    val isScrolled by remember {
-        derivedStateOf {
-            collapseFraction > 0.45f
-        }
-    }
-    val topBarContainerColor by animateColorAsState(
-        targetValue = if (isScrolled)
-            MaterialTheme.colorScheme.surfaceContainer
-        else
-            Color.Transparent,
-        animationSpec = tween(200),
-        label = "topBarBg"
-    )
-    val albumTitle = albumDetailState?.getOrNull()?.album?.name.orEmpty()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true
@@ -161,19 +141,13 @@ fun AlbumScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        AnimatedContent(
-                            targetState = isScrolled,
-                            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                            label = "topBarTitle"
-                        ) { scrolled ->
-                            Text(
-                                text = if (scrolled) albumTitle else stringResource(R.string.album),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.album),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = { navController.navigateUp() }) {
@@ -184,7 +158,7 @@ fun AlbumScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = topBarContainerColor
+                        containerColor = Color.Transparent
                     )
                 )
             }
