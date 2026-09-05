@@ -10,17 +10,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class AlbumSublistScreenViewmodel @Inject constructor() : ViewModel() {
+class AlbumSublistScreenViewModel @Inject constructor() : ViewModel() {
 
     val albumSublist = Pager(
         config = PagingConfig(
-            pageSize = 100,
-            prefetchDistance = 50,
+            pageSize = 30,
+            prefetchDistance = 15,
             enablePlaceholders = false,
-            initialLoadSize = 100
+            initialLoadSize = 60
         ),
         pagingSourceFactory = { AlbumPagingSource() }
     ).flow.cachedIn(viewModelScope)
-
-
 }

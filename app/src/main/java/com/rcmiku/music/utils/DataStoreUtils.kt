@@ -1,6 +1,7 @@
 package com.rcmiku.music.utils
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
@@ -11,11 +12,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.properties.ReadOnlyProperty
@@ -35,18 +37,14 @@ class CachedPreference<T>(
     init {
         scope.launch(Dispatchers.IO) {
             val targetContext = runCatching { context.applicationContext }.getOrNull() ?: context
-            runCatching {
-                targetContext.dataStore.data
-                    .map { it[key] ?: defaultValue }
-                    .first()
-            }.getOrNull()?.let { cachedValue = it }
-
-            runCatching {
-                targetContext.dataStore.data
-                    .map { it[key] ?: defaultValue }
-                    .distinctUntilChanged()
-                    .collect { cachedValue = it }
-            }
+            targetContext.dataStore.data
+                .catch { e ->
+                    Log.e("DataStoreUtils", "Failed to read preference ${key.name}", e)
+                    emit(emptyPreferences())
+                }
+                .map { it[key] ?: defaultValue }
+                .distinctUntilChanged()
+                .collect { cachedValue = it }
         }
     }
 
@@ -66,18 +64,14 @@ class CachedEnumPreference<T : Enum<T>>(
     init {
         scope.launch(Dispatchers.IO) {
             val targetContext = runCatching { context.applicationContext }.getOrNull() ?: context
-            runCatching {
-                targetContext.dataStore.data
-                    .map { it[key] }
-                    .first()
-            }.getOrNull()?.let { cachedValue = toEnum(it) }
-
-            runCatching {
-                targetContext.dataStore.data
-                    .map { it[key] }
-                    .distinctUntilChanged()
-                    .collect { cachedValue = toEnum(it) }
-            }
+            targetContext.dataStore.data
+                .catch { e ->
+                    Log.e("DataStoreUtils", "Failed to read enum preference ${key.name}", e)
+                    emit(emptyPreferences())
+                }
+                .map { it[key] }
+                .distinctUntilChanged()
+                .collect { cachedValue = toEnum(it) }
         }
     }
 
@@ -112,13 +106,17 @@ fun <T> rememberPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val state = remember(key) {
+    val state = remember(key, context) {
         context.dataStore.data
+            .catch { e ->
+                Log.e("DataStoreUtils", "Failed to collect preference ${key.name}", e)
+                emit(emptyPreferences())
+            }
             .map { it[key] ?: defaultValue }
             .distinctUntilChanged()
     }.collectAsState(initial = defaultValue)
 
-    return remember(key) {
+    return remember(key, context) {
         object : MutableState<T> {
             override var value: T
                 get() = state.value
@@ -128,6 +126,8 @@ fun <T> rememberPreference(
                             context.dataStore.edit {
                                 it[key] = value
                             }
+                        }.onFailure { e ->
+                            Log.e("DataStoreUtils", "Failed to write preference ${key.name}", e)
                         }
                     }
                 }
@@ -146,13 +146,17 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val state = remember(key) {
+    val state = remember(key, context) {
         context.dataStore.data
+            .catch { e ->
+                Log.e("DataStoreUtils", "Failed to collect enum preference ${key.name}", e)
+                emit(emptyPreferences())
+            }
             .map { it[key].toEnum(defaultValue = defaultValue) }
             .distinctUntilChanged()
     }.collectAsState(initial = defaultValue)
 
-    return remember(key) {
+    return remember(key, context) {
         object : MutableState<T> {
             override var value: T
                 get() = state.value
@@ -162,6 +166,8 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
                             context.dataStore.edit {
                                 it[key] = value.name
                             }
+                        }.onFailure { e ->
+                            Log.e("DataStoreUtils", "Failed to write enum preference ${key.name}", e)
                         }
                     }
                 }
@@ -178,11 +184,25 @@ fun <T> collectPreference(
     defaultValue: T,
 ): State<T> {
     val context = LocalContext.current
-    return remember(key) {
+    return remember(key, context) {
         context.dataStore.data
+            .catch { e ->
+                Log.e("DataStoreUtils", "Failed to collect preference ${key.name}", e)
+                emit(emptyPreferences())
+            }
             .map { it[key] ?: defaultValue }
             .distinctUntilChanged()
     }.collectAsState(initial = defaultValue)
+}
+
+suspend fun <T> Context.setPreference(key: Preferences.Key<T>, value: T): Result<Preferences> {
+    return runCatching {
+        dataStore.edit {
+            it[key] = value
+        }
+    }.onFailure { e ->
+        Log.e("DataStoreUtils", "Failed to set preference ${key.name}", e)
+    }
 }
 
 inline fun <reified T : Enum<T>> String?.toEnum(defaultValue: T): T =

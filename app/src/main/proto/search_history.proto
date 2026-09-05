@@ -3,6 +3,7 @@ syntax = "proto3";
 option java_package = "com.rcmiku.music";
 option java_multiple_files = true;
 
+// 调用方须在写入时主动进行容量截断，仅保留最近 N 条（建议 ≤100 条），防止存储无界膨胀
 message SearchHistory {
   repeated string history = 1;
 }

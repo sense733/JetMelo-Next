@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
 import coil3.SingletonImageLoader
 import coil3.asDrawable
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
@@ -54,6 +55,14 @@ object PaletteExtractor {
     private const val MIN_BACKGROUND_CONTRAST = 4.5f
     private const val MIN_ACCENT_CONTRAST = 3.0f
     private const val MAX_CONTRAST_ITERATIONS = 12
+    private const val MAX_COLOR_DRIFT_SQ = 0.18f
+
+    private fun colorDistance(a: Color, b: Color): Float {
+        val dr = a.red - b.red
+        val dg = a.green - b.green
+        val db = a.blue - b.blue
+        return dr * dr + dg * dg + db * db
+    }
 
     private val cache = LruCache<String, ArtworkColors>(MAX_CACHE_SIZE)
 
@@ -64,8 +73,10 @@ object PaletteExtractor {
         fallbackDominant: Color,
         fallbackAccent: Color
     ): ArtworkColors = withContext(Dispatchers.IO) {
-        val cacheKey = songId ?: artworkUri?.toString()
-        if (cacheKey.isNullOrEmpty()) {
+        val fallbackSuffix = "${fallbackDominant.toArgb()},${fallbackAccent.toArgb()}"
+        val baseKey = songId ?: artworkUri?.toString()
+        val cacheKey = if (baseKey.isNullOrEmpty()) "" else "$baseKey|$fallbackSuffix"
+        if (cacheKey.isEmpty()) {
             return@withContext defaultArtworkColors(fallbackDominant, fallbackAccent)
         }
 
@@ -81,6 +92,9 @@ object PaletteExtractor {
                 .data(artworkUri)
                 .size(SAMPLE_SIZE, SAMPLE_SIZE)
                 .allowHardware(false)
+                .bitmapConfig(Bitmap.Config.ARGB_8888)
+                .memoryCachePolicy(CachePolicy.DISABLED)
+                .diskCachePolicy(CachePolicy.DISABLED)
                 .build()
 
             val result = imageLoader.execute(request)
@@ -93,7 +107,7 @@ object PaletteExtractor {
                 }
 
                 if (bitmap != null && !bitmap.isRecycled) {
-                    val palette = Palette.from(bitmap).generate()
+                    val palette = Palette.from(bitmap).maximumColorCount(16).generate()
                     val dominantCandidates = listOfNotNull(
                         palette.dominantSwatch,
                         palette.darkMutedSwatch,
@@ -184,12 +198,13 @@ object PaletteExtractor {
     ): Color {
         val pool = (candidates + fallback).distinct()
         for (candidate in pool) {
+            val origin = candidate
             var current = candidate
             for (step in 0 until MAX_CONTRAST_ITERATIONS) {
                 val whiteContrast = calculateContrastRatio(Color.White, current)
                 val blackContrast = calculateContrastRatio(Color.Black, current)
                 if (max(whiteContrast, blackContrast) >= MIN_BACKGROUND_CONTRAST) {
-                    return current
+                    if (colorDistance(current, origin) <= MAX_COLOR_DRIFT_SQ) return current else break
                 }
                 val lum = calculateLuminance(current)
                 current = if (lum < 0.5f) {
@@ -219,10 +234,11 @@ object PaletteExtractor {
         val pool = (candidates + fallback).distinct()
         val bgLum = calculateLuminance(background)
         for (candidate in pool) {
+            val origin = candidate
             var current = candidate
             for (step in 0 until MAX_CONTRAST_ITERATIONS) {
                 if (calculateContrastRatio(current, background) >= MIN_ACCENT_CONTRAST) {
-                    return current
+                    if (colorDistance(current, origin) <= MAX_COLOR_DRIFT_SQ) return current else break
                 }
                 current = if (bgLum < 0.5f) {
                     val nextR = min(1f, current.red * 1.1f + 0.02f)
@@ -467,7 +483,7 @@ fun rememberArtworkColors(
     fallbackAccent: Color = MaterialTheme.colorScheme.primary
 ): ArtworkColors {
     val context = LocalContext.current
-    var colors by remember(songId, artworkUri) {
+    var colors by remember(songId, artworkUri, fallbackDominant, fallbackAccent) {
         mutableStateOf(
             ArtworkColors(
                 dominantColor = fallbackDominant,
@@ -478,7 +494,7 @@ fun rememberArtworkColors(
         )
     }
 
-    LaunchedEffect(songId, artworkUri) {
+    LaunchedEffect(songId, artworkUri, fallbackDominant, fallbackAccent) {
         colors = PaletteExtractor.extract(
             context = context,
             artworkUri = artworkUri,

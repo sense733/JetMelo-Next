@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,7 +57,7 @@ fun EmptyState(
 ) {
     Column(
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -102,7 +103,15 @@ fun EmptyState(
 }
 
 @Composable
-fun rememberShimmerBrush(): Brush {
+fun rememberShimmerBrush(enabled: Boolean = true): Brush {
+    if (!enabled) {
+        return Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f),
+                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f)
+            )
+        )
+    }
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
@@ -153,10 +162,69 @@ fun HeroBannerSkeleton(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1.8f)
+                .height(132.dp)
                 .clip(JetMeloShapes.extraLarge)
-                .background(brush)
-        )
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(1f)
+                        .clip(JetMeloShapes.medium)
+                        .background(brush)
+                )
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .width(64.dp)
+                                .height(16.dp)
+                                .clip(JetMeloShapes.full)
+                                .background(brush)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(130.dp)
+                                .height(18.dp)
+                                .clip(JetMeloShapes.small)
+                                .background(brush)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(180.dp)
+                                .height(14.dp)
+                                .clip(JetMeloShapes.small)
+                                .background(brush)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(JetMeloShapes.full)
+                                .background(brush)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

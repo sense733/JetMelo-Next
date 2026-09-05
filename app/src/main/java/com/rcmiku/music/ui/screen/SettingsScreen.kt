@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +60,12 @@ import com.rcmiku.music.constants.dynamicColorKey
 import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.constants.themeModeKey
 import com.rcmiku.music.constants.use40DpIconKey
+import com.rcmiku.music.constants.userIdKey
+import com.rcmiku.music.data.favoriteSongIdsDatastore
+import com.rcmiku.music.utils.clearDeviceId
+import com.rcmiku.ncmapi.utils.CookieProvider
+import android.webkit.CookieManager
+import kotlinx.coroutines.launch
 import com.rcmiku.music.ui.components.Dialog
 import com.rcmiku.music.ui.components.SongQualityDialog
 import com.rcmiku.music.ui.icons.DarkMode
@@ -95,6 +102,13 @@ fun SettingsScreen(
     var autoSkipNextOnError by rememberPreference(autoSkipNextOnErrorKey, false)
     var logout by rememberSaveable { mutableStateOf(false) }
     var ncmCookie by rememberPreference(ncmCookieKey, "")
+    var userId by rememberPreference(userIdKey, 0L)
+    val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val isLoggedIn = remember(ncmCookie) {
+        ncmCookie.isNotEmpty() && CookieProvider.hasValidSession(ncmCookie)
+    }
 
     val appearanceSettingItems = buildList {
         add(
@@ -130,10 +144,10 @@ fun SettingsScreen(
 
     val baseSettingItems = listOf(
         SettingItemData(
-            title = stringResource(if (ncmCookie.isNotEmpty()) R.string.logout else R.string.login),
-            imageVector = if (ncmCookie.isNotEmpty()) Logout else Login,
+            title = stringResource(if (isLoggedIn) R.string.logout else R.string.login),
+            imageVector = if (isLoggedIn) Logout else Login,
             onClick = {
-                if (ncmCookie.isNotEmpty())
+                if (isLoggedIn)
                     logout = true
                 else
                     navController.navigate(Screen.Login.route)
@@ -354,8 +368,18 @@ fun SettingsScreen(
         Dialog(
             onConfirmation = {
                 ncmCookie = ""
-                com.rcmiku.ncmapi.utils.CookieProvider.clear()
-                android.webkit.CookieManager.getInstance().removeAllCookies(null)
+                userId = 0L
+                CookieProvider.clear()
+                CookieManager.getInstance().removeAllCookies(null)
+                CookieManager.getInstance().flush()
+                clearDeviceId(context)
+                coroutineScope.launch {
+                    runCatching {
+                        context.favoriteSongIdsDatastore.updateData {
+                            it.toBuilder().clear().build()
+                        }
+                    }
+                }
                 logout = false
             },
             onDismissRequest = {

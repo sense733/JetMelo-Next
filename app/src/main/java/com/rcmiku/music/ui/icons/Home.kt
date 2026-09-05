@@ -48,4 +48,5 @@ val HomeMusic: ImageVector
         return _Home!!
     }
 
+@Suppress("ObjectPropertyName")
 private var _Home: ImageVector? = null

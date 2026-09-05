@@ -15,15 +15,15 @@ class SearchPagingSource(
     override fun getRefreshKey(state: PagingState<Int, SearchResources>): Int? {
         return state.anchorPosition?.let { anchorPosition ->
             val anchorPage = state.closestPageToPosition(anchorPosition)
-            (anchorPage?.prevKey?.plus(anchorPage.data.size)
-                ?: anchorPage?.nextKey?.minus(anchorPage.data.size))?.coerceAtLeast(0)
+            (anchorPage?.prevKey?.plus(state.config.pageSize)
+                ?: anchorPage?.nextKey?.minus(state.config.pageSize))?.coerceAtLeast(0)
         }
     }
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, SearchResources> {
         return try {
             val offset = params.key ?: 0
-            val limit = params.loadSize
+            val limit = params.loadSize.coerceIn(1, 100)
 
             val response = SearchApi.search(offset, limit, keyword, searchType)
             if (response.isSuccess) {

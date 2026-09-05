@@ -95,24 +95,45 @@ fun LoginScreen(
                                 view: WebView?,
                                 url: String?,
                             ) {
-                                if (url?.startsWith("https://y.music.163.com/m") == true) {
-                                    val cookie = CookieManager.getInstance().getCookie(url)
-                                    val cookieMap =
-                                        parseCookieString(cookie.trimIndent()).toMutableMap()
+                                val uri = url?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
+                                val isWhitelistedHost = uri != null && uri.scheme == "https" &&
+                                    (uri.host == "music.163.com" || uri.host == "y.music.163.com")
+                                if (isWhitelistedHost && uri?.path?.startsWith("/m") == true) {
+                                    val cookie = CookieManager.getInstance().getCookie(url) ?: return
+                                    if (cookie.isBlank()) return
+                                    val parsedCookie = parseCookieString(cookie)
+                                    val hasSession = parsedCookie.containsKey("MUSIC_U") || parsedCookie.containsKey("MUSIC_A")
+                                    if (!hasSession) return
+
+                                    val allowedAuthKeys = setOf(
+                                        "MUSIC_U", "MUSIC_A", "__csrf", "__remember_me"
+                                    )
+                                    val cookieMap = parsedCookie.filterKeys { it in allowedAuthKeys }.toMutableMap()
                                     val currentContext = view?.context ?: navController.context
                                     cookieMap[CookieKeys.DEVICE_ID] = getDeviceID(currentContext)
                                     cookieMap[CookieKeys.OS_VER] = Build.VERSION.RELEASE
                                     cookieMap[CookieKeys.MOBILE_NAME] = Build.MODEL
                                     ncmCookie = json.encodeToString(cookieMap)
+                                    
+                                    settings.javaScriptEnabled = false
                                     clearCache(true)
-                                    navController.navigate(Screen.Home.route)
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Login.route) {
+                                            inclusive = true
+                                        }
+                                        launchSingleTop = true
+                                    }
                                 }
                             }
                         }
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
-                            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            allowFileAccess = false
+                            allowContentAccess = false
+                            savePassword = false
+                            cacheMode = WebSettings.LOAD_NO_CACHE
                         }
                         webView = this
                         loadUrl("https://music.163.com/m/login")

@@ -13,8 +13,14 @@ sealed class Screen(val route: String) {
     data object Search : Screen("search")
 }
 
+const val DEFAULT_PLAYLIST_FETCH_LIMIT = 999
+
 @Serializable
-data class PlaylistNav(val playlistId: Long, val limit: Int = 999, val noCache: Boolean = false)
+data class PlaylistNav(
+    val playlistId: Long,
+    val limit: Int = DEFAULT_PLAYLIST_FETCH_LIMIT,
+    val noCache: Boolean = false
+)
 
 @Serializable
 data class RecordNav(val uid: Long)
@@ -32,4 +38,9 @@ data class AlbumNav(val albumId: Long)
 data class RadioNav(val radioId: Long)
 
 @Serializable
-data class UserPlayListNav(val userId: Long, val type: String)
+data class UserPlayListNav(val userId: Long, val type: String) {
+    companion object {
+        const val TYPE_CREATE = "create"
+        const val TYPE_COLLECT = "collect"
+    }
+}

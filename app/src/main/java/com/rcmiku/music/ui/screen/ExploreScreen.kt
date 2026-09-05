@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -102,7 +104,7 @@ fun ExploreScreen(
                             .padding(horizontal = 16.dp, vertical = 4.dp)
                             .clip(JetMeloShapes.full)
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .clickable { navController.navigate(Screen.Search.route) }
+                            .clickable(role = Role.Button) { navController.navigate(Screen.Search.route) }
                             .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
                         Row(
@@ -151,7 +153,7 @@ fun ExploreScreen(
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = chart.id,
-                                                    limit = chart.trackCount
+                                                    limit = chart.trackCount?.takeIf { it > 0 } ?: 999
                                                 )
                                             )
                                         }
@@ -162,9 +164,11 @@ fun ExploreScreen(
                     }
                 }
 
+                val newAlbum = newAlbumState?.getOrNull()
+
                 // 3. New Releases - Week
                 item {
-                    val weekData = newAlbumState?.weekData
+                    val weekData = newAlbum?.weekData
                     if (!weekData.isNullOrEmpty()) {
                         SectionHeader(
                             title = stringResource(R.string.newest_album_week)
@@ -179,7 +183,7 @@ fun ExploreScreen(
                                     modifier = Modifier
                                         .width(150.dp)
                                         .clip(JetMeloShapes.medium)
-                                        .clickable {
+                                        .clickable(role = Role.Button) {
                                             navController.navigate(AlbumNav(albumId = album.id))
                                         }
                                 ) {
@@ -233,7 +237,7 @@ fun ExploreScreen(
 
                 // 4. New Releases - Month
                 item {
-                    val monthData = newAlbumState?.monthData
+                    val monthData = newAlbum?.monthData
                     if (!monthData.isNullOrEmpty()) {
                         SectionHeader(
                             title = stringResource(R.string.newest_album_month)
@@ -248,7 +252,7 @@ fun ExploreScreen(
                                     modifier = Modifier
                                         .width(150.dp)
                                         .clip(JetMeloShapes.medium)
-                                        .clickable {
+                                        .clickable(role = Role.Button) {
                                             navController.navigate(AlbumNav(albumId = album.id))
                                         }
                                 ) {
@@ -295,6 +299,21 @@ fun ExploreScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+
+                if (topListState?.isFailure == true && newAlbumState?.isFailure == true) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Button(onClick = { exploreScreenViewModel.refresh() }) {
+                                Text(text = "重试")
                             }
                         }
                     }

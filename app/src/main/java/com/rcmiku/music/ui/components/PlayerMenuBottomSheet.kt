@@ -37,6 +37,9 @@ import com.rcmiku.music.ui.icons.SongListAdd
 import com.rcmiku.music.ui.icons.Timelapse
 import com.rcmiku.music.ui.icons.Timer
 import com.rcmiku.ncmapi.model.Song
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.Role
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -48,18 +51,36 @@ fun PlayerMenuBottomSheet(
     onDismiss: () -> Unit,
 ) {
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var timePicker by rememberSaveable { mutableStateOf(false) }
     val playerState = LocalPlayerState.current
     val isSleepTimerSet = playerState?.isSleepTimerSet == true
     val context = LocalContext.current
-    var cancelSleepTimer by rememberSaveable { mutableStateOf(false) }
+    var activeDialog by rememberSaveable { mutableStateOf<String?>(null) }
     var openSongListBottomSheet by rememberSaveable { mutableStateOf(false) }
 
+    val remainingTimeText by remember(playerState) {
+        derivedStateOf {
+            val seconds = playerState?.remainingTime ?: return@derivedStateOf null
+            seconds.toDuration(DurationUnit.SECONDS).toComponents { hours, minutes, secs, _ ->
+                if (hours > 0) {
+                    "%02d:%02d:%02d".format(hours, minutes, secs)
+                } else {
+                    "%02d:%02d".format(minutes, secs)
+                }
+            }
+        }
+    }
+
     LaunchedEffect(openBottomSheet) {
-        if (openBottomSheet) {
-            bottomSheetState.show()
-        } else {
-            bottomSheetState.hide()
+        runCatching {
+            if (openBottomSheet) {
+                if (!bottomSheetState.isVisible) {
+                    bottomSheetState.show()
+                }
+            } else {
+                if (bottomSheetState.isVisible) {
+                    bottomSheetState.hide()
+                }
+            }
         }
     }
 
@@ -86,12 +107,13 @@ fun PlayerMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable {
-                                    if (isSleepTimerSet)
-                                        cancelSleepTimer = true
-                                    else
-                                        timePicker = true
-                                }, verticalAlignment = Alignment.CenterVertically
+                                .clickable(
+                                    role = Role.Button,
+                                    onClick = {
+                                        activeDialog = if (isSleepTimerSet) "CANCEL" else "TIME_PICKER"
+                                    }
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = if (isSleepTimerSet) Timelapse else Timer,
@@ -103,20 +125,9 @@ fun PlayerMenuBottomSheet(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             if (isSleepTimerSet) {
-                                playerState?.remainingTime?.let {
+                                remainingTimeText?.let { timeStr ->
                                     Text(
-                                        text = it.toDuration(DurationUnit.SECONDS)
-                                            .toComponents { hours, minutes, seconds, _ ->
-                                                if (hours > 0) {
-                                                    "%02dh:%02dm:%02ds".format(
-                                                        hours,
-                                                        minutes,
-                                                        seconds
-                                                    )
-                                                } else {
-                                                    "%02dm:%02ds".format(minutes, seconds)
-                                                }
-                                            },
+                                        text = " $timeStr",
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
@@ -134,10 +145,14 @@ fun PlayerMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable {
-                                    openSongListBottomSheet = true
-                                    onDismiss()
-                                }, verticalAlignment = Alignment.CenterVertically
+                                .clickable(
+                                    role = Role.Button,
+                                    onClick = {
+                                        openSongListBottomSheet = true
+                                        onDismiss()
+                                    }
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = SongListAdd,
@@ -166,23 +181,27 @@ fun PlayerMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable(onClick = {
-                                    currentSong?.id?.let {
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(
-                                                Intent.EXTRA_TEXT,
-                                                "https://music.163.com/#/song?id=${it}"
+                                .clickable(
+                                    role = Role.Button,
+                                    onClick = {
+                                        currentSong?.id?.let {
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(
+                                                    Intent.EXTRA_TEXT,
+                                                    "https://music.163.com/#/song?id=${it}"
+                                                )
+                                            }
+                                            context.startActivity(
+                                                Intent.createChooser(
+                                                    shareIntent,
+                                                    context.getString(R.string.share_link)
+                                                )
                                             )
                                         }
-                                        context.startActivity(
-                                            Intent.createChooser(
-                                                shareIntent,
-                                                context.getString(R.string.share_link)
-                                            )
-                                        )
                                     }
-                                }), verticalAlignment = Alignment.CenterVertically
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Share,
@@ -197,39 +216,44 @@ fun PlayerMenuBottomSheet(
                     }
                 }
 
-
                 item {
                     Spacer(Modifier.height(12.dp))
                 }
             }
 
-            if (timePicker)
-                TimePickerDialog(
-                    onDismiss = {
-                        timePicker = false
-                    }, onTimeSet = {
-                        playerState?.startTimer(it)
-                        timePicker = false
-                    }
-                )
-
-            if (cancelSleepTimer) {
-                Dialog(
-                    onConfirmation = {
-                        playerState?.cancelTimer()
-                        cancelSleepTimer = false
-                    },
-                    onDismissRequest = {
-                        cancelSleepTimer = false
-                    },
-                    dialogTitle = stringResource(R.string.sleep_timer_cancel),
-                )
+            when (activeDialog) {
+                "TIME_PICKER" -> {
+                    TimePickerDialog(
+                        onDismiss = {
+                            activeDialog = null
+                        },
+                        onTimeSet = {
+                            playerState?.startTimer(it)
+                            activeDialog = null
+                        }
+                    )
+                }
+                "CANCEL" -> {
+                    Dialog(
+                        onConfirmation = {
+                            playerState?.cancelTimer()
+                            activeDialog = null
+                        },
+                        onDismissRequest = {
+                            activeDialog = null
+                        },
+                        dialogTitle = stringResource(R.string.sleep_timer_cancel),
+                    )
+                }
             }
         }
     }
 
-    SongListBottomSheet(song = currentSong, onDismiss = {
-        openSongListBottomSheet = false
-    }, openBottomSheet = openSongListBottomSheet)
-
+    SongListBottomSheet(
+        song = currentSong,
+        onDismiss = {
+            openSongListBottomSheet = false
+        },
+        openBottomSheet = openSongListBottomSheet
+    )
 }

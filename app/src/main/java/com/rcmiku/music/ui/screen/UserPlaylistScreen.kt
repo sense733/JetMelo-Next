@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,16 +29,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.rcmiku.music.R
@@ -57,6 +60,8 @@ fun UserPlaylistScreen(
 ) {
     val type = userPlaylistScreenViewModel.userPlaylistType
     val playlistState by userPlaylistScreenViewModel.playlist.collectAsStateWithLifecycle()
+    val isLoading by userPlaylistScreenViewModel.isLoading.collectAsStateWithLifecycle()
+    val loadError by userPlaylistScreenViewModel.loadError.collectAsStateWithLifecycle()
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -67,7 +72,7 @@ fun UserPlaylistScreen(
                             text = when (type) {
                                 UserPlaylistType.CREATE -> stringResource(R.string.create_playlist)
                                 UserPlaylistType.COLLECT -> stringResource(R.string.collect_playlist)
-                                null -> ""
+                                null -> stringResource(R.string.my_playlists)
                             },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
@@ -86,71 +91,107 @@ fun UserPlaylistScreen(
                 )
             }
         ) { padding ->
-            playlistState?.let { playlistResponse ->
-                LazyVerticalGrid(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = padding.calculateTopPadding()),
-                    columns = GridCells.Adaptive(150.dp),
-                    contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp + bottomContentPadding),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(playlistResponse.data.playlist, key = { it.id }) { playlist ->
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(JetMeloShapes.medium)
-                                .clickable {
-                                    navController.navigate(
-                                        PlaylistNav(
-                                            playlistId = playlist.id,
-                                            limit = playlist.trackCount
-                                        )
-                                    )
-                                }
-                        ) {
-                            Box(
+            val playlistResponse = playlistState
+
+            when {
+                playlistResponse == null && isLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                playlistResponse == null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding())
+                            .clickable(role = Role.Button) {
+                                userPlaylistScreenViewModel.retry()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.operation_failed),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                else -> {
+                    LazyVerticalGrid(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding()),
+                        columns = GridCells.Adaptive(150.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            top = 12.dp,
+                            end = 16.dp,
+                            bottom = 12.dp + bottomContentPadding
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(playlistResponse.data.playlist, key = { it.id }) { playlist ->
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(1f)
                                     .clip(JetMeloShapes.medium)
-                            ) {
-                                AsyncImage(
-                                    model = playlist.cover,
-                                    contentDescription = playlist.name,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(JetMeloShapes.medium)
-                                        .sharedElement(
-                                            sharedTransitionScope.rememberSharedContentState(
-                                                key = "cover_${playlist.id}"
-                                            ),
-                                            animatedVisibilityScope = animatedContentScope,
-                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                    .clickable(role = Role.Button) {
+                                        navController.navigate(
+                                            PlaylistNav(
+                                                playlistId = playlist.id,
+                                                limit = playlist.trackCount.takeIf { it > 0 } ?: 999
+                                            )
                                         )
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1f)
+                                        .clip(JetMeloShapes.medium)
+                                ) {
+                                    AsyncImage(
+                                        model = playlist.cover,
+                                        contentDescription = playlist.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(JetMeloShapes.medium)
+                                            .sharedElement(
+                                                sharedTransitionScope.rememberSharedContentState(
+                                                    key = "cover_${playlist.id}"
+                                                ),
+                                                animatedVisibilityScope = animatedContentScope,
+                                                clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                            )
+                                    )
+                                }
+
+                                Spacer(Modifier.height(8.dp))
+
+                                Text(
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Text(
+                                    text = stringResource(R.string.song_size, playlist.trackCount),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            Text(
-                                text = playlist.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Text(
-                                text = stringResource(R.string.song_size, playlist.trackCount ?: 0),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                         }
                     }
                 }

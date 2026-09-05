@@ -9,7 +9,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.media3.common.util.UnstableApi
@@ -25,6 +27,7 @@ import com.rcmiku.music.ui.theme.ThemeMode
 import com.rcmiku.music.utils.rememberEnumPreference
 import com.rcmiku.music.utils.rememberPreference
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 
 @UnstableApi
 @AndroidEntryPoint
@@ -45,6 +48,7 @@ class MainActivity : ComponentActivity() {
             val dynamicColor by rememberPreference(dynamicColorKey, true)
 
             val controller = playerController.controller
+            var retryTrigger by remember { mutableIntStateOf(0) }
 
             DisposableEffect(controller) {
                 if (controller != null) {
@@ -56,13 +60,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(controller) {
+            LaunchedEffect(controller, retryTrigger) {
                 if (controller != null) {
                     controller.init(applicationContext)
                 } else {
-                    // 4.29 重试触发点：构建失败后 controller 保持 null，在此主动重试连接；
-                    // 失败不改变 controller 状态，effect 不会因 key 未变而循环重试
                     PlayerController.init(applicationContext)
+                    if (playerController.controller == null && retryTrigger < 3) {
+                        delay(1000)
+                        retryTrigger++
+                    }
                 }
             }
             JetMeloTheme(
@@ -79,12 +85,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        playerController.release()
+    }
 }
 
 val LocalPlayerController = staticCompositionLocalOf<PlayerController> {
-    error("No PlayerController provided")
+    PlayerController
 }
 
 val LocalPlayerState = staticCompositionLocalOf<PlayerState?> {
-    error("No PlayerState provided")
+    null
 }

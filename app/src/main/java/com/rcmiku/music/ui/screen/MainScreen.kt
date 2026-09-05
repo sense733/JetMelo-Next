@@ -47,6 +47,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
@@ -67,9 +69,19 @@ import com.rcmiku.music.ui.navigation.NavGraph
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import com.rcmiku.music.utils.rememberPreference
+import android.util.Log
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.utils.CookieProvider
 import com.rcmiku.ncmapi.utils.json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+private const val BASE_ENTER_DURATION = 520
+private const val BASE_EXIT_DURATION = 420
+private const val DOCKED_PADDING_ANIM_DURATION = 280
+private val StandardDecelerateEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
 
 @Composable
 fun MainScreen() {
@@ -104,38 +116,45 @@ fun MainScreen() {
     var showPlayer by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val animatorScale = remember(context) {
+    var animatorScale by remember { mutableFloatStateOf(1f) }
+    LaunchedEffect(context) {
         try {
-            Settings.Global.getFloat(
+            animatorScale = Settings.Global.getFloat(
                 context.contentResolver,
                 Settings.Global.ANIMATOR_DURATION_SCALE,
                 1f
             )
         } catch (_: Exception) {
-            1f
+            animatorScale = 1f
         }
     }
 
-    val enterDuration = (520 * animatorScale).roundToInt().coerceAtLeast(0)
-    val exitDuration = (420 * animatorScale).roundToInt().coerceAtLeast(0)
+    val enterDuration = (BASE_ENTER_DURATION * animatorScale).roundToInt().coerceAtLeast(0)
+    val exitDuration = (BASE_EXIT_DURATION * animatorScale).roundToInt().coerceAtLeast(0)
 
     val transitionProgress by animateFloatAsState(
         targetValue = if (showPlayer) 1f else 0f,
         animationSpec = tween(
             durationMillis = if (showPlayer) enterDuration else exitDuration,
-            easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
+            easing = StandardDecelerateEasing
         ),
         label = "player_transition_progress"
     )
 
     LaunchedEffect(ncmCookie) {
-        if (ncmCookie.isNotEmpty()) {
-            CookieProvider.init(json.decodeFromString(ncmCookie))
-            AccountApi.account().getOrNull()?.profile?.userId?.let {
-                userId = it
+        withContext(Dispatchers.IO) {
+            try {
+                if (ncmCookie.isNotEmpty()) {
+                    CookieProvider.init(json.decodeFromString(ncmCookie))
+                    AccountApi.account().getOrNull()?.profile?.userId?.let {
+                        userId = it
+                    }
+                } else {
+                    userId = 0L
+                }
+            } catch (e: Exception) {
+                Log.e("MainScreen", "Failed to restore ncmCookie", e)
             }
-        } else {
-            userId = 0L
         }
     }
 
@@ -143,33 +162,45 @@ fun MainScreen() {
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val navBarBaseHeight = 64.dp
 
-    val targetDockedBottomPadding = if (showNavigationBar) {
-        navBarBaseHeight + navBarInset
-    } else if (showMiniPlayer) {
-        navBarInset
-    } else {
-        0.dp
+    val targetDockedBottomPadding by remember(showNavigationBar, showMiniPlayer, navBarInset) {
+        derivedStateOf {
+            if (showNavigationBar) {
+                navBarBaseHeight + navBarInset
+            } else if (showMiniPlayer) {
+                navBarInset
+            } else {
+                0.dp
+            }
+        }
     }
 
     val dockedBottomPadding by animateDpAsState(
         targetValue = targetDockedBottomPadding,
         animationSpec = tween(
-            durationMillis = 280,
-            easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
+            durationMillis = DOCKED_PADDING_ANIM_DURATION,
+            easing = StandardDecelerateEasing
         ),
         label = "docked_bottom_padding"
     )
 
-    val fogBottomPadding = if (showNavigationBar && showMiniPlayer) {
-        dockedBottomPadding + (MiniPlayerHeight / 2)
-    } else {
-        dockedBottomPadding
+    val fogBottomPadding by remember(showNavigationBar, showMiniPlayer, dockedBottomPadding) {
+        derivedStateOf {
+            if (showNavigationBar && showMiniPlayer) {
+                dockedBottomPadding + (MiniPlayerHeight / 2)
+            } else {
+                dockedBottomPadding
+            }
+        }
     }
 
-    val bottomContentPadding = if (isSearchScreen) {
-        navBarInset
-    } else {
-        dockedBottomPadding + if (showMiniPlayer) MiniPlayerHeight + 8.dp else 0.dp
+    val bottomContentPadding by remember(isSearchScreen, navBarInset, dockedBottomPadding, showMiniPlayer) {
+        derivedStateOf {
+            if (isSearchScreen) {
+                navBarInset
+            } else {
+                dockedBottomPadding + if (showMiniPlayer) MiniPlayerHeight + 8.dp else 0.dp
+            }
+        }
     }
 
     CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
@@ -190,8 +221,8 @@ fun MainScreen() {
                         }
                     }
                     .then(
-                        if (p > 0f && Build.VERSION.SDK_INT >= 31) {
-                            Modifier.blur((p * 24).dp)
+                        if (p > 0.05f && Build.VERSION.SDK_INT >= 31) {
+                            Modifier.blur((p * 12).dp)
                         } else {
                             Modifier
                         }
@@ -202,10 +233,10 @@ fun MainScreen() {
                         AnimatedVisibility(
                             visible = showNavigationBar,
                             enter = expandVertically(
-                                animationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f))
+                                animationSpec = tween(DOCKED_PADDING_ANIM_DURATION, easing = StandardDecelerateEasing)
                             ),
                             exit = shrinkVertically(
-                                animationSpec = tween(280, easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f))
+                                animationSpec = tween(DOCKED_PADDING_ANIM_DURATION, easing = StandardDecelerateEasing)
                             )
                         ) {
                             Column(
@@ -276,6 +307,14 @@ fun MainScreen() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = p * 0.35f))
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Main)
+                                    event.changes.forEach { it.consume() }
+                                }
+                            }
+                        }
                 )
             }
 

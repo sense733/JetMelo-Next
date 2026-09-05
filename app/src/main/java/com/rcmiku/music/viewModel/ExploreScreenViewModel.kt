@@ -22,24 +22,28 @@ class ExploreScreenViewModel @Inject constructor() : ViewModel() {
         _topList.asStateFlow()
 
     private val _newAlbum =
-        MutableStateFlow<NewAlbumResponse?>(null)
-    val newAlbum: StateFlow<NewAlbumResponse?> =
+        MutableStateFlow<Result<NewAlbumResponse>?>(null)
+    val newAlbum: StateFlow<Result<NewAlbumResponse>?> =
         _newAlbum.asStateFlow()
 
-    private fun fetchTopList() {
+    fun fetchTopList() {
         viewModelScope.launch {
             _topList.value = PlaylistApi.topList()
         }
     }
 
-    private fun fetchNewAlbum() {
+    fun fetchNewAlbum() {
         viewModelScope.launch {
-            _newAlbum.value = RecommendApi.newAlbum().getOrNull()
+            _newAlbum.value = RecommendApi.newAlbum()
         }
     }
 
-    init {
+    fun refresh() {
         fetchTopList()
         fetchNewAlbum()
+    }
+
+    init {
+        refresh()
     }
 }

@@ -60,7 +60,10 @@ object SongListUtil {
     }
 
     fun init(file: File) {
-        if (!file.exists()) file.mkdir()
+        if (!file.exists()) {
+            file.parentFile?.mkdirs()
+            file.mkdir()
+        }
         this.file = file
     }
 
@@ -90,6 +93,20 @@ object SongListUtil {
     fun removePlaylistItem(mediaId: String) = synchronized(lock) {
         val updated = playlistItems.toMutableList()
         updated.removeIf { it.mediaId == mediaId }
+        savePlaylist(updated)
+    }
+
+    fun removePlaylistItemAt(index: Int, expectedMediaId: String) = synchronized(lock) {
+        val updated = playlistItems.toMutableList()
+        val match = updated.getOrNull(index)?.toMediaItem()?.mediaId == expectedMediaId
+        if (match) {
+            updated.removeAt(index)
+        } else {
+            val fallbackIndex = updated.indexOfFirst { it.mediaId == expectedMediaId }
+            if (fallbackIndex != -1) {
+                updated.removeAt(fallbackIndex)
+            }
+        }
         savePlaylist(updated)
     }
 
@@ -142,10 +159,11 @@ object SongListUtil {
                     PlaylistItem(type = PlaylistItemType.SONG, song = it)
                 }
             }
-        }.getOrNull()
-        if (parsed != null) {
-            playlistItems = parsed
+        }.getOrElse {
+            targetFile.renameTo(targetFile.resolveSibling("song_list.json.bak"))
+            emptyList()
         }
+        playlistItems = parsed
         return parsed
     }
 }

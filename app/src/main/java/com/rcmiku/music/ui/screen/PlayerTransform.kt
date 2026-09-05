@@ -76,6 +76,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -88,9 +90,11 @@ import androidx.media3.common.MediaMetadata
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import coil3.size.Size as CoilSize
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
+import com.rcmiku.music.R
 import com.rcmiku.music.constants.MiniPlayerHeight
 import com.rcmiku.music.ui.components.Lyric
 import com.rcmiku.music.ui.components.MiniPlayerProgressBar
@@ -110,6 +114,8 @@ const val FULL_PLAYER = 0
 const val PLAY_QUEUE = 1
 const val MINI_PLAYER = 2
 const val LYRIC_VIEW = 3
+
+private const val ProgressEps = 1e-3f
 
 private fun lerpRect(start: Rect, stop: Rect, fraction: Float): Rect =
     Rect(
@@ -138,6 +144,10 @@ fun PlayerTransform(
     transitionProgress: Float = 0f,
     dockedBottomPadding: Dp = 0.dp,
 ) {
+    val progress = transitionProgress.coerceIn(0f, 1f)
+    val isCollapsed = progress <= ProgressEps
+    val isFull = progress >= 1f - ProgressEps
+
     var currentView by rememberSaveable {
         mutableIntStateOf(FULL_PLAYER)
     }
@@ -157,7 +167,7 @@ fun PlayerTransform(
         }
     }
 
-    BackHandler(enabled = isExpanded || transitionProgress > 0f) {
+    BackHandler(enabled = isExpanded || !isCollapsed) {
         if (currentView != FULL_PLAYER) {
             currentView = FULL_PLAYER
         } else {
@@ -167,7 +177,7 @@ fun PlayerTransform(
 
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val view = LocalView.current
-    val shouldDarkenBars = isExpanded || transitionProgress > 0.5f
+    val shouldDarkenBars = isExpanded || progress > 0.5f
 
     DisposableEffect(shouldDarkenBars, isDarkTheme) {
         val window = (view.context as? Activity)?.window
@@ -232,18 +242,34 @@ fun PlayerTransform(
             Rect(leftPx, topPx, leftPx + sizePx, topPx + sizePx)
         }
 
-        val containerRect = lerpRect(miniRect, fullRect, transitionProgress)
+        val containerRect = lerpRect(miniRect, fullRect, progress)
         val deviceCornerRadius = rememberDeviceCornerRadius()
-        val containerCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, transitionProgress)
-        val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, transitionProgress)
+        val containerCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, progress)
+        val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, progress)
 
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
-        val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, transitionProgress)
-        val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, transitionProgress)
-        val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, transitionProgress)
+        val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, progress)
+        val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, progress)
+        val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, progress)
 
-        // 1. 物理形变容器阴影（卡片背后投影，随进度向全屏扩展并逐渐淡出）
-        if (transitionProgress < 1f) {
+        // 1 & 2. 容器物理阴影与描边合并
+        if (!isFull) {
+            val borderAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
+            val containerShape = RoundedCornerShape(containerCornerRadius)
+            val shadowModifier = if (containerElevation > 0.dp) {
+                Modifier.shadow(containerElevation, shape = containerShape)
+            } else Modifier
+
+            val borderModifier = if (borderAlpha > 0f) {
+                Modifier.border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(
+                        alpha = 0.5f * borderAlpha
+                    ),
+                    shape = containerShape
+                )
+            } else Modifier
+
             Box(
                 modifier = Modifier
                     .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
@@ -251,63 +277,50 @@ fun PlayerTransform(
                         width = with(density) { containerRect.width.toDp() },
                         height = with(density) { containerRect.height.toDp() }
                     )
-                    .shadow(containerElevation, shape = RoundedCornerShape(containerCornerRadius))
+                    .then(shadowModifier)
+                    .then(borderModifier)
             )
         }
 
-        // 2. Mini 栏描边：严格跟随容器边界与圆角同步伸缩，展开 0%~15% 渐隐，收起 15%~0% 渐显
-        val borderAlpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
-        if (borderAlpha > 0f) {
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
-                    .size(
-                        width = with(density) { containerRect.width.toDp() },
-                        height = with(density) { containerRect.height.toDp() }
+        val clipShape = remember(containerRect, containerCornerRadius) {
+            object : Shape {
+                override fun createOutline(
+                    size: Size,
+                    layoutDirection: LayoutDirection,
+                    density: Density
+                ): Outline {
+                    return Outline.Rounded(
+                        RoundRect(
+                            rect = containerRect,
+                            cornerRadius = CornerRadius(with(density) { containerCornerRadius.toPx() })
+                        )
                     )
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(
-                            alpha = 0.5f * borderAlpha
-                        ),
-                        shape = RoundedCornerShape(containerCornerRadius)
-                    )
-            )
+                }
+            }
         }
 
-        // 3. 物理形变视口（Container Transform Window）：以全屏尺寸承载所有内容，通过动态裁剪窗扩展，彻底杜绝内容被高度挤压或尺寸坍缩
+        // 3. 物理形变视口（Container Transform Window）
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    clip = transitionProgress < 1f
-                    if (transitionProgress < 1f) {
-                        shape = object : Shape {
-                            override fun createOutline(
-                                size: Size,
-                                layoutDirection: LayoutDirection,
-                                density: Density
-                            ): Outline {
-                                return Outline.Rounded(
-                                    RoundRect(
-                                        rect = containerRect,
-                                        cornerRadius = CornerRadius(with(density) { containerCornerRadius.toPx() })
-                                    )
-                                )
-                            }
-                        }
+                    clip = !isFull
+                    if (!isFull) {
+                        shape = clipShape
                     }
                 }
         ) {
-            // 容器实底沉浸背景：严格受限在动态裁剪窗内部，实底且平滑揭示
-            ImmersiveBackground(
-                modifier = Modifier.fillMaxSize(),
-                artworkUri = mediaMetadata.artworkUri
-            ) {}
+            // 折叠态跳过沉浸背景渲染，消除过度绘制与高斯模糊开销
+            if (!isCollapsed) {
+                ImmersiveBackground(
+                    modifier = Modifier.fillMaxSize(),
+                    artworkUri = mediaMetadata.artworkUri
+                ) {}
+            }
 
-            // 折叠态及初段融合 surfaceContainerHigh，确保底栏色彩契合主题
-            if (transitionProgress < 0.25f) {
-                val surfaceAlpha = (1f - transitionProgress / 0.25f).coerceIn(0f, 1f)
+            // 折叠态及初段融合 surfaceContainerHigh
+            if (progress < 0.25f) {
+                val surfaceAlpha = if (isCollapsed) 1f else (1f - progress / 0.25f).coerceIn(0f, 1f)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -316,7 +329,7 @@ fun PlayerTransform(
             }
 
             // Mini 控件层：随容器顶部同步位移，展开 0%~15% 极速淡出
-            val miniAlpha = (1f - transitionProgress / 0.15f).coerceIn(0f, 1f)
+            val miniAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
             if (miniAlpha > 0f) {
                 Box(
                     modifier = Modifier
@@ -327,9 +340,11 @@ fun PlayerTransform(
                         )
                         .graphicsLayer { alpha = miniAlpha }
                         .clickable(
+                            role = Role.Button,
+                            onClickLabel = "展开播放器",
                             interactionSource = null,
                             indication = null,
-                            enabled = transitionProgress == 0f,
+                            enabled = isCollapsed,
                             onClick = onClick
                         )
                 ) {
@@ -376,7 +391,7 @@ fun PlayerTransform(
                         ) {
                             Icon(
                                 imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
-                                contentDescription = null,
+                                contentDescription = stringResource(if (playerState?.isPlaying == true) R.string.pause else R.string.play),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -387,7 +402,7 @@ fun PlayerTransform(
                         ) {
                             Icon(
                                 imageVector = SkipNext,
-                                contentDescription = null,
+                                contentDescription = "下一首",
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -404,12 +419,8 @@ fun PlayerTransform(
                 }
             }
 
-            // Full 控件层：以完整全屏尺寸布局，展开 60%~100% 错峰浮入；收起 100%~70% 优先淡出
-            val fullControlsAlpha = if (isExpanded) {
-                ((transitionProgress - 0.60f) / 0.40f).coerceIn(0f, 1f)
-            } else {
-                ((transitionProgress - 0.70f) / 0.30f).coerceIn(0f, 1f)
-            }
+            // Full 控件层：以完整全屏尺寸布局，展开 60%~100% 错峰浮入；收起 100%~60% 优先淡出
+            val fullControlsAlpha = ((progress - 0.60f) / 0.40f).coerceIn(0f, 1f)
             val fullControlsOffsetY = 12.dp * (1f - fullControlsAlpha)
 
             val mediaId = playerState?.currentMediaItem?.mediaId ?: mediaMetadata.title?.toString() ?: "unknown"
@@ -482,7 +493,7 @@ fun PlayerTransform(
                                         onContainerClick = { safeSwitchView(PLAY_QUEUE) },
                                         controlsAlpha = 1f,
                                         controlsOffsetY = 0.dp,
-                                        showArtwork = (transitionProgress == 1f),
+                                        showArtwork = isFull,
                                         showBackground = false,
                                         onArtworkPositioned = { rect ->
                                             if (fullArtworkRect == null || fullArtworkRect != rect) {
@@ -533,8 +544,8 @@ fun PlayerTransform(
             }
         }
 
-        // 4. 单一物理封面：用于 Mini ↔ Full 容器形变转场（在展开/收起全程精确插值，并在满展时移交由 SharedTransition 接管）
-        if (transitionProgress < 1f) {
+        // 4. 单一物理封面：用于 Mini ↔ Full 容器形变转场
+        if (!isFull) {
             Box(
                 modifier = Modifier
                     .offset { IntOffset(currentArtworkRect.left.roundToInt(), currentArtworkRect.top.roundToInt()) }
@@ -545,16 +556,21 @@ fun PlayerTransform(
                     .shadow(currentArtworkElevation, shape = RoundedCornerShape(currentArtworkCorner))
                     .clip(RoundedCornerShape(currentArtworkCorner))
                     .clickable(
+                        role = Role.Button,
+                        onClickLabel = "展开播放器",
                         interactionSource = null,
                         indication = null,
-                        enabled = transitionProgress == 0f,
+                        enabled = isCollapsed,
                         onClick = onClick
                     )
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(mediaMetadata.artworkUri)
-                        .size(CoilSize.ORIGINAL)
+                        .size(CoilSize(768, 768))
+                        .memoryCacheKey(mediaMetadata.artworkUri?.toString())
+                        .diskCacheKey(mediaMetadata.artworkUri?.toString())
+                        .crossfade(true)
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,

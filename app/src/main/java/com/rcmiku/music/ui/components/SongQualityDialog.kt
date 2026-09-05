@@ -27,7 +27,8 @@ import com.rcmiku.ncmapi.api.player.SongLevel
 fun SongQualityDialog(
     currentLevel: SongLevel,
     onDismiss: () -> Unit,
-    onQualitySelected: (SongLevel) -> Unit
+    onQualitySelected: (SongLevel) -> Unit,
+    availableLevels: Set<SongLevel>? = null
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -39,15 +40,20 @@ fun SongQualityDialog(
                     .padding(vertical = 24.dp)
             ) {
                 SongLevel.entries.forEach { level ->
+                    val isAvailable = availableLevels?.contains(level) ?: true
+                    val isSelected = level == currentLevel
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(60.dp)
                             .selectable(
-                                selected = (level == currentLevel),
+                                selected = isSelected,
+                                enabled = isAvailable,
                                 onClick = {
-                                    onQualitySelected(level)
-                                    onDismiss()
+                                    if (isAvailable) {
+                                        onQualitySelected(level)
+                                        onDismiss()
+                                    }
                                 },
                                 role = Role.RadioButton,
                             )
@@ -55,12 +61,13 @@ fun SongQualityDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = level == currentLevel,
+                            selected = isSelected,
+                            enabled = isAvailable,
                             onClick = null
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = when (level) {
+                        Column {
+                            val title = when (level) {
                                 SongLevel.STANDARD -> stringResource(R.string.standard)
                                 SongLevel.HIGHER -> stringResource(R.string.higer)
                                 SongLevel.EXHIGH -> stringResource(R.string.exhigh)
@@ -68,7 +75,29 @@ fun SongQualityDialog(
                                 SongLevel.HIRES -> stringResource(R.string.hi_res)
                                 SongLevel.SKY -> stringResource(R.string.sky)
                             }
-                        )
+                            val subtitle = if (!isAvailable) {
+                                "当前音源或账号暂不可用"
+                            } else {
+                                when (level) {
+                                    SongLevel.STANDARD -> "128kbps"
+                                    SongLevel.HIGHER -> "192kbps"
+                                    SongLevel.EXHIGH -> "320kbps"
+                                    SongLevel.LOSSLESS -> "FLAC 16bit / 44.1kHz"
+                                    SongLevel.HIRES -> "高解析 24bit / 96kHz+"
+                                    SongLevel.SKY -> "沉浸环绕声"
+                                }
+                            }
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isAvailable) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isAvailable) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        }
                     }
                 }
             }

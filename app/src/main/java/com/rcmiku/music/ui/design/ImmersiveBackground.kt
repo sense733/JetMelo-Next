@@ -1,6 +1,5 @@
 package com.rcmiku.music.ui.design
 
-import android.net.Uri
 import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,7 +24,7 @@ import coil3.request.ImageRequest
 @Composable
 fun ImmersiveBackground(
     modifier: Modifier = Modifier,
-    artworkUri: Uri? = null,
+    artworkUri: Any? = null,
     dominantColor: Color? = null,
     scrimColor: Color? = null,
     content: @Composable BoxScope.() -> Unit

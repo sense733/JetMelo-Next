@@ -3,6 +3,7 @@ syntax = "proto3";
 option java_package = "com.rcmiku.music";
 option java_multiple_files = true;
 
+// 当前采用单一列表全量读写；当收藏规模达到千级以上时，建议后续重构为分片存储或增量变更日志机制
 message FavoriteSongIds {
     repeated int64 song_ids = 1;
 }

@@ -27,7 +27,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -113,9 +112,14 @@ internal class PlayerStateImpl(
     context: Context
 ) : PlayerState {
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    companion object {
+        private const val MAX_CONSECUTIVE_ERROR_SKIPS = 3
+    }
+
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     @Volatile
     private var autoSkipNextOnError: Boolean = false
+    private var consecutiveErrorSkips = 0
 
     override var remainingTime by mutableLongStateOf(0L)
         private set
@@ -126,15 +130,21 @@ internal class PlayerStateImpl(
     override var countDownTimer: CountDownTimer? = null
 
     override fun startTimer(time: Long) {
-        isSleepTimerSet = true
+        if (time <= 0L) return
         countDownTimer?.cancel()
-        countDownTimer = object : CountDownTimer(time * 1000L, 1000) {
+        countDownTimer = null
+        isSleepTimerSet = true
+        remainingTime = time
+        val safeTimeMs = time.coerceAtMost(Long.MAX_VALUE / 1000L) * 1000L
+        countDownTimer = object : CountDownTimer(safeTimeMs, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 remainingTime = millisUntilFinished / 1000
             }
 
             override fun onFinish() {
                 isSleepTimerSet = false
+                countDownTimer = null
+                remainingTime = 0L
                 player.pause()
             }
         }
@@ -144,6 +154,8 @@ internal class PlayerStateImpl(
     override fun cancelTimer() {
         isSleepTimerSet = false
         countDownTimer?.cancel()
+        countDownTimer = null
+        remainingTime = 0L
     }
 
     override var timeline: Timeline by mutableStateOf(player.currentTimeline)
@@ -243,6 +255,7 @@ internal class PlayerStateImpl(
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             this@PlayerStateImpl.currentMediaItem = mediaItem
+            consecutiveErrorSkips = 0
         }
 
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -267,6 +280,9 @@ internal class PlayerStateImpl(
 
         override fun onPlaybackStateChanged(@Player.State playbackState: Int) {
             this@PlayerStateImpl.playbackState = playbackState
+            if (playbackState == Player.STATE_READY) {
+                consecutiveErrorSkips = 0
+            }
         }
 
         override fun onPlayWhenReadyChanged(
@@ -346,7 +362,8 @@ internal class PlayerStateImpl(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            if (autoSkipNextOnError && player.hasNextMediaItem()) {
+            if (autoSkipNextOnError && player.hasNextMediaItem() && consecutiveErrorSkips < MAX_CONSECUTIVE_ERROR_SKIPS) {
+                consecutiveErrorSkips++
                 player.seekToNext()
                 player.prepare()
                 player.playWhenReady = true
@@ -357,9 +374,6 @@ internal class PlayerStateImpl(
     init {
         player.addListener(listener)
         scope.launch {
-            autoSkipNextOnError = context.dataStore.data
-                .map { it[autoSkipNextOnErrorKey] ?: false }
-                .first()
             context.dataStore.data
                 .map { it[autoSkipNextOnErrorKey] ?: false }
                 .distinctUntilChanged()
@@ -368,9 +382,8 @@ internal class PlayerStateImpl(
     }
 
     override fun dispose() {
-        // 休眠定时器持有一Tick 一跳的回调，PlayerState 释放时必须一并取消，
-        // 否则旧 timer 在 onFinish 中暂停的是已脱离观测的陈旧 player
         countDownTimer?.cancel()
+        countDownTimer = null
         player.removeListener(listener)
         scope.cancel()
     }

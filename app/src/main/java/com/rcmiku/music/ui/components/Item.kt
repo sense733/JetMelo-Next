@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
@@ -62,8 +61,10 @@ import com.rcmiku.ncmapi.model.SearchArtist
 import com.rcmiku.ncmapi.model.Song
 import com.rcmiku.ncmapi.model.SubAlbum
 import com.rcmiku.ncmapi.model.VoiceBaseInfo
+import java.util.Locale
 
 const val ActiveBoxAlpha = 0.6f
+private val ListItemThumbnailShape = RoundedCornerShape(ThumbnailCornerRadius)
 
 @Composable
 inline fun ListItem(
@@ -115,34 +116,43 @@ fun ListItem(
     modifier: Modifier = Modifier,
     title: String,
     subtitle: String?,
-    badges: @Composable RowScope.() -> Unit = {},
+    badges: (@Composable RowScope.() -> Unit)? = null,
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-) = ListItem(
-    title = title,
-    subtitle = {
-        badges()
-        if (!subtitle.isNullOrEmpty()) {
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+) {
+    val subtitleContent: (@Composable RowScope.() -> Unit)? =
+        if (badges == null && subtitle.isNullOrEmpty()) {
+            null
+        } else {
+            {
+                badges?.invoke(this)
+                if (!subtitle.isNullOrEmpty()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
-    },
-    thumbnailContent = thumbnailContent,
-    trailingContent = trailingContent,
-    modifier = modifier
-)
+
+    ListItem(
+        title = title,
+        subtitle = subtitleContent,
+        thumbnailContent = thumbnailContent,
+        trailingContent = trailingContent,
+        modifier = modifier
+    )
+}
 
 @Composable
 fun GridItem(
     modifier: Modifier = Modifier,
     title: @Composable () -> Unit,
     subtitle: @Composable (() -> Unit)?,
-    badges: @Composable RowScope.() -> Unit = {},
+    badges: (@Composable RowScope.() -> Unit)? = null,
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
@@ -174,10 +184,12 @@ fun GridItem(
 
         title()
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            badges()
+        if (badges != null || subtitle != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                badges?.invoke(this)
 
-            subtitle?.invoke()
+                subtitle?.invoke()
+            }
         }
     }
 }
@@ -200,10 +212,9 @@ fun GridItem(
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
             maxLines = maxLine,
+            overflow = TextOverflow.Ellipsis,
             textAlign = textAlign,
-            modifier = Modifier
-                .basicMarquee()
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         )
     },
     subtitle = {
@@ -231,7 +242,7 @@ fun ArtistListItem(
     thumbnailContent = {
         AsyncImage(
             model = artist.picUrl,
-            contentDescription = null,
+            contentDescription = artist.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .clip(CircleShape)
@@ -256,10 +267,10 @@ fun AlbumListItem(
     thumbnailContent = {
         AsyncImage(
             model = album.picUrl,
-            contentDescription = null,
+            contentDescription = album.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .clip(ListItemThumbnailShape)
                 .size(ListThumbnailSize)
         )
     },
@@ -295,10 +306,10 @@ fun VoiceListItem(
     thumbnailContent = {
         AsyncImage(
             model = voice.picUrl,
-            contentDescription = null,
+            contentDescription = voice.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .clip(ListItemThumbnailShape)
                 .size(ListThumbnailSize)
         )
     },
@@ -322,10 +333,10 @@ fun PlaylistListItem(
     thumbnailContent = {
         AsyncImage(
             model = playlist.cover,
-            contentDescription = null,
+            contentDescription = playlist.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .clip(ListItemThumbnailShape)
                 .size(ListThumbnailSize)
         )
     },
@@ -348,10 +359,10 @@ fun PlaylistV1ListItem(
     thumbnailContent = {
         AsyncImage(
             model = playlist.coverImgUrl,
-            contentDescription = null,
+            contentDescription = playlist.name,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                .clip(ListItemThumbnailShape)
                 .size(ListThumbnailSize)
         )
     },
@@ -406,23 +417,23 @@ fun SongListItem(
     albumIndex: Int? = null,
     songIndex: Int? = null,
     showLikedIcon: Boolean = false,
-    badges: @Composable RowScope.() -> Unit = {
-        if (showLikedIcon) {
+    badges: (@Composable RowScope.() -> Unit)? = if (showLikedIcon) {
+        {
             Icon(
                 imageVector = FavoriteFill,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.like),
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier
                     .size(16.dp)
                     .padding(end = 4.dp)
             )
         }
-    },
+    } else null,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) = ListItem(
-    title = if (songIndex != null) "$songIndex. " + song.name else song.name,
+    title = if (songIndex != null) String.format(java.util.Locale.getDefault(), "%d. ", songIndex) + song.name else song.name,
     subtitle = song.ar.joinToString("/") { it.name },
     badges = badges,
     thumbnailContent = {
@@ -432,7 +443,7 @@ fun SongListItem(
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ListItemThumbnailShape,
             modifier = Modifier.size(ListThumbnailSize)
         )
     },
@@ -447,12 +458,12 @@ fun RadioListItem(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     radioIndex: Int? = null,
-    badges: @Composable RowScope.() -> Unit = {},
+    badges: (@Composable RowScope.() -> Unit)? = null,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) = ListItem(
-    title = if (radioIndex != null) "$radioIndex. " + radio.mainSong.name else radio.mainSong.name,
+    title = if (radioIndex != null) String.format(java.util.Locale.getDefault(), "%d. ", radioIndex) + radio.mainSong.name else radio.mainSong.name,
     subtitle = formatTimestamp(radio.createTime) + " " + radio.mainSong.artists.joinToString("/") { it.name },
     badges = badges,
     thumbnailContent = {
@@ -462,7 +473,7 @@ fun RadioListItem(
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ListItemThumbnailShape,
             modifier = Modifier.size(ListThumbnailSize)
         )
     },
@@ -477,13 +488,12 @@ fun CloudSongListItem(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     songIndex: Int? = null,
-    badges: @Composable RowScope.() -> Unit = {
-    },
+    badges: (@Composable RowScope.() -> Unit)? = null,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) = ListItem(
-    title = if (songIndex != null) "$songIndex. " + cloudSong.simpleSong.name else cloudSong.simpleSong.name,
+    title = if (songIndex != null) String.format(java.util.Locale.getDefault(), "%d. ", songIndex) + cloudSong.simpleSong.name else cloudSong.simpleSong.name,
     subtitle = cloudSong.artist,
     badges = badges,
     thumbnailContent = {
@@ -494,7 +504,7 @@ fun CloudSongListItem(
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ListItemThumbnailShape,
             modifier = Modifier.size(ListThumbnailSize)
         )
     },
@@ -507,9 +517,7 @@ fun MediaItemListItem(
     mediaMetadata: MediaMetadata,
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
-    badges: @Composable RowScope.() -> Unit = {
-
-    },
+    badges: (@Composable RowScope.() -> Unit)? = null,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
@@ -524,7 +532,7 @@ fun MediaItemListItem(
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
-            shape = RoundedCornerShape(ThumbnailCornerRadius),
+            shape = ListItemThumbnailShape,
             modifier = Modifier.size(ListThumbnailSize)
         )
     },

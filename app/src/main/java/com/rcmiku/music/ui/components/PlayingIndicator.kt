@@ -1,7 +1,11 @@
 package com.rcmiku.music.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,20 +18,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rcmiku.music.constants.ThumbnailCornerRadius
 import com.rcmiku.music.ui.icons.PlayArrow
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 @Composable
 fun PlayingIndicator(
@@ -37,22 +39,24 @@ fun PlayingIndicator(
     barWidth: Dp = 4.dp,
     cornerRadius: Dp = ThumbnailCornerRadius,
 ) {
-    val animatables = remember {
-        List(bars) {
-            Animatable(0.1f)
+    val infiniteTransition = rememberInfiniteTransition(label = "playing_indicator")
+    val heights = (0 until bars).map { index ->
+        val duration = 450 + index * 150
+        val target = when (index % 3) {
+            0 -> 0.95f
+            1 -> 0.65f
+            else -> 0.85f
         }
-    }
-
-    LaunchedEffect(Unit) {
-        delay(300)
-        animatables.forEach { animatable ->
-            launch {
-                while (true) {
-                    animatable.animateTo(Random.nextFloat() * 0.9f + 0.1f)
-                    delay(50)
-                }
-            }
-        }
+        val min = 0.2f
+        infiniteTransition.animateFloat(
+            initialValue = min,
+            targetValue = target,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = duration, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "bar_height_$index"
+        )
     }
 
     Row(
@@ -60,16 +64,23 @@ fun PlayingIndicator(
         verticalAlignment = Alignment.Bottom,
         modifier = modifier
     ) {
-        animatables.forEach { animatable ->
+        heights.forEach { animHeight ->
+            val heightFraction = animHeight.value
             Canvas(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(barWidth)
             ) {
                 drawRoundRect(
+                    color = color.copy(alpha = 0.2f),
+                    topLeft = Offset.Zero,
+                    size = size,
+                    cornerRadius = CornerRadius(cornerRadius.toPx())
+                )
+                drawRoundRect(
                     color = color,
-                    topLeft = Offset(x = 0f, y = size.height * (1 - animatable.value)),
-                    size = size.copy(height = animatable.value * size.height),
+                    topLeft = Offset(x = 0f, y = size.height * (1 - heightFraction)),
+                    size = size.copy(height = heightFraction * size.height),
                     cornerRadius = CornerRadius(cornerRadius.toPx())
                 )
             }
@@ -89,9 +100,12 @@ fun PlayingIndicatorBox(
         enter = fadeIn(tween(500)),
         exit = fadeOut(tween(500))
     ) {
+        val stateDesc = if (playWhenReady) "正在播放" else "已暂停"
         Box(
             contentAlignment = Alignment.Center,
-            modifier = modifier
+            modifier = modifier.semantics(mergeDescendants = true) {
+                contentDescription = stateDesc
+            }
         ) {
             if (playWhenReady) {
                 PlayingIndicator(

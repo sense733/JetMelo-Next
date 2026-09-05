@@ -28,8 +28,8 @@
     <string name="artist">歌手</string>
     <string name="total_play_count">%s次播放</string>
     <string name="voice_count">%d个声音</string>
-    <string name="shuffle_on">shuffle on</string>
-    <string name="shuffle_off">shuffle off</string>
+    <string name="shuffle_on">随机播放已开启</string>
+    <string name="shuffle_off">随机播放已关闭</string>
     <string name="newest_album_week">本周新碟</string>
     <string name="newest_album_month">本月新碟</string>
     <string name="high_quality_playlist">精品歌单</string>
@@ -58,7 +58,7 @@
     <string name="library_add_check">已收藏</string>
     <string name="cancel">取消</string>
     <string name="sleep_timer">睡眠定时</string>
-    <string name="remaining_time">剩余时间:</string>
+    <string name="remaining_time">剩余时间：</string>
     <string name="share">分享</string>
     <string name="share_link">分享链接</string>
     <string name="confirm">确定</string>
@@ -71,6 +71,7 @@
     <string name="lossless">无损 (VIP)</string>
     <string name="exhigh">极高</string>
     <string name="higer">高</string>
+    <string name="higher">高</string>
     <string name="standard">标准</string>
     <string name="auto_skip">跳过加载失败歌曲</string>
     <string name="logout">退出登录</string>
@@ -113,4 +114,13 @@
     <string name="clear">清除</string>
     <string name="suggest_keywords">关键词</string>
     <string name="operation_failed">操作失败</string>
+
+    <plurals name="songs_count">
+        <item quantity="one">%d 首歌曲</item>
+        <item quantity="other">%d 首歌曲</item>
+    </plurals>
+    <plurals name="tracks_count">
+        <item quantity="one">%d 首</item>
+        <item quantity="other">%d 首</item>
+    </plurals>
 </resources>

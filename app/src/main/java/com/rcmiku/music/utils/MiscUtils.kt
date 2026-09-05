@@ -10,22 +10,47 @@ import java.net.URLEncoder
 import java.util.Locale
 import java.util.UUID
 
+private val deviceLock = Any()
+@Volatile
+private var cachedFallbackDeviceId: String? = null
+
 fun getDeviceID(context: android.content.Context): String {
     val prefs = context.getSharedPreferences("device_identity", android.content.Context.MODE_PRIVATE)
     var deviceId = prefs.getString("device_id", null)
     if (deviceId == null) {
-        val uuid = UUID.randomUUID().toString().replace("-", "").take(16)
-        val raw = "null 02:00:00:00:00:00 $uuid unknown"
-        deviceId = urlEncode(base64Encode(raw.toByteArray()))
-        prefs.edit().putString("device_id", deviceId).apply()
+        synchronized(deviceLock) {
+            deviceId = prefs.getString("device_id", null)
+            if (deviceId == null) {
+                val uuid = UUID.randomUUID().toString().replace("-", "").take(16)
+                val raw = "null 02:00:00:00:00:00 $uuid unknown"
+                deviceId = urlEncode(base64Encode(raw.toByteArray()))
+                prefs.edit().putString("device_id", deviceId).apply()
+            }
+        }
     }
-    return deviceId
+    return deviceId!!
 }
 
 fun getDeviceID(): String {
-    val uuid = UUID.randomUUID().toString().replace("-", "").take(16)
-    val deviceID = "null 02:00:00:00:00:00 $uuid unknown"
-    return urlEncode(base64Encode(deviceID.toByteArray()))
+    val cached = cachedFallbackDeviceId
+    if (cached != null) return cached
+    synchronized(deviceLock) {
+        val existing = cachedFallbackDeviceId
+        if (existing != null) return existing
+        val uuid = UUID.randomUUID().toString().replace("-", "").take(16)
+        val raw = "null 02:00:00:00:00:00 $uuid unknown"
+        val generated = urlEncode(base64Encode(raw.toByteArray()))
+        cachedFallbackDeviceId = generated
+        return generated
+    }
+}
+
+fun clearDeviceId(context: android.content.Context) {
+    synchronized(deviceLock) {
+        cachedFallbackDeviceId = null
+        val prefs = context.getSharedPreferences("device_identity", android.content.Context.MODE_PRIVATE)
+        prefs.edit().remove("device_id").apply()
+    }
 }
 
 fun <T> getItemShape(

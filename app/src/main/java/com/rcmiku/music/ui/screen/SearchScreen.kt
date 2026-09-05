@@ -26,8 +26,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,7 +42,9 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -69,6 +74,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
@@ -132,37 +138,54 @@ fun SearchScreen(
     val songIds by remember(context) {
         context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
     }.collectAsStateWithLifecycle(emptySet())
-    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
-
-    val tabList = listOf(
-        SearchType.Song to stringResource(R.string.song),
-        SearchType.Playlist to stringResource(R.string.playlists),
-        SearchType.VoiceList to stringResource(R.string.voice_list),
-        SearchType.Artist to stringResource(R.string.artist),
-        SearchType.Album to stringResource(R.string.album)
-    )
+    val songLabel = stringResource(R.string.song)
+    val playlistLabel = stringResource(R.string.playlists)
+    val voiceListLabel = stringResource(R.string.voice_list)
+    val artistLabel = stringResource(R.string.artist)
+    val albumLabel = stringResource(R.string.album)
+    val tabList = remember(songLabel, playlistLabel, voiceListLabel, artistLabel, albumLabel) {
+        listOf(
+            SearchType.Song to songLabel,
+            SearchType.Playlist to playlistLabel,
+            SearchType.VoiceList to voiceListLabel,
+            SearchType.Artist to artistLabel,
+            SearchType.Album to albumLabel
+        )
+    }
+    val selectedTabIndex = remember(searchType, tabList) {
+        tabList.indexOfFirst { it.first == searchType }.coerceAtLeast(0)
+    }
 
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var selectSong by remember { mutableStateOf<Song?>(null) }
 
-    val handleExpandedChange: (Boolean) -> Unit = { isExpanded ->
-        if (!isExpanded) {
-            if (currentSubmittedKeyword.isNotEmpty()) {
-                searchValue = currentSubmittedKeyword
-                expanded = false
-                keyboardController?.hide()
-                focusManager.clearFocus()
+    LaunchedEffect(openBottomSheet, selectSong) {
+        if (openBottomSheet && selectSong == null) {
+            openBottomSheet = false
+        }
+    }
+
+    val handleExpandedChange: (Boolean) -> Unit = remember(currentSubmittedKeyword) {
+        { isExpanded ->
+            if (!isExpanded) {
+                if (currentSubmittedKeyword.isNotEmpty()) {
+                    searchValue = currentSubmittedKeyword
+                    expanded = false
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                } else {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                }
             } else {
-                keyboardController?.hide()
-                focusManager.clearFocus()
-                navController.navigateUp()
+                expanded = true
             }
-        } else {
-            expanded = true
         }
     }
 
     BackHandler(enabled = !expanded) {
+        keyboardController?.hide()
+        focusManager.clearFocus()
         searchViewModel.updateSearchValue("")
         searchValue = ""
         expanded = true
@@ -200,7 +223,12 @@ fun SearchScreen(
                     leadingIcon = {
                         IconButton(onClick = {
                             if (expanded) {
-                                handleExpandedChange(false)
+                                if (currentSubmittedKeyword.isNotEmpty()) {
+                                    expanded = false
+                                    searchValue = currentSubmittedKeyword
+                                } else {
+                                    navController.navigateUp()
+                                }
                             } else {
                                 searchViewModel.updateSearchValue("")
                                 searchValue = ""
@@ -209,7 +237,7 @@ fun SearchScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = null
+                                contentDescription = "返回"
                             )
                         }
                     },
@@ -218,6 +246,7 @@ fun SearchScreen(
                             IconButton(onClick = {
                                 searchValue = ""
                                 searchViewModel.onInputQueryChange("")
+                                searchViewModel.updateSearchValue("")
                                 expanded = true
                             }) {
                                 Icon(
@@ -264,84 +293,92 @@ fun SearchScreen(
                                         if (songs.isNotEmpty()) {
                                             SuggestGroupHeader(title = stringResource(R.string.song))
                                             songs.forEach { song ->
-                                                SongSuggestItem(
-                                                    song = song,
-                                                    query = searchValue,
-                                                    onInsert = {
-                                                        searchValue = song.name
-                                                        searchViewModel.onInputQueryChange(song.name)
-                                                    },
-                                                    onClick = {
-                                                        searchValue = song.name
-                                                        expanded = false
-                                                        searchViewModel.updateSearchValue(song.name)
-                                                        focusManager.clearFocus()
-                                                        keyboardController?.hide()
-                                                    }
-                                                )
+                                                key(song.id) {
+                                                    SongSuggestItem(
+                                                        song = song,
+                                                        query = searchValue,
+                                                        onInsert = {
+                                                            searchValue = song.name
+                                                            searchViewModel.onInputQueryChange(song.name)
+                                                        },
+                                                        onClick = {
+                                                            searchValue = song.name
+                                                            expanded = false
+                                                            searchViewModel.updateSearchValue(song.name)
+                                                            focusManager.clearFocus()
+                                                            keyboardController?.hide()
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
 
                                         if (albums.isNotEmpty()) {
                                             SuggestGroupHeader(title = stringResource(R.string.album))
                                             albums.forEach { album ->
-                                                AlbumSuggestItem(
-                                                    album = album,
-                                                    query = searchValue,
-                                                    onInsert = {
-                                                        searchValue = album.name
-                                                        searchViewModel.onInputQueryChange(album.name)
-                                                    },
-                                                    onClick = {
-                                                        searchValue = album.name
-                                                        expanded = false
-                                                        searchViewModel.updateSearchValue(album.name)
-                                                        focusManager.clearFocus()
-                                                        keyboardController?.hide()
-                                                    }
-                                                )
+                                                key(album.id) {
+                                                    AlbumSuggestItem(
+                                                        album = album,
+                                                        query = searchValue,
+                                                        onInsert = {
+                                                            searchValue = album.name
+                                                            searchViewModel.onInputQueryChange(album.name)
+                                                        },
+                                                        onClick = {
+                                                            searchValue = album.name
+                                                            expanded = false
+                                                            searchViewModel.updateSearchValue(album.name)
+                                                            focusManager.clearFocus()
+                                                            keyboardController?.hide()
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
 
                                         if (artists.isNotEmpty()) {
                                             SuggestGroupHeader(title = stringResource(R.string.artist))
                                             artists.forEach { artist ->
-                                                ArtistSuggestItem(
-                                                    artist = artist,
-                                                    query = searchValue,
-                                                    onInsert = {
-                                                        searchValue = artist.name
-                                                        searchViewModel.onInputQueryChange(artist.name)
-                                                    },
-                                                    onClick = {
-                                                        searchValue = artist.name
-                                                        expanded = false
-                                                        searchViewModel.updateSearchValue(artist.name)
-                                                        focusManager.clearFocus()
-                                                        keyboardController?.hide()
-                                                    }
-                                                )
+                                                key(artist.id) {
+                                                    ArtistSuggestItem(
+                                                        artist = artist,
+                                                        query = searchValue,
+                                                        onInsert = {
+                                                            searchValue = artist.name
+                                                            searchViewModel.onInputQueryChange(artist.name)
+                                                        },
+                                                        onClick = {
+                                                            searchValue = artist.name
+                                                            expanded = false
+                                                            searchViewModel.updateSearchValue(artist.name)
+                                                            focusManager.clearFocus()
+                                                            keyboardController?.hide()
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
 
                                         if (keywords.isNotEmpty()) {
                                             SuggestGroupHeader(title = stringResource(R.string.suggest_keywords))
                                             keywords.forEach { kw ->
-                                                KeywordSuggestItem(
-                                                    keyword = kw.keyword,
-                                                    query = searchValue,
-                                                    onInsert = {
-                                                        searchValue = kw.keyword
-                                                        searchViewModel.onInputQueryChange(kw.keyword)
-                                                    },
-                                                    onClick = {
-                                                        searchValue = kw.keyword
-                                                        expanded = false
-                                                        searchViewModel.updateSearchValue(kw.keyword)
-                                                        focusManager.clearFocus()
-                                                        keyboardController?.hide()
-                                                    }
-                                                )
+                                                key(kw.keyword) {
+                                                    KeywordSuggestItem(
+                                                        keyword = kw.keyword,
+                                                        query = searchValue,
+                                                        onInsert = {
+                                                            searchValue = kw.keyword
+                                                            searchViewModel.onInputQueryChange(kw.keyword)
+                                                        },
+                                                        onClick = {
+                                                            searchValue = kw.keyword
+                                                            expanded = false
+                                                            searchViewModel.updateSearchValue(kw.keyword)
+                                                            focusManager.clearFocus()
+                                                            keyboardController?.hide()
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -399,19 +436,21 @@ fun SearchScreen(
                                         }
 
                                         searchHistoryState.forEach { historyItem ->
-                                            RecentHistoryItem(
-                                                query = historyItem,
-                                                onClick = {
-                                                    searchValue = historyItem
-                                                    expanded = false
-                                                    searchViewModel.updateSearchValue(historyItem)
-                                                    focusManager.clearFocus()
-                                                    keyboardController?.hide()
-                                                },
-                                                onDelete = {
-                                                    searchViewModel.deleteSearchQuery(historyItem)
-                                                }
-                                            )
+                                            key(historyItem) {
+                                                RecentHistoryItem(
+                                                    query = historyItem,
+                                                    onClick = {
+                                                        searchValue = historyItem
+                                                        expanded = false
+                                                        searchViewModel.updateSearchValue(historyItem)
+                                                        focusManager.clearFocus()
+                                                        keyboardController?.hide()
+                                                    },
+                                                    onDelete = {
+                                                        searchViewModel.deleteSearchQuery(historyItem)
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -479,43 +518,45 @@ fun SearchScreen(
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             hotSearches.forEachIndexed { index, tag ->
-                                                val showTrending = index < 2
-                                                Surface(
-                                                    shape = JetMeloShapes.full,
-                                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                    border = BorderStroke(
-                                                        width = 1.dp,
-                                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                                                    ),
-                                                    modifier = Modifier
-                                                        .clip(JetMeloShapes.full)
-                                                        .clickable {
-                                                            searchValue = tag
-                                                            expanded = false
-                                                            searchViewModel.updateSearchValue(tag)
-                                                            focusManager.clearFocus()
-                                                            keyboardController?.hide()
-                                                        }
-                                                ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                key(tag) {
+                                                    val showTrending = index < 2
+                                                    Surface(
+                                                        shape = JetMeloShapes.full,
+                                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                        border = BorderStroke(
+                                                            width = 1.dp,
+                                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                                        ),
+                                                        modifier = Modifier
+                                                            .clip(JetMeloShapes.full)
+                                                            .clickable(role = Role.Button) {
+                                                                searchValue = tag
+                                                                expanded = false
+                                                                searchViewModel.updateSearchValue(tag)
+                                                                focusManager.clearFocus()
+                                                                keyboardController?.hide()
+                                                            }
                                                     ) {
-                                                        if (showTrending) {
-                                                            Icon(
-                                                                imageVector = TrendingUp,
-                                                                contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.tertiary,
-                                                                modifier = Modifier
-                                                                    .size(16.dp)
-                                                                    .padding(end = 4.dp)
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                        ) {
+                                                            if (showTrending) {
+                                                                Icon(
+                                                                    imageVector = TrendingUp,
+                                                                    contentDescription = null,
+                                                                    tint = MaterialTheme.colorScheme.error,
+                                                                    modifier = Modifier
+                                                                        .size(16.dp)
+                                                                        .padding(end = 4.dp)
+                                                                )
+                                                            }
+                                                            Text(
+                                                                text = tag,
+                                                                style = MaterialTheme.typography.labelLarge,
+                                                                color = MaterialTheme.colorScheme.onSurface
                                                             )
                                                         }
-                                                        Text(
-                                                            text = tag,
-                                                            style = MaterialTheme.typography.labelLarge,
-                                                            color = MaterialTheme.colorScheme.onSurface
-                                                        )
                                                     }
                                                 }
                                             }
@@ -531,27 +572,26 @@ fun SearchScreen(
 
         if (!expanded && currentSubmittedKeyword.isNotEmpty()) {
             PrimaryTabRow(
-            selectedTabIndex = selectedTabIndex,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.primary
-        ) {
-            tabList.forEachIndexed { index, item ->
-                Tab(
-                    modifier = Modifier.clip(JetMeloShapes.small),
-                    selected = selectedTabIndex == index,
-                    onClick = {
-                        selectedTabIndex = index
-                        searchViewModel.updateSearchType(item.first)
-                    },
-                    text = {
-                        Text(
-                            text = item.second,
-                            fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                )
+                selectedTabIndex = selectedTabIndex,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                tabList.forEachIndexed { index, item ->
+                    Tab(
+                        modifier = Modifier.clip(JetMeloShapes.small),
+                        selected = selectedTabIndex == index,
+                        onClick = {
+                            searchViewModel.updateSearchType(item.first)
+                        },
+                        text = {
+                            Text(
+                                text = item.second,
+                                fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    )
+                }
             }
-        }
 
         LazyColumn(
             modifier = Modifier
@@ -560,11 +600,62 @@ fun SearchScreen(
                 .semantics { traversalIndex = 1f },
             contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp + bottomContentPadding)
         ) {
+            if (searchResults.loadState.refresh is LoadState.Loading && searchResults.itemCount == 0) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 64.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            } else if (searchResults.loadState.refresh is LoadState.Error && searchResults.itemCount == 0) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 64.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.operation_failed),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(onClick = { searchResults.retry() }) {
+                                Text(text = "重试")
+                            }
+                        }
+                    }
+                }
+            } else if (searchResults.loadState.refresh is LoadState.NotLoading && searchResults.itemCount == 0) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 64.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "暂无搜索结果",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             when (searchType) {
                 SearchType.Song -> {
                     items(
                         count = searchResults.itemCount,
-                        key = { index -> searchResults.peek(index)?.song?.id ?: index }
+                        key = { index -> "${searchResults.peek(index)?.song?.id ?: "loading"}_$index" }
                     ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.song?.let { song ->
@@ -607,7 +698,7 @@ fun SearchScreen(
                 SearchType.Playlist -> {
                     items(
                         count = searchResults.itemCount,
-                        key = { index -> searchResults.peek(index)?.toPlaylist()?.id ?: index }
+                        key = { index -> "${searchResults.peek(index)?.toPlaylist()?.id ?: "loading"}_$index" }
                     ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toPlaylist()?.let { playlist ->
@@ -626,7 +717,7 @@ fun SearchScreen(
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = playlist.id,
-                                                    limit = playlist.trackCount
+                                                    limit = playlist.trackCount?.takeIf { it > 0 } ?: 999
                                                 )
                                             )
                                         }
@@ -640,7 +731,7 @@ fun SearchScreen(
                 SearchType.VoiceList -> {
                     items(
                         count = searchResults.itemCount,
-                        key = { index -> searchResults.peek(index)?.baseInfo?.id ?: index }
+                        key = { index -> "${searchResults.peek(index)?.baseInfo?.id ?: "loading"}_$index" }
                     ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.baseInfo?.let { voice ->
@@ -668,7 +759,7 @@ fun SearchScreen(
                 SearchType.Artist -> {
                     items(
                         count = searchResults.itemCount,
-                        key = { index -> searchResults.peek(index)?.toSearchArtist()?.id ?: index }
+                        key = { index -> "${searchResults.peek(index)?.toSearchArtist()?.id ?: "loading"}_$index" }
                     ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toSearchArtist()?.let { artist ->
@@ -696,7 +787,7 @@ fun SearchScreen(
                 SearchType.Album -> {
                     items(
                         count = searchResults.itemCount,
-                        key = { index -> searchResults.peek(index)?.toAlbumList()?.id ?: index }
+                        key = { index -> "${searchResults.peek(index)?.toAlbumList()?.id ?: "loading"}_$index" }
                     ) { index ->
                         searchResults[index]?.let { resource ->
                             resource.toAlbumList()?.let { album ->
@@ -717,6 +808,32 @@ fun SearchScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            if (searchResults.loadState.append is LoadState.Loading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
+            } else if (searchResults.loadState.append is LoadState.Error) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Button(onClick = { searchResults.retry() }) {
+                            Text(text = "重试")
                         }
                     }
                 }
@@ -822,12 +939,16 @@ fun SongSuggestItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = highlightSearchKeyword(
+                val highlightColor = MaterialTheme.colorScheme.primary
+                val highlightedText = remember(song.name, query, highlightColor) {
+                    highlightSearchKeyword(
                         text = song.name,
                         query = query,
-                        highlightColor = MaterialTheme.colorScheme.primary
-                    ),
+                        highlightColor = highlightColor
+                    )
+                }
+                Text(
+                    text = highlightedText,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -854,7 +975,7 @@ fun SongSuggestItem(
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
-                contentDescription = null,
+                contentDescription = "填入",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -901,12 +1022,16 @@ fun AlbumSuggestItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = highlightSearchKeyword(
+                val highlightColor = MaterialTheme.colorScheme.primary
+                val highlightedText = remember(album.name, query, highlightColor) {
+                    highlightSearchKeyword(
                         text = album.name,
                         query = query,
-                        highlightColor = MaterialTheme.colorScheme.primary
-                    ),
+                        highlightColor = highlightColor
+                    )
+                }
+                Text(
+                    text = highlightedText,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -933,7 +1058,7 @@ fun AlbumSuggestItem(
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
-                contentDescription = null,
+                contentDescription = "填入",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -992,12 +1117,16 @@ fun ArtistSuggestItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = highlightSearchKeyword(
+                val highlightColor = MaterialTheme.colorScheme.primary
+                val highlightedText = remember(artist.name, query, highlightColor) {
+                    highlightSearchKeyword(
                         text = artist.name,
                         query = query,
-                        highlightColor = MaterialTheme.colorScheme.primary
-                    ),
+                        highlightColor = highlightColor
+                    )
+                }
+                Text(
+                    text = highlightedText,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -1019,7 +1148,7 @@ fun ArtistSuggestItem(
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
-                contentDescription = null,
+                contentDescription = "填入",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -1059,12 +1188,16 @@ fun KeywordSuggestItem(
 
         Spacer(Modifier.width(16.dp))
 
-        Text(
-            text = highlightSearchKeyword(
+        val highlightColor = MaterialTheme.colorScheme.primary
+        val highlightedText = remember(keyword, query, highlightColor) {
+            highlightSearchKeyword(
                 text = keyword,
                 query = query,
-                highlightColor = MaterialTheme.colorScheme.primary
-            ),
+                highlightColor = highlightColor
+            )
+        }
+        Text(
+            text = highlightedText,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
@@ -1075,7 +1208,7 @@ fun KeywordSuggestItem(
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
-                contentDescription = null,
+                contentDescription = "填入",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -1113,7 +1246,7 @@ fun RecentHistoryItem(
         )
         IconButton(
             onClick = onDelete,
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(48.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
@@ -1131,23 +1264,31 @@ fun highlightSearchKeyword(
     highlightColor: Color
 ): AnnotatedString {
     if (query.isBlank()) return AnnotatedString(text)
-    val index = text.indexOf(query, ignoreCase = true)
-    if (index < 0) return AnnotatedString(text)
+    val tokens = query.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+    if (tokens.isEmpty()) return AnnotatedString(text)
+    val pattern = tokens.joinToString("|") { Regex.escape(it) }
+    val regex = Regex(pattern, RegexOption.IGNORE_CASE)
+    val matches = regex.findAll(text).toList()
+    if (matches.isEmpty()) return AnnotatedString(text)
 
     return buildAnnotatedString {
-        if (index > 0) {
-            append(text.substring(0, index))
+        var lastIndex = 0
+        for (match in matches) {
+            if (match.range.first > lastIndex) {
+                append(text.substring(lastIndex, match.range.first))
+            }
+            withStyle(
+                SpanStyle(
+                    color = highlightColor,
+                    fontWeight = FontWeight.Bold
+                )
+            ) {
+                append(match.value)
+            }
+            lastIndex = match.range.last + 1
         }
-        withStyle(
-            SpanStyle(
-                color = highlightColor,
-                fontWeight = FontWeight.Bold
-            )
-        ) {
-            append(text.substring(index, index + query.length))
-        }
-        if (index + query.length < text.length) {
-            append(text.substring(index + query.length))
+        if (lastIndex < text.length) {
+            append(text.substring(lastIndex))
         }
     }
 }

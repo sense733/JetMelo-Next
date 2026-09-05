@@ -9,17 +9,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.rcmiku.music.R
 
 @Composable
 fun NavigationTitle(
@@ -34,7 +32,10 @@ fun NavigationTitle(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = onClick != null) {
+            .clickable(
+                enabled = onClick != null,
+                role = Role.Button
+            ) {
                 onClick?.invoke()
             }
             .padding(horizontal = 12.dp, vertical = 12.dp)
@@ -50,6 +51,7 @@ fun NavigationTitle(
                     text = label,
                     style = MaterialTheme.typography.labelLarge,
                     overflow = TextOverflow.Ellipsis,
+                    maxLines = 1
                 )
             }
 
@@ -64,13 +66,11 @@ fun NavigationTitle(
         }
 
         if (onClick != null) {
-            IconButton(onClick = onClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = stringResource(R.string.more)
-                )
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-
     }
 }

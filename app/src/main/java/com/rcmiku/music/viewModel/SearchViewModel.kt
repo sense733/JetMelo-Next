@@ -96,10 +96,10 @@ class SearchViewModel @Inject constructor(
         .combine(_searchType) { keyword, searchType ->
             Pager(
                 config = PagingConfig(
-                    pageSize = 100,
-                    prefetchDistance = 50,
+                    pageSize = 30,
+                    prefetchDistance = 15,
                     enablePlaceholders = false,
-                    initialLoadSize = 100
+                    initialLoadSize = 30
                 ),
                 pagingSourceFactory = { SearchPagingSource(keyword, searchType) }
             ).flow
@@ -125,8 +125,8 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun fetchSuggestionsInternal(query: String): List<SearchSuggestion> = coroutineScope {
-        val webDeferred = async { SearchApi.searchSuggestWeb(query).getOrNull()?.result }
-        val keywordDeferred = async { SearchApi.searchSuggestKeyword(query).getOrNull()?.result }
+        val webDeferred = async { runCatching { SearchApi.searchSuggestWeb(query).getOrNull()?.result }.getOrNull() }
+        val keywordDeferred = async { runCatching { SearchApi.searchSuggestKeyword(query).getOrNull()?.result }.getOrNull() }
 
         val webResult = webDeferred.await()
         val keywordResult = keywordDeferred.await()
@@ -189,33 +189,43 @@ class SearchViewModel @Inject constructor(
     private fun fetchHotSearches() {
         viewModelScope.launch {
             _isHotLoading.value = true
-            val hots = SearchApi.searchHot().getOrNull()?.result?.hots
-                ?.map { it.first }
-                ?.filter { it.isNotBlank() }
+            try {
+                val hots = SearchApi.searchHot().getOrNull()?.result?.hots
+                    ?.map { it.first }
+                    ?.filter { it.isNotBlank() }
 
-            if (!hots.isNullOrEmpty()) {
-                _hotSearches.value = hots
-            } else {
+                if (!hots.isNullOrEmpty()) {
+                    _hotSearches.value = hots
+                } else {
+                    _hotSearches.value = DEFAULT_HOT_SEARCHES
+                }
+            } catch (e: Exception) {
                 _hotSearches.value = DEFAULT_HOT_SEARCHES
+            } finally {
+                _isHotLoading.value = false
             }
-            _isHotLoading.value = false
         }
     }
 
     private fun saveSearch(query: String) {
-        if (query.isBlank()) return
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
         viewModelScope.launch {
-            saveSearchQuery(context, query)
+            saveSearchQuery(context, trimmed)
         }
     }
 
     private suspend fun saveSearchQuery(context: Context, query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
         runCatching {
             context.searchHistoryDataStore.updateData { currentHistory ->
                 val historyList = currentHistory.historyList.toMutableList()
-                historyList.remove(query)
-                historyList.add(0, query)
-                if (historyList.size > 10) historyList.removeAt(historyList.lastIndex)
+                historyList.removeAll { it.trim().equals(trimmed, ignoreCase = true) }
+                historyList.add(0, trimmed)
+                if (historyList.size > 10) {
+                    historyList.subList(10, historyList.size).clear()
+                }
                 currentHistory.toBuilder().clearHistory().addAllHistory(historyList).build()
             }
         }
@@ -226,8 +236,10 @@ class SearchViewModel @Inject constructor(
     }
 
     fun deleteSearchQuery(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
         viewModelScope.launch {
-            removeSearchQuery(context, query)
+            removeSearchQuery(context, trimmed)
         }
     }
 
@@ -242,10 +254,11 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun removeSearchQuery(context: Context, query: String) {
+        val trimmed = query.trim()
         runCatching {
             context.searchHistoryDataStore.updateData { currentHistory ->
                 val historyList = currentHistory.historyList.toMutableList()
-                historyList.remove(query)
+                historyList.removeAll { it.trim().equals(trimmed, ignoreCase = true) }
                 currentHistory.toBuilder().clearHistory().addAllHistory(historyList).build()
             }
         }

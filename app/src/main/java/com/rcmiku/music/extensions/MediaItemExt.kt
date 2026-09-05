@@ -44,6 +44,9 @@ fun CloudSong.toMediaItem(uid: Long): MediaItem =
                 .setArtist(this.artist)
                 .setTitle(this.simpleSong.name)
                 .setArtworkUri(this.simpleSong.al?.picUrl?.toUri())
+                .setExtras(Bundle().apply {
+                    putLong("uid", uid)
+                })
                 .build()
         )
         .build()
@@ -60,6 +63,9 @@ fun Radio.toMediaItem(): MediaItem =
                 .setArtist(this.mainSong.artists.joinToString { it.name })
                 .setTitle(this.mainSong.name)
                 .setArtworkUri(this.coverUrl.toUri())
+                .setExtras(Bundle().apply {
+                    putBoolean("isRadio", true)
+                })
                 .build()
         )
         .build()
@@ -68,6 +74,7 @@ fun List<Radio>.toRadioMediaItemList(): List<MediaItem> =
     this.map { it.toMediaItem() }
 
 suspend fun updateMediaItemUri(songId: String, songLevel: SongLevel): Uri? {
-    return PlayerApi.songPlayUrlV1(songId, songLevel = songLevel)
+    val cleanSongId = songId.substringBefore("_")
+    return PlayerApi.songPlayUrlV1(cleanSongId, songLevel = songLevel)
         .getOrNull()?.data?.firstOrNull()?.url?.toUri()
 }

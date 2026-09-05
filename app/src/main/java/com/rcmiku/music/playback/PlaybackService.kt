@@ -49,24 +49,24 @@ import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.api.player.SongLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import android.widget.Toast
-import androidx.media3.common.Player.STATE_ENDED
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import android.widget.Toast
+import androidx.media3.common.Player.STATE_ENDED
 
 @UnstableApi
 class PlaybackService : MediaSessionService() {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaSession: MediaSession? = null
+    private var lastLayoutKey: Triple<Boolean, Boolean, Boolean>? = null
     private var favoriteSongIds: List<Long> by mutableStateOf(emptyList())
     private var use40DpIcon by mutableStateOf(false)
     private var audioQuality by mutableStateOf(SongLevel.STANDARD)
@@ -102,12 +102,6 @@ class PlaybackService : MediaSessionService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
-        scope.launch(Dispatchers.IO) {
-            applicationContext.dataStore.data
-                .map { it[use40DpIconKey] ?: false }
-                .distinctUntilChanged()
-                .collect { use40DpIcon = it }
-        }
         scope.launch(Dispatchers.IO) {
             applicationContext.dataStore.data
                 .map { it[audioQualityKey].toEnum(SongLevel.STANDARD) }
@@ -148,14 +142,32 @@ class PlaybackService : MediaSessionService() {
                     DefaultHttpDataSource.Factory()
                 ) { dataSpec ->
                     runBlocking {
-                        dataSpec.withUri(
-                            updateMediaItemUri(dataSpec.uri.path.orEmpty(), audioQuality)
-                                ?: throw PlaybackException(
-                                    null,
-                                    null,
-                                    PlaybackException.ERROR_CODE_REMOTE_ERROR
-                                )
-                        )
+                        val songId = dataSpec.uri.path.orEmpty().substringAfterLast("/").substringBefore("_")
+                        val resolvedUri = try {
+                            withTimeout(15_000L) {
+                                updateMediaItemUri(songId, audioQuality)
+                            }
+                        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                            throw PlaybackException(
+                                "Timeout resolving song uri for $songId",
+                                e,
+                                PlaybackException.ERROR_CODE_REMOTE_ERROR
+                            )
+                        } catch (e: Exception) {
+                            throw PlaybackException(
+                                "Failed to resolve song uri for $songId",
+                                e,
+                                PlaybackException.ERROR_CODE_REMOTE_ERROR
+                            )
+                        }
+                        if (resolvedUri == null) {
+                            throw PlaybackException(
+                                "Resolved uri is null for $songId",
+                                null,
+                                PlaybackException.ERROR_CODE_REMOTE_ERROR
+                            )
+                        }
+                        dataSpec.withUri(resolvedUri)
                     }
                 }
                 setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
@@ -198,10 +210,16 @@ class PlaybackService : MediaSessionService() {
         mediaSession
 
     fun updateCustomLayout() {
+        val currentMediaId = mediaSession?.player?.currentMediaItem?.mediaId?.toLongOrNull()
+        val isFavorite = currentMediaId != null && favoriteSongIds.contains(currentMediaId)
+        val isShuffle = mediaSession?.player?.shuffleModeEnabled != false
+        val key = Triple(isFavorite, isShuffle, use40DpIcon)
+        if (lastLayoutKey == key) return
+        lastLayoutKey = key
         mediaSession?.setCustomLayout(
             ImmutableList.of(
-                if (favoriteSongIds.contains(mediaSession?.player?.currentMediaItem?.mediaId?.toLong())) favoriteButtonOn else favoriteButton,
-                if (mediaSession?.player?.shuffleModeEnabled != false) shuffleButtonOn else shuffleButton
+                if (isFavorite) favoriteButtonOn else favoriteButton,
+                if (isShuffle) shuffleButtonOn else shuffleButton
             )
         )
     }
@@ -212,45 +230,46 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun toggleLike(like: Boolean, songId: Long) {
-        scope.launch {
-            AccountApi.songLike(like, songId).onSuccess {
-                if (like) {
-                    FavoriteSongIdsUtil.addSongId(applicationContext, songId)
-                } else {
-                    FavoriteSongIdsUtil.removeSongId(applicationContext, songId)
+        scope.launch(Dispatchers.IO) {
+            val result = AccountApi.songLike(like, songId)
+            withContext(Dispatchers.Main) {
+                result.onSuccess {
+                    if (like) {
+                        FavoriteSongIdsUtil.addSongId(applicationContext, songId)
+                    } else {
+                        FavoriteSongIdsUtil.removeSongId(applicationContext, songId)
+                    }
+                    updateCustomLayout()
+                }.onFailure {
+                    Toast.makeText(
+                        applicationContext,
+                        applicationContext.getString(R.string.operation_failed),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    updateCustomLayout()
                 }
-                updateCustomLayout()
-            }.onFailure {
-                Toast.makeText(
-                    applicationContext,
-                    applicationContext.getString(R.string.operation_failed),
-                    Toast.LENGTH_SHORT
-                ).show()
-                updateCustomLayout()
             }
         }
     }
 
-    @kotlin.OptIn(FlowPreview::class)
     private fun observeIconPreference() {
         scope.launch {
-            applicationContext.dataStore.data.debounce(1000)
-                .map { it[use40DpIconKey] ?: false }.distinctUntilChanged().collect {
+            applicationContext.dataStore.data
+                .map { it[use40DpIconKey] ?: false }
+                .distinctUntilChanged()
+                .collect {
+                    use40DpIcon = it
                     updateCustomLayout()
                 }
         }
     }
 
-    @kotlin.OptIn(FlowPreview::class)
     private fun observeFavoriteSongIds() {
         scope.launch {
-            applicationContext.favoriteSongIdsDatastore.data.firstOrNull()?.let { initial ->
-                favoriteSongIds = initial.songIdsList
-                updateCustomLayout()
-            }
-            applicationContext.favoriteSongIdsDatastore.data.debounce(1000).distinctUntilChanged()
-                .collect { favoriteSongs ->
-                    favoriteSongIds = favoriteSongs.songIdsList
+            applicationContext.favoriteSongIdsDatastore.data
+                .distinctUntilChanged()
+                .collect {
+                    favoriteSongIds = it.songIdsList
                     updateCustomLayout()
                 }
         }
@@ -262,13 +281,16 @@ class PlaybackService : MediaSessionService() {
             session: MediaSession,
             controller: MediaSession.ControllerInfo
         ): MediaSession.ConnectionResult {
+            val sessionCommands = if (controller.packageName == packageName) {
+                MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                    .add(MediaSessionConstants.CommandToggleLike)
+                    .add(MediaSessionConstants.CommandToggleShuffle)
+                    .build()
+            } else {
+                MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
+            }
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-                .setAvailableSessionCommands(
-                    MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
-                        .add(MediaSessionConstants.CommandToggleLike)
-                        .add(MediaSessionConstants.CommandToggleShuffle)
-                        .build()
-                )
+                .setAvailableSessionCommands(sessionCommands)
                 .build()
         }
 

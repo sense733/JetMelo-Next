@@ -10,14 +10,24 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import com.rcmiku.music.R
 import com.rcmiku.music.ui.navigation.Screen
 
+/**
+ * 架构决策说明：顶栏采用轻量表达式封装并支持外部 Modifier 适配；
+ * 路由判断统一引用 Screen 常量。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopBar(navController: NavHostController, @StringRes titleRes: Int) = TopAppBar(
+fun TopBar(
+    navController: NavHostController,
+    @StringRes titleRes: Int,
+    modifier: Modifier = Modifier
+) = TopAppBar(
+    modifier = modifier,
     title = { Text(stringResource(titleRes)) },
     actions = {
         IconButton(onClick = {

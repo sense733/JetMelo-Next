@@ -2,6 +2,7 @@ package com.rcmiku.music.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -20,25 +21,28 @@ object PlayerController {
     var controller by mutableStateOf<MediaController?>(null)
         private set
 
-    private val sessionToken: SessionToken by lazy {
-        SessionToken(appContext, ComponentName(appContext, PlaybackService::class.java))
+    private fun createSessionToken(): SessionToken {
+        return SessionToken(appContext, ComponentName(appContext, PlaybackService::class.java))
     }
 
     fun init(context: Context) {
-        if (!this::appContext.isInitialized) {
-            appContext = context.applicationContext
+        appContext = context.applicationContext
+
+        if (controller?.isConnected == true) return
+        if (controllerFuture != null) return
+        if (controller != null) {
+            runCatching { controller?.release() }
+            controller = null
         }
 
-        if (controller != null || controllerFuture != null) return
-
-        val future = MediaController.Builder(appContext, sessionToken).buildAsync()
+        val future = MediaController.Builder(appContext, createSessionToken())
+            .setApplicationLooper(Looper.getMainLooper())
+            .buildAsync()
         controllerFuture = future
         Futures.addCallback(
             future,
             object : FutureCallback<MediaController> {
                 override fun onSuccess(result: MediaController) {
-                    // 身份守卫：仅当仍是当前 future 时才赋值，防止 release() 后滞后回调
-                    // 把已释放的实例写回单例
                     if (controllerFuture === future) {
                         controller = result
                     }
@@ -46,8 +50,10 @@ object PlayerController {
 
                 override fun onFailure(t: Throwable) {
                     MediaController.releaseFuture(future)
-                    controllerFuture = null
-                    controller = null
+                    if (controllerFuture === future) {
+                        controllerFuture = null
+                        controller = null
+                    }
                 }
             },
             ContextCompat.getMainExecutor(appContext)
@@ -55,12 +61,18 @@ object PlayerController {
     }
 
     fun release() {
-        controllerFuture?.let { future ->
-            MediaController.releaseFuture(future)
-            controllerFuture = null
-        }
-        controller?.release()
+        val future = controllerFuture
+        val currentController = controller
+        controllerFuture = null
         controller = null
+
+        runCatching {
+            if (future != null) {
+                MediaController.releaseFuture(future)
+            } else {
+                currentController?.release()
+            }
+        }
     }
 }
 

@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -79,11 +80,6 @@ fun SongMenuBottomSheet(
     var openSongListBottomSheet by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val mediaController = LocalPlayerController.current.controller
-    val songIds by remember(context) {
-        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
-    }.collectAsStateWithLifecycle(emptySet())
-
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(openBottomSheet) {
         if (openBottomSheet) {
@@ -166,7 +162,7 @@ fun SongMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable {
+                                .clickable(role = Role.Button) {
                                     openArtistBottomSheet = true
                                     onDismiss()
                                 }, verticalAlignment = Alignment.CenterVertically
@@ -193,8 +189,8 @@ fun SongMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable {
-                                    openArtistBottomSheet = true
+                                .clickable(role = Role.Button) {
+                                    song?.al?.id?.takeIf { it != 0L }?.let { albumId -> navController.navigate(AlbumNav(albumId = albumId)) }
                                     onDismiss()
                                 }, verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -220,7 +216,7 @@ fun SongMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable {
+                                .clickable(role = Role.Button) {
                                     openSongListBottomSheet = true
                                     onDismiss()
                                 }, verticalAlignment = Alignment.CenterVertically
@@ -247,7 +243,7 @@ fun SongMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable {
+                                .clickable(role = Role.Button) {
                                     song?.let { mediaController?.insertToPlaylist(song = it) }
                                     onDismiss()
                                 }, verticalAlignment = Alignment.CenterVertically
@@ -274,7 +270,7 @@ fun SongMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable {
+                                .clickable(role = Role.Button) {
                                     song?.let { mediaController?.addToPlaylist(song = it) }
                                     onDismiss()
                                 }, verticalAlignment = Alignment.CenterVertically
@@ -293,48 +289,7 @@ fun SongMenuBottomSheet(
                 }
 
                 item {
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .clickable {
-                                    song?.id?.let { songId ->
-                                        scope.launch {
-                                            val like = songId !in songIds
-                                            AccountApi.songLike(like, songId).onSuccess {
-                                                if (like)
-                                                    FavoriteSongIdsUtil.addSongId(context, songId)
-                                                else
-                                                    FavoriteSongIdsUtil.removeSongId(
-                                                        context,
-                                                        songId
-                                                    )
-                                            }.onFailure {
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getString(R.string.operation_failed),
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    }
-                                }, verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (songIds.contains(song?.id)) FavoriteFill else Favorite,
-                                contentDescription = null,
-                                Modifier.padding(horizontal = 12.dp)
-                            )
-                            Text(
-                                text = stringResource(if (songIds.contains(song?.id)) R.string.unlike else R.string.like),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                    }
+                    LikeMenuRow(song = song)
                 }
 
                 item {
@@ -351,7 +306,7 @@ fun SongMenuBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable(onClick = {
+                                .clickable(role = Role.Button, onClick = {
                                     song?.id?.let {
                                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "text/plain"
@@ -404,5 +359,66 @@ fun SongMenuBottomSheet(
         SongListBottomSheet(song = it, onDismiss = {
             openSongListBottomSheet = false
         }, openBottomSheet = openSongListBottomSheet)
+    }
+}
+
+@Composable
+private fun LikeMenuRow(
+    song: Song?,
+    onLikeDone: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
+    val isLiked = song?.id?.let { it in songIds } == true
+
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clickable(role = Role.Button) {
+                    song?.id?.let { songId ->
+                        scope.launch {
+                            val willLike = !isLiked
+                            if (willLike) {
+                                FavoriteSongIdsUtil.addSongId(context, songId)
+                            } else {
+                                FavoriteSongIdsUtil.removeSongId(context, songId)
+                            }
+                            AccountApi.songLike(willLike, songId).onSuccess {
+                                onLikeDone()
+                            }.onFailure {
+                                if (willLike) {
+                                    FavoriteSongIdsUtil.removeSongId(context, songId)
+                                } else {
+                                    FavoriteSongIdsUtil.addSongId(context, songId)
+                                }
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.operation_failed),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (isLiked) FavoriteFill else Favorite,
+                contentDescription = null,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+            Text(
+                text = stringResource(if (isLiked) R.string.unlike else R.string.like),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
     }
 }

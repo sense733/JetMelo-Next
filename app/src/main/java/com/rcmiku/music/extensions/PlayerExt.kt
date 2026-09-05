@@ -36,24 +36,24 @@ suspend fun Player.init(context: Context) {
         } else -1
         playlist to index
     }
-    if (playlist != null && currentMediaItems.isEmpty()) {
-        setMediaItems(playlist)
-        if (index != -1) {
-            seekToDefaultPosition(index)
+    withContext(Dispatchers.Main.immediate) {
+        if (playlist != null && currentMediaItems.isEmpty()) {
+            setMediaItems(playlist)
+            if (index != -1) {
+                seekToDefaultPosition(index)
+            }
+            prepare()
         }
-        // 恢复媒体通道状态，保持暂停等待用户显式触发播放，避免冷启动出声
-        prepare()
     }
 }
 
 fun Player.setPlaylist(songs: List<Song>) {
-    if (cacheSongs.value != songs) {
-        cacheSongs.value = songs
-        setMediaItems(songs.toMediaItemList())
-        SongListUtil.saveSongList(songs)
-    }
+    val cached = cacheSongs.value
+    if (cached != null && cached.size == songs.size && cached.map { it.id } == songs.map { it.id }) return
+    cacheSongs.value = songs
+    setMediaItems(songs.toMediaItemList())
+    SongListUtil.saveSongList(songs)
 }
-
 fun Player.setCloudSongPlaylist(uid: Long, cloudSongs: List<CloudSong>) {
     cacheSongs.value = null
     setMediaItems(cloudSongs.toCloudSongMediaItemList(uid = uid))
@@ -67,10 +67,9 @@ fun Player.setRadioPlaylist(radio: List<Radio>) {
 }
 
 fun Player.addSong(song: Song) {
+    val songMediaId = song.id.toString()
     if (nextMediaItemIndex != C.INDEX_UNSET) {
-        val songIndex = currentMediaItems.indexOfFirst {
-            it.mediaId == song.id.toString() && it.localConfiguration?.uri?.toString() == song.id.toString()
-        }
+        val songIndex = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == songMediaId } ?: -1
         if (songIndex != -1) {
             playMediaAt(songIndex)
         } else {
@@ -86,11 +85,12 @@ fun Player.addSong(song: Song) {
 }
 
 fun Player.addToPlaylist(song: Song) {
-    if (currentMediaItems.isNotEmpty()) {
-        val songIndex = currentMediaItems.indexOfFirst {
-            it.mediaId == song.id.toString() && it.localConfiguration?.uri?.toString() == song.id.toString()
-        }
-        if (songIndex == -1) {
+    val songMediaId = song.id.toString()
+    if (mediaItemCount > 0) {
+        val songIndex = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == songMediaId } ?: -1
+        if (songIndex != -1) {
+            moveMediaItem(songIndex, mediaItemCount)
+        } else {
             addMediaItem(song.toMediaItem())
             SongListUtil.saveSong(song)
         }
@@ -101,15 +101,15 @@ fun Player.addToPlaylist(song: Song) {
 }
 
 fun Player.insertToPlaylist(song: Song) {
+    val songMediaId = song.id.toString()
     if (nextMediaItemIndex != C.INDEX_UNSET) {
-        val songIndex = currentMediaItems.indexOfFirst {
-            it.mediaId == song.id.toString() && it.localConfiguration?.uri?.toString() == song.id.toString()
-        }
+        val songIndex = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == songMediaId } ?: -1
+        val targetIndex = nextMediaItemIndex.coerceIn(0, mediaItemCount)
         if (songIndex != -1) {
-            moveMediaItem(songIndex, nextMediaItemIndex)
+            moveMediaItem(songIndex, targetIndex)
         } else {
-            addMediaItem(nextMediaItemIndex, song.toMediaItem())
-            SongListUtil.saveSong(song, nextMediaItemIndex)
+            addMediaItem(targetIndex, song.toMediaItem())
+            SongListUtil.saveSong(song, targetIndex)
         }
     } else {
         setMediaItem(song.toMediaItem())
@@ -128,25 +128,28 @@ fun Player.removeSong(mediaId: String) {
 }
 
 fun Player.playMediaAt(index: Int? = null) {
-    if (index != -1)
-        index?.let { seekToDefaultPosition(it) }
+    if (index != null) {
+        if (index !in 0 until mediaItemCount) return
+        seekToDefaultPosition(index)
+    }
     prepare()
     play()
 }
 
 fun Player.playMediaAtId(id: Long? = null) {
-    val index = currentMediaItems.indexOfFirst { it.mediaId == id.toString() }
-    if (index != -1)
-        seekToDefaultPosition(index)
+    if (id == null) return
+    val targetId = id.toString()
+    val index = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == targetId } ?: return
+    if (index !in 0 until mediaItemCount) return
+    seekToDefaultPosition(index)
     prepare()
     play()
 }
 
 fun Player.playMediaAtMediaId(mediaId: String) {
-    val index = currentMediaItems.indexOfFirst { it.mediaId == mediaId }
-    if (index != -1) {
-        seekToDefaultPosition(index)
-        prepare()
-        play()
-    }
+    val index = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == mediaId } ?: return
+    if (index !in 0 until mediaItemCount) return
+    seekToDefaultPosition(index)
+    prepare()
+    play()
 }

@@ -1,15 +1,26 @@
 package com.rcmiku.music.ui.screen
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -19,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
@@ -58,38 +70,94 @@ fun CloudSongScreen(
                 }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null
+                        contentDescription = "返回"
                     )
                 }
             },
         )
     }) { padding ->
-        LazyColumn(
-            contentPadding = PaddingValues(
-                top = padding.calculateTopPadding(),
-                bottom = bottomContentPadding
-            ),
-        ) {
-            items(
-                count = cloudSong.itemCount,
-                key = { index -> cloudSong.peek(index)?.simpleSong?.id ?: index }
-            ) { index ->
-                cloudSong[index]?.let { item ->
-                    CloudSongListItem(
-                        songIndex = index + 1,
-                        cloudSong = item,
-                        isPlaying = isPlaying,
-                        isActive = currentMediaId == item.simpleSong.id,
-                        modifier = Modifier.clickable {
-                            cloudSong.itemSnapshotList.items.let {
-                                if (uid != null)
-                                    mediaController?.setCloudSongPlaylist(
-                                        uid = uid,
-                                        cloudSongs = it
-                                    )
-                                mediaController?.playMediaAtId(item.simpleSong.id)
-                            }
-                        })
+        val refresh = cloudSong.loadState.refresh
+        when {
+            refresh is LoadState.Loading && cloudSong.itemCount == 0 -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            refresh is LoadState.Error && cloudSong.itemCount == 0 -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = refresh.error.localizedMessage ?: "加载失败",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { cloudSong.retry() }) {
+                            Text(text = "重试")
+                        }
+                    }
+                }
+            }
+            refresh is LoadState.NotLoading && cloudSong.itemCount == 0 -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.song_size, 0),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(
+                        top = padding.calculateTopPadding(),
+                        bottom = bottomContentPadding
+                    ),
+                ) {
+                    items(
+                        count = cloudSong.itemCount,
+                        key = { index -> "${cloudSong.peek(index)?.simpleSong?.id}_$index" }
+                    ) { index ->
+                        cloudSong[index]?.let { item ->
+                            CloudSongListItem(
+                                songIndex = index + 1,
+                                cloudSong = item,
+                                isPlaying = isPlaying,
+                                isActive = currentMediaId == item.simpleSong.id,
+                                modifier = Modifier.clickable {
+                                    if (uid != null) {
+                                        val snapshot = cloudSong.itemSnapshotList.items
+                                        // 截断上限避免超大快照拷贝阻塞主线程
+                                        val queue = if (snapshot.size > 500) snapshot.take(500) else snapshot
+                                        mediaController?.setCloudSongPlaylist(
+                                            uid = uid,
+                                            cloudSongs = queue
+                                        )
+                                        mediaController?.playMediaAtId(item.simpleSong.id)
+                                    }
+                                    // uid 为 null 时无法构造合法云盘队列，跳过避免误播旧队列
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -6,8 +6,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-private var _LocalFireDepartment: ImageVector? = null
-
 val LocalFireDepartment: ImageVector
     get() {
         if (_LocalFireDepartment != null) {
@@ -57,3 +55,6 @@ val LocalFireDepartment: ImageVector
         }.build()
         return _LocalFireDepartment!!
     }
+
+@Suppress("ObjectPropertyName")
+private var _LocalFireDepartment: ImageVector? = null

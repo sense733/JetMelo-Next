@@ -44,6 +44,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.rcmiku.music.R
 import com.rcmiku.music.constants.ncmCookieKey
+import com.rcmiku.music.constants.userIdKey
+import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.ui.components.Dialog
 import com.rcmiku.music.ui.design.ProfileHeaderCard
 import com.rcmiku.music.ui.design.QuickActionCard
@@ -61,9 +63,16 @@ import com.rcmiku.music.ui.navigation.RecordNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.navigation.UserPlayListNav
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.clearDeviceId
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.music.viewModel.LibraryScreenViewModel
 import com.rcmiku.ncmapi.api.account.UserPlaylistType
+import com.rcmiku.ncmapi.utils.CookieProvider
+import android.webkit.CookieManager
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,12 +82,20 @@ fun LibraryScreen(
     bottomContentPadding: Dp = 0.dp
 ) {
     var ncmCookie by rememberPreference(ncmCookieKey, "")
+    var userId by rememberPreference(userIdKey, 0L)
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val isLoggedIn = remember(ncmCookie) {
+        ncmCookie.isNotEmpty() && CookieProvider.hasValidSession(ncmCookie)
+    }
+
     val userInfoBatchState by libraryScreenViewModel.userInfo.collectAsStateWithLifecycle()
     val favoriteSongState by libraryScreenViewModel.favoriteSong.collectAsStateWithLifecycle()
     var logout by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(ncmCookie) {
-        if (ncmCookie.isNotEmpty()) {
+        if (isLoggedIn) {
             libraryScreenViewModel.fetchUserInfo()
         }
     }
@@ -106,7 +123,7 @@ fun LibraryScreen(
                             contentDescription = stringResource(R.string.settings)
                         )
                     }
-                    if (ncmCookie.isNotEmpty()) {
+                    if (isLoggedIn) {
                         IconButton(onClick = { logout = true }) {
                             Icon(
                                 imageVector = Logout,
@@ -143,7 +160,7 @@ fun LibraryScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(JetMeloShapes.large)
-                            .clickable { navController.navigate(Screen.Settings.route) },
+                            .clickable { navController.navigate(Screen.Login.route) },
                         shape = JetMeloShapes.large,
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                     ) {
@@ -253,6 +270,8 @@ fun LibraryScreen(
             item {
                 SectionHeader(title = stringResource(R.string.my_playlists))
 
+                val currentUserId = userInfoBatchState?.account?.profile?.userId
+
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Created Playlists
                     Card(
@@ -260,13 +279,15 @@ fun LibraryScreen(
                             .fillMaxWidth()
                             .clip(JetMeloShapes.medium)
                             .clickable {
-                                userInfoBatchState?.account?.profile?.userId?.let {
+                                if (currentUserId != null) {
                                     navController.navigate(
                                         UserPlayListNav(
-                                            userId = it,
+                                            userId = currentUserId,
                                             type = UserPlaylistType.CREATE.type
                                         )
                                     )
+                                } else {
+                                    navController.navigate(Screen.Login.route)
                                 }
                             },
                         shape = JetMeloShapes.medium,
@@ -304,13 +325,15 @@ fun LibraryScreen(
                             .fillMaxWidth()
                             .clip(JetMeloShapes.medium)
                             .clickable {
-                                userInfoBatchState?.account?.profile?.userId?.let {
+                                if (currentUserId != null) {
                                     navController.navigate(
                                         UserPlayListNav(
-                                            userId = it,
+                                            userId = currentUserId,
                                             type = UserPlaylistType.COLLECT.type
                                         )
                                     )
+                                } else {
+                                    navController.navigate(Screen.Login.route)
                                 }
                             },
                         shape = JetMeloShapes.medium,
@@ -354,8 +377,18 @@ fun LibraryScreen(
         Dialog(
             onConfirmation = {
                 ncmCookie = ""
-                com.rcmiku.ncmapi.utils.CookieProvider.clear()
-                android.webkit.CookieManager.getInstance().removeAllCookies(null)
+                userId = 0L
+                CookieProvider.clear()
+                CookieManager.getInstance().removeAllCookies(null)
+                CookieManager.getInstance().flush()
+                clearDeviceId(context)
+                coroutineScope.launch {
+                    runCatching {
+                        context.favoriteSongIdsDatastore.updateData {
+                            it.toBuilder().clear().build()
+                        }
+                    }
+                }
                 logout = false
             },
             onDismissRequest = {

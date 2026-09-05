@@ -4,10 +4,12 @@ import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -60,6 +64,7 @@ fun ProgramRadioScreen(
 ) {
 
     val radioInfo by programRadioScreenViewModel.radioInfo.collectAsStateWithLifecycle()
+    val radioInfoError by programRadioScreenViewModel.radioInfoError.collectAsStateWithLifecycle()
     val radioList = programRadioScreenViewModel.radioList.collectAsLazyPagingItems()
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
@@ -84,14 +89,15 @@ fun ProgramRadioScreen(
                     }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null
+                            contentDescription = "返回"
                         )
                     }
                 },
             )
         }
     ) { padding ->
-        radioInfo?.let {
+        if (radioInfo != null) {
+            val currentRadioInfo = radioInfo!!
             LazyColumn(
                 contentPadding = PaddingValues(
                     top = padding.calculateTopPadding(),
@@ -108,29 +114,30 @@ fun ProgramRadioScreen(
                     ) {
                         Box(contentAlignment = Alignment.BottomEnd) {
                             RadioThumbnailImage(
-                                url = it.data.picUrl,
+                                url = currentRadioInfo.data.picUrl,
                             )
                             FilledIconButton(
                                 modifier = Modifier.size(48.dp),
                                 onClick = {
-                                    radioList.itemSnapshotList.items.let {
-                                        mediaController?.setRadioPlaylist(it)
-                                        mediaController?.playMediaAt()
-                                    }
+                                    val snapshot = radioList.itemSnapshotList.items
+                                    // 截断上限避免超大列表快照拷贝阻塞主线程
+                                    val queue = if (snapshot.size > 500) snapshot.take(500) else snapshot
+                                    mediaController?.setRadioPlaylist(queue)
+                                    mediaController?.playMediaAt()
                                 },
                             ) {
                                 Icon(
                                     PlayArrow,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.play),
                                 )
                             }
                         }
 
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            text = it.data.name,
+                            text = currentRadioInfo.data.name,
                             style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 2,
@@ -140,13 +147,13 @@ fun ProgramRadioScreen(
                         Text(
                             text = stringResource(
                                 R.string.total_play_count,
-                                formatPlayCount(it.data.playCount)
+                                formatPlayCount(currentRadioInfo.data.playCount)
                             ),
                             style = MaterialTheme.typography.labelMedium,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Spacer(Modifier.height(6.dp))
-                        it.data.desc?.let { description ->
+                        currentRadioInfo.data.desc?.let { description ->
                             Text(
                                 text = description,
                                 textAlign = TextAlign.Center,
@@ -164,7 +171,7 @@ fun ProgramRadioScreen(
 
                 items(
                     count = radioList.itemCount,
-                    key = { index -> radioList.peek(index)?.id ?: index }
+                    key = { index -> "${radioList.peek(index)?.id}_$index" }
                 ) { index ->
                     radioList[index]?.let { item ->
                         RadioListItem(
@@ -172,12 +179,39 @@ fun ProgramRadioScreen(
                             isPlaying = isPlaying,
                             isActive = currentMediaId == item.mainSong.id,
                             modifier = Modifier.clickable {
-                                radioList.itemSnapshotList.items.let {
-                                    mediaController?.setRadioPlaylist(it)
-                                    mediaController?.playMediaAtId(item.mainSong.id)
-                                }
+                                val snapshot = radioList.itemSnapshotList.items
+                                // 截断上限避免超大列表快照拷贝阻塞主线程
+                                val queue = if (snapshot.size > 500) snapshot.take(500) else snapshot
+                                mediaController?.setRadioPlaylist(queue)
+                                mediaController?.playMediaAtId(item.mainSong.id)
                             })
                     }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                if (radioInfoError != null) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = radioInfoError?.localizedMessage ?: "加载失败",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { programRadioScreenViewModel.retryRadioInfo() }) {
+                            Text("重试")
+                        }
+                    }
+                } else {
+                    CircularProgressIndicator()
                 }
             }
         }

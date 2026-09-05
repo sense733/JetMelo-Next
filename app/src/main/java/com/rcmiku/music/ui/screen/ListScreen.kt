@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,11 +30,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -42,6 +47,7 @@ import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.rcmiku.music.R
 import com.rcmiku.music.ui.navigation.PlaylistNav
+import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.viewModel.ExploreScreenViewModel
 
@@ -49,7 +55,12 @@ import com.rcmiku.music.viewModel.ExploreScreenViewModel
 @Composable
 fun ListScreen(
     navController: NavHostController,
-    exploreScreenViewModel: ExploreScreenViewModel = hiltViewModel(),
+    exploreScreenViewModel: ExploreScreenViewModel = runCatching {
+        val parentEntry = remember(navController) {
+            navController.getBackStackEntry(Screen.Explore.route)
+        }
+        hiltViewModel<ExploreScreenViewModel>(parentEntry)
+    }.getOrElse { hiltViewModel() },
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp
@@ -73,7 +84,7 @@ fun ListScreen(
                         IconButton(onClick = { navController.navigateUp() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null
+                                contentDescription = "返回"
                             )
                         }
                     }
@@ -96,11 +107,11 @@ fun ListScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(JetMeloShapes.medium)
-                                .clickable {
+                                .clickable(role = Role.Button) {
                                     navController.navigate(
                                         PlaylistNav(
                                             playlistId = chart.id,
-                                            limit = chart.trackCount
+                                            limit = chart.trackCount?.takeIf { it > 0 } ?: 999
                                         )
                                     )
                                 }
@@ -148,6 +159,26 @@ fun ListScreen(
                             )
                         }
                     }
+                }
+            } else if (topListState?.isFailure == true) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = padding.calculateTopPadding()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Button(onClick = { exploreScreenViewModel.fetchTopList() }) {
+                        Text(text = "重试")
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = padding.calculateTopPadding()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
         }

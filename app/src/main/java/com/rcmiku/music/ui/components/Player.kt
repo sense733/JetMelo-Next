@@ -1,6 +1,8 @@
 package com.rcmiku.music.ui.components
 
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -8,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,8 +48,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.Player.STATE_IDLE
 import androidx.media3.common.Player.STATE_READY
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import androidx.compose.ui.Alignment
@@ -59,14 +72,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.media3.common.C
 import androidx.media3.common.MediaMetadata
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import coil3.size.Size
 import com.rcmiku.music.R
 import com.rcmiku.music.LocalPlayerController
@@ -105,6 +119,34 @@ import com.rcmiku.ncmapi.model.SongAlbum
 import com.rcmiku.ncmapi.utils.json
 import kotlinx.coroutines.flow.map
 
+internal fun MediaController.sendCommandWithFeedback(context: Context, command: SessionCommand) {
+    if (!isConnected) return
+    val future = sendCustomCommand(command, Bundle.EMPTY)
+    Futures.addCallback(
+        future,
+        object : FutureCallback<SessionResult> {
+            override fun onSuccess(result: SessionResult) {
+                if (result.resultCode != SessionResult.RESULT_SUCCESS) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.operation_failed),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            override fun onFailure(t: Throwable) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.operation_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        },
+        ContextCompat.getMainExecutor(context)
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Player(
@@ -123,10 +165,6 @@ fun Player(
     showBackground: Boolean = true,
     onArtworkPositioned: ((Rect) -> Unit)? = null
 ) {
-    BackHandler {
-        onBackPressed()
-    }
-
     val playerState = LocalPlayerState.current
     val mediaController = LocalPlayerController.current.controller
     val isPlaying = playerState?.isPlaying == true
@@ -146,6 +184,10 @@ fun Player(
     var openPlayerBottomSheet by rememberSaveable { mutableStateOf(false) }
     val shuffleMode = playerState?.shuffleModeEnabled == true
     val artworkColors = LocalArtworkColors.current
+
+    BackHandler(enabled = !openBottomSheet && !openPlayerBottomSheet) {
+        onBackPressed()
+    }
 
     LaunchedEffect(mediaId) {
         val songJson = playerState?.currentMediaItem?.mediaMetadata?.extras?.getString("song")
@@ -199,7 +241,8 @@ fun Player(
                         style = MaterialTheme.typography.titleSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -213,16 +256,23 @@ fun Player(
             }
 
             // Cover Artwork Area
-            Box(
+            BoxWithConstraints(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .padding(vertical = 12.dp)
             ) {
+                val availableWidth = maxWidth * 0.88f
+                val availableHeight = maxHeight
+                val artSize = if (availableHeight > 0.dp && availableHeight < availableWidth) {
+                    availableHeight
+                } else {
+                    availableWidth
+                }
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.88f)
+                        .size(artSize)
                         .aspectRatio(1f)
                         .onGloballyPositioned { coords ->
                             if (coords.isAttached) {
@@ -234,7 +284,10 @@ fun Player(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(mediaMetadata.artworkUri)
-                                .size(Size.ORIGINAL)
+                                .size(Size(1080, 1080))
+                                .memoryCacheKey(mediaMetadata.artworkUri?.toString())
+                                .diskCacheKey(mediaMetadata.artworkUri?.toString())
+                                .crossfade(true)
                                 .build(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
@@ -242,7 +295,7 @@ fun Player(
                                 .fillMaxSize()
                                 .shadow(elevation = 16.dp, shape = AdaptiveArtworkShape)
                                 .clip(AdaptiveArtworkShape)
-                                .clickable(onClick = onClick)
+                                .clickable(enabled = controlsAlpha > 0.1f, onClick = onClick)
                         )
                     }
                 }
@@ -279,7 +332,7 @@ fun Player(
                                 modifier = Modifier
                                     .then(titleModifier)
                                     .basicMarquee()
-                                    .clickable { openBottomSheet = true }
+                                    .clickable(enabled = controlsAlpha > 0.1f) { openBottomSheet = true }
                             )
                         }
                         mediaMetadata.artist?.let {
@@ -291,16 +344,16 @@ fun Player(
                                 modifier = Modifier
                                     .then(artistModifier)
                                     .basicMarquee()
-                                    .clickable { openBottomSheet = true }
+                                    .clickable(enabled = controlsAlpha > 0.1f) { openBottomSheet = true }
                             )
                         }
                     }
 
                     IconButton(
                         onClick = {
-                            mediaController?.sendCustomCommand(
-                                MediaSessionConstants.CommandToggleLike,
-                                Bundle.EMPTY
+                            mediaController?.sendCommandWithFeedback(
+                                context,
+                                MediaSessionConstants.CommandToggleLike
                             )
                         },
                         modifier = Modifier.size(48.dp)
@@ -330,9 +383,9 @@ fun Player(
                 ) {
                     IconButton(
                         onClick = {
-                            mediaController?.sendCustomCommand(
-                                MediaSessionConstants.CommandToggleShuffle,
-                                Bundle.EMPTY
+                            mediaController?.sendCommandWithFeedback(
+                                context,
+                                MediaSessionConstants.CommandToggleShuffle
                             )
                         }
                     ) {
@@ -364,7 +417,7 @@ fun Player(
                             .shadow(8.dp, shape = JetMeloShapes.full)
                             .clip(JetMeloShapes.full)
                             .background(artworkColors.accentColor)
-                            .clickable {
+                            .clickable(enabled = controlsAlpha > 0.1f) {
                                 if (!isPlaying) mediaController?.play() else mediaController?.pause()
                             }
                     ) {
@@ -483,6 +536,7 @@ fun ArtistBottomSheet(
     onDismiss: () -> Unit,
     onAlbumClick: (SongAlbum) -> Unit,
 ) {
+    val context = LocalContext.current
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     LaunchedEffect(openBottomSheet) {
         if (openBottomSheet) {
@@ -519,7 +573,17 @@ fun ArtistBottomSheet(
                                 .height(64.dp)
                                 .clickable {
                                     onDismiss()
-                                    onClick(artist)
+                                    try {
+                                        onClick(artist)
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.operation_failed),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -546,7 +610,17 @@ fun ArtistBottomSheet(
                                 .height(64.dp)
                                 .clickable {
                                     onDismiss()
-                                    onAlbumClick(currentSong.al)
+                                    try {
+                                        onAlbumClick(currentSong.al)
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.operation_failed),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -581,6 +655,7 @@ private fun PlayerProgressSlider(
     val playbackState = playerState?.playbackState
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     var position by rememberSaveable(playerState) {
         mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
@@ -591,50 +666,66 @@ private fun PlayerProgressSlider(
     var sliderPosition by rememberSaveable {
         mutableStateOf<Long?>(null)
     }
+    val isDragging = sliderPosition != null
 
     LaunchedEffect(playbackState, isPlaying) {
         if (playbackState == STATE_READY && isPlaying) {
             while (isActive) {
-                position = playerState?.player?.currentPosition ?: 0L
-                val dur = playerState?.player?.duration ?: 0L
-                duration = if (dur > 0) dur else 0L
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    delay(1000)
+                    continue
+                }
+                if (!isDragging) {
+                    position = playerState?.player?.currentPosition ?: 0L
+                    val dur = playerState?.player?.duration ?: 0L
+                    duration = if (dur > 0) dur else 0L
+                }
                 delay(100)
             }
         } else if (playbackState == STATE_READY) {
-            position = playerState?.player?.currentPosition ?: 0L
-            val dur = playerState?.player?.duration ?: 0L
-            duration = if (dur > 0) dur else 0L
+            if (!isDragging) {
+                position = playerState?.player?.currentPosition ?: 0L
+                val dur = playerState?.player?.duration ?: 0L
+                duration = if (dur > 0) dur else 0L
+            }
         }
     }
 
     LaunchedEffect(currentMediaId) {
         position = 0L
+        duration = 0L
     }
 
     Column(modifier = modifier) {
         val interactionSource = remember { MutableInteractionSource() }
         val currentPos = sliderPosition ?: position
         val safeDuration = if (duration > 0 && duration != C.TIME_UNSET) duration else 0L
+        val seekEnabled = safeDuration > 0 && playbackState != STATE_IDLE
 
         Slider(
+            enabled = seekEnabled,
             value = currentPos.toFloat().coerceIn(0f, maxOf(1f, safeDuration.toFloat())),
             valueRange = 0f..maxOf(1f, safeDuration.toFloat()),
             onValueChange = { sliderPosition = it.toLong() },
             onValueChangeFinished = {
-                sliderPosition?.let {
-                    playerController?.seekTo(it)
-                    position = it
+                sliderPosition?.let { newPos ->
+                    position = newPos
+                    playerController?.seekTo(newPos)
                 }
                 sliderPosition = null
             },
             colors = SliderDefaults.colors(
                 thumbColor = accentColor,
                 activeTrackColor = accentColor,
-                inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+                inactiveTrackColor = Color.White.copy(alpha = 0.25f),
+                disabledThumbColor = accentColor.copy(alpha = 0.38f),
+                disabledActiveTrackColor = accentColor.copy(alpha = 0.38f),
+                disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f)
             ),
             track = { sliderState ->
                 SliderDefaults.Track(
                     sliderState = sliderState,
+                    enabled = seekEnabled,
                     thumbTrackGapSize = 2.dp,
                     modifier = Modifier.height(4.dp)
                 )
@@ -642,6 +733,7 @@ private fun PlayerProgressSlider(
             thumb = {
                 SliderDefaults.Thumb(
                     interactionSource = interactionSource,
+                    enabled = seekEnabled,
                     thumbSize = DpSize(6.dp, 18.dp)
                 )
             }

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 val ncmCookieKey = stringPreferencesKey("ncmCookie")
 val use40DpIconKey = booleanPreferencesKey("use40DpIcon")
 val currentPlayMediaIdKey = longPreferencesKey("currentPlayMediaId")
+val currentPlayMediaStringIdKey = stringPreferencesKey("currentPlayMediaStringId")
 val autoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val audioQualityKey = stringPreferencesKey("audioQuality")
 val userIdKey = longPreferencesKey("userId")

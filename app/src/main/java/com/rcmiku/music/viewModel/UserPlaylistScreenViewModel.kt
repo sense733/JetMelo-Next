@@ -26,16 +26,41 @@ class UserPlaylistScreenViewModel @Inject constructor(savedStateHandle: SavedSta
     val playlist: StateFlow<UserPlaylistResponse?> =
         _playlist.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _loadError = MutableStateFlow(false)
+    val loadError: StateFlow<Boolean> = _loadError.asStateFlow()
+
     init {
+        load()
+    }
+
+    fun retry() = load()
+
+    fun load() {
+        _loadError.value = false
+        val id = userId
+        val playlistType = userPlaylistType
+        if (id == null || playlistType == null) {
+            _loadError.value = true
+            return
+        }
+
         viewModelScope.launch {
-            userId?.let {
-                userPlaylistType?.let {
-                    _playlist.value = AccountApi.userPlaylist(
-                        userId = userId.toLong(),
-                        userPlaylistType = userPlaylistType
-                    ).getOrNull()
+            _isLoading.value = true
+            AccountApi.userPlaylist(
+                userId = id,
+                userPlaylistType = playlistType
+            ).fold(
+                onSuccess = { response ->
+                    _playlist.value = response
+                },
+                onFailure = {
+                    _loadError.value = true
                 }
-            }
+            )
+            _isLoading.value = false
         }
     }
 }

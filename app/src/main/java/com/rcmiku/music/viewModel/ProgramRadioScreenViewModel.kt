@@ -22,31 +22,44 @@ class ProgramRadioScreenViewModel @Inject constructor(savedStateHandle: SavedSta
     ViewModel() {
     private val radioId = savedStateHandle.get<Long>("radioId")
 
+    val isMissingRadioId = radioId == null
+
     private val _radioInfo =
         MutableStateFlow<RadioInfoResponse?>(null)
     val radioInfo: StateFlow<RadioInfoResponse?> =
         _radioInfo.asStateFlow()
 
+    private val _radioInfoError = MutableStateFlow<Throwable?>(null)
+    val radioInfoError: StateFlow<Throwable?> = _radioInfoError.asStateFlow()
 
-    init {
+    fun retryRadioInfo() {
+        val id = radioId ?: return
         viewModelScope.launch {
-            radioId?.let {
-                _radioInfo.value = RadioApi.radioInfo(radioId = radioId).getOrNull()
-            }
+            _radioInfoError.value = null
+            RadioApi.radioInfo(radioId = id)
+                .onSuccess {
+                    _radioInfo.value = it
+                    _radioInfoError.value = null
+                }
+                .onFailure {
+                    _radioInfoError.value = it
+                }
         }
     }
 
+    init {
+        retryRadioInfo()
+    }
 
     val radioList = radioId?.let { id ->
         Pager(
             config = PagingConfig(
-                pageSize = 500,
-                prefetchDistance = 100,
+                pageSize = 30,
+                prefetchDistance = 30,
                 enablePlaceholders = false,
-                initialLoadSize = 500
+                initialLoadSize = 30
             ),
             pagingSourceFactory = { RadioPagingSource(id) }
         ).flow.cachedIn(viewModelScope)
     } ?: flowOf()
-
 }

@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -109,22 +110,25 @@ fun Lyric(
     val currentPositionState = rememberUpdatedState(position)
 
     LaunchedEffect(playbackState, isPlaying) {
-        if (playbackState == STATE_READY && isPlaying) {
+        if (playbackState == STATE_READY) {
             while (isActive) {
                 position = playerState?.player?.currentPosition ?: 0L
-                delay(100)
+                delay(if (isPlaying) 100L else 200L)
             }
-        } else if (playbackState == STATE_READY) {
-            position = playerState?.player?.currentPosition ?: 0L
         }
     }
 
     LaunchedEffect(currentMediaId) {
         position = 0L
         currentIndex = 0
-        currentMediaId?.toLongOrNull()?.let {
-            lyricViewModel.fetchLyric(it)
+        val musicId = currentMediaId?.toLongOrNull()
+        if (musicId != null) {
+            lyricViewModel.fetchLyric(musicId)
+        } else {
+            lyricViewModel.clearLyric()
         }
+        listState.scrollToItem(0)
+        autoScrollEnabled = true
     }
 
     BackHandler {
@@ -132,12 +136,6 @@ fun Lyric(
     }
 
     KeepScreenOn()
-
-    var canClickLyrics by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(400)
-        canClickLyrics = true
-    }
 
     ImmersiveBackground(
         modifier = modifier.fillMaxSize(),
@@ -158,8 +156,8 @@ fun Lyric(
                 IconButton(onClick = onBackPressed) {
                     Icon(
                         imageVector = ChevronDown,
-                        contentDescription = null,
-                        tint = Color.White
+                        contentDescription = "返回",
+                        tint = artworkColors.onDominantColor
                     )
                 }
 
@@ -168,13 +166,13 @@ fun Lyric(
                     modifier = Modifier
                         .weight(1f)
                         .clip(JetMeloShapes.small)
-                        .clickable(enabled = canClickLyrics, onClick = onBackPressed)
+                        .clickable(onClick = onBackPressed)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(mediaMetadata.artworkUri)
-                            .size(Size.ORIGINAL)
+                            .size(Size(132, 132))
                             .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
@@ -192,7 +190,7 @@ fun Lyric(
                             text = mediaMetadata.title?.toString() ?: "",
                             maxLines = 1,
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
+                            color = artworkColors.onDominantColor,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier
                                 .then(titleModifier)
@@ -202,7 +200,7 @@ fun Lyric(
                             text = mediaMetadata.artist?.toString() ?: "",
                             maxLines = 1,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = artworkColors.onDominantColor.copy(alpha = 0.7f),
                             modifier = Modifier
                                 .then(artistModifier)
                                 .basicMarquee()
@@ -213,38 +211,45 @@ fun Lyric(
 
             // Lyric Scrolling Content
             lrcLines?.let { lines ->
+                var programmaticScroll by remember { mutableStateOf(false) }
+
                 LaunchedEffect(listState) {
                     snapshotFlow { listState.isScrollInProgress }
                         .collect { inProgress ->
-                            autoScrollEnabled = !inProgress
+                            if (!programmaticScroll) {
+                                autoScrollEnabled = !inProgress
+                            }
                         }
                 }
 
                 LaunchedEffect(lines) {
-                    // 修复：以 currentIndex 驱动滚动动画。此前以 100ms 轮询的 position 作为
-                    // LaunchedEffect key，每次 position 更新都会重启 effect，把 500ms 的
-                    // animateScrollBy 截断成跳变。snapshotFlow 观测 rememberUpdatedState
-                    // 包装的 position，动画执行期间新值合并（conflate），不再打断动画。
+                    // 以 currentIndex 驱动滚动动画，conflate 避免打断动画
                     snapshotFlow { currentPositionState.value }
                         .collect { pos ->
-                            val index = lines.indexOfLast { it.time <= pos }
+                            val search = lines.binarySearchBy(pos) { it.time }
+                            val index = if (search >= 0) search else -search - 2
                             if (index != currentIndex) {
                                 currentIndex = index
-                                if (autoScrollEnabled && index > 0) {
-                                    val targetIndex = maxOf(currentIndex - 2, 0)
+                                if (autoScrollEnabled && index >= 0) {
+                                    val targetIndex = maxOf(currentIndex - 2, 0) + 1
                                     val visibleItem =
                                         listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-                                    if (visibleItem == null) {
-                                        listState.scrollToItem(targetIndex)
-                                    } else {
-                                        val itemOffset = visibleItem.offset
-                                        listState.animateScrollBy(
-                                            itemOffset.toFloat(),
-                                            animationSpec = tween(
-                                                durationMillis = 500,
-                                                easing = EaseInOutCubic
+                                    programmaticScroll = true
+                                    try {
+                                        if (visibleItem == null) {
+                                            listState.scrollToItem(targetIndex)
+                                        } else {
+                                            val itemOffset = visibleItem.offset
+                                            listState.animateScrollBy(
+                                                itemOffset.toFloat(),
+                                                animationSpec = tween(
+                                                    durationMillis = 500,
+                                                    easing = EaseInOutCubic
+                                                )
                                             )
-                                        )
+                                        }
+                                    } finally {
+                                        programmaticScroll = false
                                     }
                                 }
                             }
@@ -279,7 +284,7 @@ fun Lyric(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(JetMeloShapes.medium)
-                                    .clickable(enabled = canClickLyrics) {
+                                    .clickable(role = Role.Button) {
                                         line.time.let {
                                             mediaController?.seekTo(it)
                                             currentIndex = index
@@ -290,7 +295,7 @@ fun Lyric(
                             ) {
                                 Text(
                                     text = line.text,
-                                    color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.85f),
+                                    color = if (isCurrent) artworkColors.onDominantColor else artworkColors.onDominantColor.copy(alpha = 0.75f),
                                     fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
                                     fontSize = if (isCurrent) 28.sp else 22.sp,
                                     lineHeight = 1.25.em
@@ -299,7 +304,7 @@ fun Lyric(
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = translation,
-                                        color = if (isCurrent) Color.White.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.6f),
+                                        color = if (isCurrent) artworkColors.onDominantColor.copy(alpha = 0.8f) else artworkColors.onDominantColor.copy(alpha = 0.6f),
                                         fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                                         fontSize = if (isCurrent) 18.sp else 15.sp,
                                         lineHeight = 1.25.em
@@ -315,6 +320,13 @@ fun Lyric(
                                             dotColor = artworkColors.accentColor
                                         )
                                     }
+                                } else {
+                                    Text(
+                                        text = "· · ·",
+                                        color = artworkColors.onDominantColor.copy(alpha = 0.35f),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
                             }
                         }
@@ -340,6 +352,7 @@ fun ThreeDotsAnimation(
         return
 
     val duration = times.second - times.first
+    val animDur = minOf((duration / 2).toInt(), 2000).coerceAtLeast(800)
     val transition = rememberInfiniteTransition()
     val scale by
     transition.animateFloat(
@@ -347,7 +360,7 @@ fun ThreeDotsAnimation(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = keyframes {
-                this.durationMillis = (duration / 2).toInt()
+                this.durationMillis = animDur
                 1.3f at 200 using EaseInOutCubic
                 1f at 400 using EaseInOutCubic
             },
@@ -361,7 +374,7 @@ fun ThreeDotsAnimation(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = keyframes {
-                this.durationMillis = (duration / 2).toInt()
+                this.durationMillis = animDur
                 1.3f at 400 using EaseInOutCubic
                 1f at 600 using EaseInOutCubic
             },
@@ -375,7 +388,7 @@ fun ThreeDotsAnimation(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = keyframes {
-                this.durationMillis = (duration / 2).toInt()
+                this.durationMillis = animDur
                 1.3f at 600 using EaseInOutCubic
                 1f at 800 using EaseInOutCubic
             },

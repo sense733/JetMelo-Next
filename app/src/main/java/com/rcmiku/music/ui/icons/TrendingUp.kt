@@ -6,8 +6,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-private var _TrendingUp: ImageVector? = null
-
 val TrendingUp: ImageVector
     get() {
         if (_TrendingUp != null) {
@@ -38,3 +36,6 @@ val TrendingUp: ImageVector
         }.build()
         return _TrendingUp!!
     }
+
+@Suppress("ObjectPropertyName")
+private var _TrendingUp: ImageVector? = null

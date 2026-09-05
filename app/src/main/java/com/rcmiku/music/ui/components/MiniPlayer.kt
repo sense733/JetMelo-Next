@@ -43,8 +43,17 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.size.Size
+import com.rcmiku.music.R
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.MiniPlayerHeight
@@ -87,7 +96,12 @@ fun MiniPlayer(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     shape = JetMeloShapes.medium
                 )
-                .clickable(onClick = onClick)
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = "展开播放器",
+                    enabled = controlsAlpha > 0.1f,
+                    onClick = onClick
+                )
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -123,7 +137,7 @@ fun MiniPlayer(
                     ) {
                         Icon(
                             imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
-                            contentDescription = null,
+                            contentDescription = stringResource(if (playerState?.isPlaying == true) R.string.pause else R.string.play),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -135,7 +149,7 @@ fun MiniPlayer(
                     ) {
                         Icon(
                             imageVector = SkipNext,
-                            contentDescription = null,
+                            contentDescription = "下一首",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -182,7 +196,13 @@ fun MiniMediaInfo(
         ) {
             if (showArtwork) {
                 AsyncImage(
-                    model = mediaMetadata.artworkUri,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(mediaMetadata.artworkUri)
+                        .size(Size(176, 176))
+                        .memoryCacheKey(mediaMetadata.artworkUri?.toString())
+                        .diskCacheKey(mediaMetadata.artworkUri?.toString())
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = imageModifier
@@ -235,6 +255,7 @@ fun MiniPlayerProgressBar(
     val playbackState = playerState?.playbackState
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     var position by remember(playerState?.player) {
         mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
@@ -242,11 +263,14 @@ fun MiniPlayerProgressBar(
     var duration by remember(playerState?.player) {
         mutableLongStateOf(playerState?.player?.duration?.coerceAtLeast(0L) ?: 0L)
     }
-    var lastMediaId by remember { mutableStateOf(currentMediaId) }
 
     LaunchedEffect(playbackState, isPlaying) {
         if (playbackState == STATE_READY && isPlaying) {
             while (isActive) {
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    delay(1000)
+                    continue
+                }
                 position = playerState?.player?.currentPosition ?: 0L
                 val dur = playerState?.player?.duration ?: 0L
                 duration = if (dur > 0) dur else 0L
@@ -260,10 +284,8 @@ fun MiniPlayerProgressBar(
     }
 
     LaunchedEffect(currentMediaId) {
-        if (lastMediaId != currentMediaId) {
-            lastMediaId = currentMediaId
-            position = 0L
-        }
+        position = 0L
+        duration = 0L
     }
 
     val progressTarget = if (duration > 0L) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
@@ -277,6 +299,6 @@ fun MiniPlayerProgressBar(
         progress = { animatedProgress },
         modifier = modifier,
         color = accentColor,
-        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        trackColor = MaterialTheme.colorScheme.outlineVariant
     )
 }

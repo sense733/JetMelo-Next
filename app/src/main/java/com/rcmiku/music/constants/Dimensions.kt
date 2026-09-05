@@ -13,19 +13,20 @@ val GridThumbnailHeight = 128.dp
 val MediaItemHeight = 72.dp
 val AlbumThumbnailSize = 144.dp
 val MiniPlayerHeight = 64.dp
+// 歌单详情头图封面默认规格
 val PlaylistThumbnailSize = 200.dp
 val SettingItemHeight = 64.dp
 val SettingItemCorner = 16.dp
 val SettingItemSubCorner = 4.dp
 
-const val DURATION = 600
-const val DURATION_ENTER = 400
-const val DURATION_EXIT = 200
-const val DURATION_EXIT_SHORT = 100
-
 const val DURATION_MOTION_SHORT = 200
 const val DURATION_MOTION_MEDIUM = 400
 const val DURATION_MOTION_LONG = 600
+
+const val DURATION = DURATION_MOTION_LONG
+const val DURATION_ENTER = DURATION_MOTION_MEDIUM
+const val DURATION_EXIT = DURATION_MOTION_SHORT
+const val DURATION_EXIT_SHORT = 100
 
 const val SPRING_DAMPING_NO_BOUNCY = 1.0f
 const val SPRING_DAMPING_LOW_BOUNCY = 0.8f

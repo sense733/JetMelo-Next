@@ -22,6 +22,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import java.text.NumberFormat
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,7 +77,6 @@ fun ProfileHeaderCard(
                 )
 
                 if (isVip) {
-                    val extendedColors = com.rcmiku.music.ui.theme.LocalJetMeloExtendedColors.current
                     Box(
                         modifier = Modifier
                             .size(20.dp)
@@ -85,7 +87,7 @@ fun ProfileHeaderCard(
                         Icon(
                             imageVector = VipFill,
                             contentDescription = "VIP",
-                            tint = extendedColors.emberAccent,
+                            tint = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -112,16 +114,22 @@ fun ProfileHeaderCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (follows != null) {
+                        val followsText = remember(follows) {
+                            NumberFormat.getNumberInstance(Locale.getDefault()).format(follows)
+                        }
                         Text(
-                            text = "$follows",
+                            text = followsText,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     if (fans != null) {
+                        val fansText = remember(fans) {
+                            NumberFormat.getNumberInstance(Locale.getDefault()).format(fans)
+                        }
                         Text(
-                            text = "$fans",
+                            text = fansText,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

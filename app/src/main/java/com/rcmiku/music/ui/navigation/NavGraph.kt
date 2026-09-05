@@ -33,50 +33,54 @@ import com.rcmiku.music.ui.screen.SearchScreen
 import com.rcmiku.music.ui.screen.SettingsScreen
 import com.rcmiku.music.ui.screen.UserPlaylistScreen
 
+private const val NAV_OFFSET_FACTOR = 0.15f
+private const val NAV_TRANSITION_ALPHA = 0.8f
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NavGraph(
     navController: NavHostController,
+    startDestination: String = Screen.Home.route,
     bottomContentPadding: Dp = 0.dp
 ) {
     SharedTransitionLayout {
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = startDestination,
             enterTransition = {
                 slideInHorizontally(
-                    initialOffsetX = { (it * 0.15f).toInt() },
+                    initialOffsetX = { (it * NAV_OFFSET_FACTOR).toInt() },
                     animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing)
                 ) + fadeIn(
                     animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing),
-                    initialAlpha = 0.8f
+                    initialAlpha = NAV_TRANSITION_ALPHA
                 )
             },
             exitTransition = {
                 slideOutHorizontally(
-                    targetOffsetX = { (-it * 0.15f).toInt() },
+                    targetOffsetX = { (-it * NAV_OFFSET_FACTOR).toInt() },
                     animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing)
                 ) + fadeOut(
                     animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing),
-                    targetAlpha = 0.8f
+                    targetAlpha = NAV_TRANSITION_ALPHA
                 )
             },
             popEnterTransition = {
                 slideInHorizontally(
-                    initialOffsetX = { (-it * 0.15f).toInt() },
+                    initialOffsetX = { (-it * NAV_OFFSET_FACTOR).toInt() },
                     animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing)
                 ) + fadeIn(
                     animationSpec = tween(DURATION_ENTER, easing = EmphasizedDecelerateEasing),
-                    initialAlpha = 0.8f
+                    initialAlpha = NAV_TRANSITION_ALPHA
                 )
             },
             popExitTransition = {
                 slideOutHorizontally(
-                    targetOffsetX = { (it * 0.15f).toInt() },
+                    targetOffsetX = { (it * NAV_OFFSET_FACTOR).toInt() },
                     animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing)
                 ) + fadeOut(
                     animationSpec = tween(DURATION_EXIT, easing = EmphasizedAccelerateEasing),
-                    targetAlpha = 0.8f
+                    targetAlpha = NAV_TRANSITION_ALPHA
                 )
             }
         ) {

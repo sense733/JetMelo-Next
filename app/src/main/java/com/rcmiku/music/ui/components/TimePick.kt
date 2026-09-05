@@ -54,14 +54,19 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.sizeIn
+import kotlinx.coroutines.isActive
+
 @Composable
 fun TimePickerDialog(
     onDismiss: () -> Unit,
     onTimeSet: (Long) -> Unit
 ) {
-    val maxMinutes = 12.hours
-    val minMinutes = 5.minutes
-    val setTimes = remember { mutableStateOf(5.minutes) }
+    val maxMinutes = 12 * 60
+    val minMinutes = 5
+    val setTimesInMinutes = rememberSaveable { mutableIntStateOf(5) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -73,15 +78,20 @@ fun TimePickerDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    InteractiveButton(onClick = {
-                        if (setTimes.value - 5.minutes >= minMinutes) {
-                            setTimes.value -= 5.minutes
+                    InteractiveButton(
+                        icon = Remove,
+                        contentDescription = "减少",
+                        onClick = {
+                            if (setTimesInMinutes.intValue - 5 >= minMinutes) {
+                                setTimesInMinutes.intValue -= 5
+                            }
+                        },
+                        onLongPress = {
+                            if (setTimesInMinutes.intValue - 5 >= minMinutes) {
+                                setTimesInMinutes.intValue -= 5
+                            }
                         }
-                    }, onLongPress = {
-                        if (setTimes.value - 5.minutes >= minMinutes) {
-                            setTimes.value -= 5.minutes
-                        }
-                    }, icon = Remove)
+                    )
 
                     Box(
                         contentAlignment = Alignment.Center,
@@ -89,32 +99,35 @@ fun TimePickerDialog(
                             .padding(16.dp)
                             .width(100.dp)
                     ) {
+                        val hours = setTimesInMinutes.intValue / 60
+                        val minutes = setTimesInMinutes.intValue % 60
                         Text(
-                            text = setTimes.value.toComponents { hours, minutes, _, _ ->
-                                "%02dh:%02dm".format(hours, minutes)
-                            },
+                            text = "%02dh:%02dm".format(hours, minutes),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
-
-                    InteractiveButton(onClick = {
-                        if (setTimes.value + 5.minutes <= maxMinutes) {
-                            setTimes.value += 5.minutes
+                    InteractiveButton(
+                        icon = Icons.Default.Add,
+                        contentDescription = "增加",
+                        onClick = {
+                            if (setTimesInMinutes.intValue + 5 <= maxMinutes) {
+                                setTimesInMinutes.intValue += 5
+                            }
+                        },
+                        onLongPress = {
+                            if (setTimesInMinutes.intValue + 5 <= maxMinutes) {
+                                setTimesInMinutes.intValue += 5
+                            }
                         }
-                    }, onLongPress = {
-                        if (setTimes.value + 5.minutes <= maxMinutes) {
-                            setTimes.value += 5.minutes
-                        }
-                    }, icon = Icons.Default.Add)
-
+                    )
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                onTimeSet(setTimes.value.inWholeSeconds)
+                onTimeSet(setTimesInMinutes.intValue.minutes.inWholeSeconds)
             }) {
                 Text(text = stringResource(R.string.confirm))
             }
@@ -127,17 +140,17 @@ fun TimePickerDialog(
     )
 }
 
-
 @Composable
 fun InteractiveButton(
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    contentDescription: String? = null,
     longPressDelay: Duration = 500.milliseconds,
     repeatInterval: Duration = 100.milliseconds,
     onLongPress: () -> Unit = {},
     size: Dp = 56.dp,
-    padding: Dp = 12.dp
+    padding: Dp = 8.dp
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scope = rememberCoroutineScope()
@@ -156,7 +169,7 @@ fun InteractiveButton(
     )
 
     val animateIconSize by animateFloatAsState(
-        targetValue = if (buttonInteracted) 1.4f else 1f,
+        targetValue = if (buttonInteracted) 1.2f else 1f,
         animationSpec = tween(300)
     )
 
@@ -164,9 +177,9 @@ fun InteractiveButton(
         shape = CircleShape,
         color = animateColor,
         modifier = modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .size(size)
             .scale(animateIconSize)
-            .padding(padding)
             .clip(CircleShape)
             .pointerInput(interactionSource, onClick, onLongPress) {
                 awaitEachGesture {
@@ -177,7 +190,7 @@ fun InteractiveButton(
                     val pressJob = scope.launch {
                         delay(longPressDelay)
                         isLongPress = true
-                        while (down.pressed) {
+                        while (isActive) {
                             onLongPress()
                             delay(repeatInterval)
                         }
@@ -199,10 +212,13 @@ fun InteractiveButton(
                 indication = ripple()
             )
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(padding)
+        ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
+                contentDescription = contentDescription,
                 tint = animateIconColor,
                 modifier = Modifier.size(24.dp)
             )

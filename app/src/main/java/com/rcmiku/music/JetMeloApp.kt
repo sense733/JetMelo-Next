@@ -1,6 +1,7 @@
 package com.rcmiku.music
 
 import android.app.Application
+import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -31,27 +32,35 @@ import kotlinx.coroutines.launch
 @HiltAndroidApp
 class JetMeloApp : Application(), SingletonImageLoader.Factory {
 
-    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @androidx.annotation.OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
-        PlayerController.init(this)
-        FileProvider.init(cacheDir.resolve("ncm"))
-        SongListUtil.init(filesDir.resolve("playlist"))
-        UserAgentProvider.init(UserAgentUtil.DEFAULT_USER_AGENT)
+        runCatching { PlayerController.init(this) }
+            .onFailure { Log.e("JetMeloApp", "PlayerController init failed", it) }
+        runCatching { FileProvider.init(cacheDir.resolve("ncm")) }
+            .onFailure { Log.e("JetMeloApp", "FileProvider init failed", it) }
+        runCatching { SongListUtil.init(filesDir.resolve("playlist")) }
+            .onFailure { Log.e("JetMeloApp", "SongListUtil init failed", it) }
+        runCatching { UserAgentProvider.init(UserAgentUtil.DEFAULT_USER_AGENT) }
+            .onFailure { Log.e("JetMeloApp", "UserAgentProvider init failed", it) }
+
         applicationScope.launch {
             var hadCookie = false
             dataStore.data
                 .map { it[ncmCookieKey] }
                 .distinctUntilChanged()
-                // DataStore 文件损坏/IO 异常时保持进程存活，沿用内存中的既有 Cookie 状态
-                .catch { /* swallow: 无法恢复的 DataStore 异常不应崩溃 Application */ }
+                .catch { e ->
+                    Log.e("JetMeloApp", "Failed to read ncmCookie from DataStore", e)
+                }
                 .collect { ncmCookie ->
                     if (!ncmCookie.isNullOrEmpty()) {
                         runCatching {
                             CookieProvider.init(json.decodeFromString(ncmCookie))
                             hadCookie = true
+                        }.onFailure { e ->
+                            Log.e("JetMeloApp", "Failed to decode/init CookieProvider", e)
                         }
                     } else if (hadCookie) {
                         CookieProvider.clear()

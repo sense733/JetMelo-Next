@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +44,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,8 +79,6 @@ import com.rcmiku.music.extensions.setPlaylist
 import com.rcmiku.music.ui.components.SongListItem
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.design.DailySongsGridSkeleton
-import com.rcmiku.music.ui.design.HeroBannerCard
-import com.rcmiku.music.ui.design.HeroBannerSkeleton
 import com.rcmiku.music.ui.design.PlaylistsRowSkeleton
 import com.rcmiku.music.ui.design.SectionHeader
 import com.rcmiku.music.ui.navigation.PlaylistNav
@@ -121,7 +121,7 @@ fun HomeScreen(
         context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
     }.collectAsStateWithLifecycle(emptySet())
 
-    val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (currentHour) {
         in 5..11 -> stringResource(R.string.greeting_morning)
         in 12..17 -> stringResource(R.string.greeting_afternoon)
@@ -181,58 +181,11 @@ fun HomeScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = bottomContentPadding),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = bottomContentPadding),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // 1. Featured Daily Hero Card (Fixed Slot with Crossfade)
+                    // 1. Recommended Playlists Horizontal Carousel (Top Slot)
                     item {
-                        AnimatedContent(
-                            targetState = dailyData,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(DURATION_ENTER)) togetherWith fadeOut(animationSpec = tween(DURATION_EXIT_SHORT))
-                            },
-                            label = "hero_banner_crossfade"
-                        ) { data ->
-                            if (data != null) {
-                                val songs = data.data.dailySongs
-                                val firstSong = songs.firstOrNull()
-                                if (firstSong != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                                    ) {
-                                        HeroBannerCard(
-                                            imageUrl = firstSong.al.picUrl,
-                                            badgeText = stringResource(R.string.featured_today),
-                                            title = stringResource(R.string.recommend_songs),
-                                            subtitle = stringResource(R.string.daily_recommend_subtitle, songs.size),
-                                            aspectRatio = 1.8f,
-                                            onClick = {
-                                                mediaController?.setPlaylist(songs)
-                                                mediaController?.playMediaAtId(firstSong.id)
-                                            },
-                                            onPlayClick = {
-                                                mediaController?.setPlaylist(songs)
-                                                mediaController?.playMediaAtId(firstSong.id)
-                                            }
-                                        )
-                                    }
-                                } else {
-                                    HeroBannerSkeleton()
-                                }
-                            } else {
-                                HeroBannerSkeleton()
-                            }
-                        }
-                    }
-
-                    // 2. Recommended Playlists Horizontal Carousel (Fixed Slot with Crossfade)
-                    item {
-                        SectionHeader(
-                            title = stringResource(R.string.personalized_playlist)
-                        )
-
                         val playlistTarget = recommendData?.recommend ?: personalizedData?.result
 
                         AnimatedContent(
@@ -240,6 +193,7 @@ fun HomeScreen(
                             transitionSpec = {
                                 fadeIn(animationSpec = tween(DURATION_ENTER)) togetherWith fadeOut(animationSpec = tween(DURATION_EXIT_SHORT))
                             },
+                            contentKey = { playlists -> playlists?.map { it.id } },
                             label = "playlists_crossfade"
                         ) { playlists ->
                             if (playlists != null) {
@@ -252,11 +206,11 @@ fun HomeScreen(
                                             modifier = Modifier
                                                 .width(160.dp)
                                                 .clip(JetMeloShapes.medium)
-                                                .clickable {
+                                                .clickable(role = Role.Button) {
                                                     navController.navigate(
                                                         PlaylistNav(
                                                             playlistId = playlist.id,
-                                                            limit = playlist.trackCount
+                                                            limit = playlist.trackCount?.takeIf { it > 0 } ?: 999
                                                         )
                                                     )
                                                 }
@@ -296,9 +250,13 @@ fun HomeScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
 
-                                            val countText = playlist.playCount?.let { formatPlayCount(it) }
-                                                ?: playlist.trackCount?.let { stringResource(R.string.song_size, it) }
-                                                ?: ""
+                                            val countText = if (playlist.playCount != null && playlist.playCount > 0) {
+                                                formatPlayCount(playlist.playCount)
+                                            } else if (playlist.trackCount != null && playlist.trackCount > 0) {
+                                                stringResource(R.string.song_size, playlist.trackCount)
+                                            } else {
+                                                ""
+                                            }
                                             Text(
                                                 modifier = Modifier.padding(bottom = 8.dp),
                                                 text = countText,
@@ -308,6 +266,20 @@ fun HomeScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         }
+                                    }
+                                }
+                            } else if (recommendPlaylistState?.isFailure == true && personalizedPlaylistState?.isFailure == true) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Button(onClick = {
+                                        homeScreenViewModel.fetchRecommendPlaylist()
+                                        homeScreenViewModel.fetchPersonalizedPlaylist()
+                                    }) {
+                                        Text(text = "重试")
                                     }
                                 }
                             } else {
@@ -327,6 +299,7 @@ fun HomeScreen(
                             transitionSpec = {
                                 fadeIn(animationSpec = tween(DURATION_ENTER)) togetherWith fadeOut(animationSpec = tween(DURATION_EXIT_SHORT))
                             },
+                            contentKey = { data -> data?.data?.dailySongs?.map { it.id } },
                             label = "daily_songs_crossfade"
                         ) { data ->
                             if (data != null) {
@@ -369,6 +342,17 @@ fun HomeScreen(
                                                 }
                                             }
                                         )
+                                    }
+                                }
+                            } else if (recommendSongsState?.isFailure == true) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(ListItemHeight * 2),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Button(onClick = { homeScreenViewModel.fetchRecommendSongs() }) {
+                                        Text(text = "重试")
                                     }
                                 }
                             } else {
