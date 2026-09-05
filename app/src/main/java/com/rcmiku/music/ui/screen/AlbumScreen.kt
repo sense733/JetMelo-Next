@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -139,6 +140,7 @@ fun AlbumScreen(
 
     with(sharedTransitionScope) {
         Scaffold(
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 val baseColor = MaterialTheme.colorScheme.background
                 val topBarAlpha by animateFloatAsState(
@@ -151,10 +153,13 @@ fun AlbumScreen(
                         .fillMaxWidth()
                         .background(baseColor.copy(alpha = topBarAlpha))
                         .statusBarsPadding()
-                        .height(48.dp),
+                        .height(44.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(
+                        onClick = { navController.navigateUp() },
+                        modifier = Modifier.size(44.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = null
@@ -220,9 +225,10 @@ fun AlbumScreen(
                         )
 
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = padding.calculateTopPadding()),
                             contentPadding = PaddingValues(
-                                top = padding.calculateTopPadding(),
                                 bottom = bottomContentPadding
                             ),
                             state = listState
