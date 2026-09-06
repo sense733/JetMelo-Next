@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -282,10 +283,15 @@ fun Player(
                 } else {
                     availableWidth
                 }
+                val effectiveArtworkUri = playerState?.currentMediaItem?.mediaMetadata?.artworkUri ?: mediaMetadata.artworkUri
                 Box(
-                    modifier = Modifier
+                    modifier = imageModifier
                         .size(artSize)
                         .aspectRatio(1f)
+                        .shadow(elevation = 16.dp, shape = AdaptiveArtworkShape)
+                        .clip(AdaptiveArtworkShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .clickable(enabled = controlsAlpha > 0.1f, onClick = onClick)
                         .onGloballyPositioned { coords ->
                             if (coords.isAttached) {
                                 onArtworkPositioned?.invoke(coords.boundsInRoot())
@@ -293,22 +299,25 @@ fun Player(
                         }
                 ) {
                     if (showArtwork) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(mediaMetadata.artworkUri)
-                                .size(Size(1080, 1080))
-                                .memoryCacheKey(mediaMetadata.artworkUri?.toString())
-                                .diskCacheKey(mediaMetadata.artworkUri?.toString())
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = imageModifier
-                                .fillMaxSize()
-                                .shadow(elevation = 16.dp, shape = AdaptiveArtworkShape)
-                                .clip(AdaptiveArtworkShape)
-                                .clickable(enabled = controlsAlpha > 0.1f, onClick = onClick)
-                        )
+                        Crossfade(
+                            targetState = effectiveArtworkUri,
+                            animationSpec = tween(durationMillis = 350),
+                            label = "player_artwork_crossfade",
+                            modifier = Modifier.fillMaxSize()
+                        ) { uri ->
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(uri)
+                                    .size(Size(1080, 1080))
+                                    .memoryCacheKey(uri?.toString())
+                                    .diskCacheKey(uri?.toString())
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
             }

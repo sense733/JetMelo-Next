@@ -201,6 +201,7 @@ fun PlayerTransform(
     }
 
     val playerState = LocalPlayerState.current
+    val effectiveArtworkUri = playerState?.currentMediaItem?.mediaMetadata?.artworkUri ?: mediaMetadata.artworkUri
     val mediaController = LocalPlayerController.current.controller
     val artworkColors = LocalArtworkColors.current
     var fullArtworkRect by remember { mutableStateOf<Rect?>(null) }
@@ -212,8 +213,8 @@ fun PlayerTransform(
         val statusBarInsetPx = WindowInsets.statusBars.getTop(density).toFloat()
 
         val miniHorizontalPaddingPx = with(density) { 12.dp.toPx() }
-        val miniVerticalPaddingPx = with(density) { 6.dp.toPx() }
-        val miniHeightPx = with(density) { (MiniPlayerHeight - 12.dp).toPx() }
+        val miniVerticalPaddingPx = with(density) { 8.dp.toPx() }
+        val miniHeightPx = with(density) { MiniPlayerHeight.toPx() }
         val dockedBottomPx = with(density) { dockedBottomPadding.toPx() }
 
         val miniLeftPx = miniHorizontalPaddingPx
@@ -229,7 +230,9 @@ fun PlayerTransform(
         }
 
         val defaultFullArtworkRect = remember(screenWidthPx, screenHeightPx, statusBarInsetPx) {
-            val fullWidthPx = screenWidthPx * 0.88f
+            val horizontalPaddingPx = with(density) { 40.dp.toPx() }
+            val availableWidthPx = screenWidthPx - horizontalPaddingPx
+            val fullWidthPx = availableWidthPx * 0.88f
             val fullLeftPx = (screenWidthPx - fullWidthPx) / 2f
             val availableHeight = screenHeightPx - statusBarInsetPx - with(density) { (56.dp + 284.dp).toPx() }
             val fullTopPx = statusBarInsetPx + with(density) { 56.dp.toPx() } + ((availableHeight - fullWidthPx) / 2f).coerceAtLeast(0f)
@@ -314,7 +317,7 @@ fun PlayerTransform(
             if (!isCollapsed) {
                 ImmersiveBackground(
                     modifier = Modifier.fillMaxSize(),
-                    artworkUri = mediaMetadata.artworkUri
+                    artworkUri = effectiveArtworkUri
                 ) {}
             }
 
@@ -423,10 +426,9 @@ fun PlayerTransform(
             val fullControlsAlpha = ((progress - 0.60f) / 0.40f).coerceIn(0f, 1f)
             val fullControlsOffsetY = 12.dp * (1f - fullControlsAlpha)
 
-            val mediaId = playerState?.currentMediaItem?.mediaId ?: mediaMetadata.title?.toString() ?: "unknown"
-            val coverKey = "cover_$mediaId"
-            val titleKey = "title_$mediaId"
-            val artistKey = "artist_$mediaId"
+            val coverKey = "player_active_cover"
+            val titleKey = "player_active_title"
+            val artistKey = "player_active_artist"
 
             if (fullControlsAlpha > 0f) {
                 SharedTransitionLayout(
@@ -555,6 +557,7 @@ fun PlayerTransform(
                     )
                     .shadow(currentArtworkElevation, shape = RoundedCornerShape(currentArtworkCorner))
                     .clip(RoundedCornerShape(currentArtworkCorner))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .clickable(
                         role = Role.Button,
                         onClickLabel = "展开播放器",
@@ -566,10 +569,10 @@ fun PlayerTransform(
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(mediaMetadata.artworkUri)
+                        .data(effectiveArtworkUri)
                         .size(CoilSize(768, 768))
-                        .memoryCacheKey(mediaMetadata.artworkUri?.toString())
-                        .diskCacheKey(mediaMetadata.artworkUri?.toString())
+                        .memoryCacheKey(effectiveArtworkUri?.toString())
+                        .diskCacheKey(effectiveArtworkUri?.toString())
                         .crossfade(true)
                         .build(),
                     contentDescription = null,
