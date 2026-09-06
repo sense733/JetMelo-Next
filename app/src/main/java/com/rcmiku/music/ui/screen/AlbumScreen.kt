@@ -138,20 +138,26 @@ fun AlbumScreen(
         }
     }
 
+    val pageArtworkColors = rememberArtworkColors(
+        artworkUri = albumDetailState?.getOrNull()?.album?.picUrl,
+        songId = albumDetailState?.getOrNull()?.album?.id?.toString()
+    )
+
     with(sharedTransitionScope) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 val baseColor = MaterialTheme.colorScheme.background
-                val topBarAlpha by animateFloatAsState(
-                    targetValue = if (isSticky) 1f else collapseFraction.coerceIn(0f, 1f),
-                    animationSpec = tween(180),
-                    label = "topBarBg"
-                )
+                val dominantTopColor = pageArtworkColors.dominantColor.copy(alpha = 0.65f)
+                val topBarBgColor = if (isSticky) {
+                    baseColor
+                } else {
+                    androidx.compose.ui.graphics.lerp(dominantTopColor, baseColor, collapseFraction.coerceIn(0f, 1f))
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(baseColor.copy(alpha = topBarAlpha))
+                        .background(topBarBgColor)
                         .statusBarsPadding()
                         .height(44.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -200,54 +206,38 @@ fun AlbumScreen(
                     }
                 }
                 else -> {
-                    val pageArtworkColors = rememberArtworkColors(
-                        artworkUri = detail.album.picUrl,
-                        songId = detail.album.id.toString()
-                    )
-
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        // Atmospheric background gradient from top of screen behind TopAppBar
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(420.dp)
-                                .graphicsLayer {
-                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
-                                }
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            pageArtworkColors.dominantColor.copy(alpha = 0.65f),
-                                            MaterialTheme.colorScheme.background
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = padding.calculateTopPadding()),
+                        contentPadding = PaddingValues(
+                            bottom = bottomContentPadding
+                        ),
+                        state = listState
+                    ) {
+                        // 1. Solaris Immersive Hero Header (随滚顶出 + 渐隐)
+                        item(key = "hero_header") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                pageArtworkColors.dominantColor.copy(alpha = 0.65f),
+                                                MaterialTheme.colorScheme.background
+                                            )
                                         )
                                     )
-                                )
-                        )
-
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding()),
-                            contentPadding = PaddingValues(
-                                bottom = bottomContentPadding
-                            ),
-                            state = listState
-                        ) {
-                            // 1. Solaris Immersive Hero Header (随滚顶出 + 渐隐)
-                            item(key = "hero_header") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .onSizeChanged { size ->
-                                            if (size.height > 0) {
-                                                headerHeightPx = size.height.toFloat()
-                                            }
+                                    .onSizeChanged { size ->
+                                        if (size.height > 0) {
+                                            headerHeightPx = size.height.toFloat()
                                         }
-                                        .graphicsLayer {
-                                            alpha = (1f - collapseFraction).coerceIn(0f, 1f)
-                                        }
-                                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                                ) {
+                                    }
+                                    .graphicsLayer {
+                                        alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                    }
+                                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                            ) {
                                     Column(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalAlignment = Alignment.CenterHorizontally
@@ -386,7 +376,6 @@ fun AlbumScreen(
                                 )
                             }
                         }
-                    }
                 }
             }
         }

@@ -1,7 +1,6 @@
 package com.rcmiku.music.ui.components
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,15 +27,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.rcmiku.music.R
-import com.rcmiku.music.ui.design.TopFogOverlay
 import com.rcmiku.music.ui.icons.PlayArrowFill
 import com.rcmiku.music.ui.theme.JetMeloShapes
 
+/**
+ * 歌单与专辑页面的粘性「播放全部」操作条 (Sticky Play All Bar)
+ * 具备对下方内容 100% 实底遮挡能力，未吸顶呈现 16dp 顶部圆角，吸顶平滑切为平角
+ */
 @Composable
 fun StickyPlayAllBar(
     trackCount: Int,
@@ -55,43 +55,19 @@ fun StickyPlayAllBar(
         label = "stickyCornerRadius"
     )
 
-    val stickyAlpha by animateFloatAsState(
-        targetValue = if (isSticky) 1f else 0f,
-        animationSpec = tween(180),
-        label = "stickyFogAlpha"
-    )
-
     val baseColor = MaterialTheme.colorScheme.background
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
+            .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
+            .background(baseColor)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {}
     ) {
-        if (stickyAlpha < 1f) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = 1f - stickyAlpha }
-                    .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
-                    .background(baseColor)
-            )
-        }
-
-        if (stickyAlpha > 0f) {
-            TopFogOverlay(
-                height = 64.dp,
-                baseColor = baseColor,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = stickyAlpha }
-            )
-        }
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
