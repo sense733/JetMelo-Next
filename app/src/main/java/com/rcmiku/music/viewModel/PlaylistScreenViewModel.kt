@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rcmiku.music.data.favoriteSongIdsDatastore
+import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.model.PlaylistDetailResponse
 import com.rcmiku.ncmapi.model.PlaylistInfoResponse
@@ -108,6 +109,11 @@ class PlaylistScreenViewModel @Inject constructor(
         val songList = detail.playlist.tracks
         _tracks.value = songList
         originalOrder = songList.mapIndexed { index, song -> song.id to index }.toMap()
+        if (noCache && songList.isNotEmpty()) {
+            viewModelScope.launch {
+                FavoriteSongIdsUtil.mergeSongIds(context, songList.map { it.id })
+            }
+        }
     }
 
     private fun insertByOriginal(list: List<Song>, song: Song): List<Song> {

@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
@@ -53,11 +54,13 @@ import androidx.navigation.NavHostController
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
+import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.playMediaAtId
 import com.rcmiku.music.extensions.setPlaylist
 import com.rcmiku.music.ui.components.SongListItem
 import com.rcmiku.music.viewModel.RecordScreenViewModel
 import com.rcmiku.ncmapi.api.account.SongRecordType
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +78,10 @@ fun RecordScreen(
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId?.toLongOrNull()
+    val context = LocalContext.current
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
 
     LaunchedEffect(state) {
         recordScreenViewModel.updateSongRecordType(if (state == 0) SongRecordType.WEEK else SongRecordType.ALL)
@@ -126,6 +133,7 @@ fun RecordScreen(
                     SongListItem(
                         song = item.song,
                         isPlaying = isPlaying,
+                        showLikedIcon = item.song.id in songIds,
                         isActive = currentMediaId == item.song.id,
                         songIndex = index + 1,
                         modifier = Modifier.clickable {

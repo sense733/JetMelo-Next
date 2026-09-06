@@ -3,7 +3,9 @@ package com.rcmiku.music.viewModel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
+import com.rcmiku.music.utils.dataStore
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.api.recommend.RecommendApi
 import com.rcmiku.ncmapi.model.DailySongsResponse
@@ -14,6 +16,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import javax.inject.Inject
@@ -47,8 +51,10 @@ class HomeScreenViewModel @Inject constructor(@ApplicationContext private val co
     fun fetchFavoriteSongIds() {
         viewModelScope.launch {
             runCatching {
-                AccountApi.favoriteSongIds().getOrNull()?.ids?.let {
-                    FavoriteSongIdsUtil.updateSongIds(context, it)
+                val storedUid = context.dataStore.data.map { it[userIdKey] ?: 0L }.first()
+                val ids = AccountApi.favoriteSongIds(storedUid).getOrNull()?.ids
+                if (!ids.isNullOrEmpty()) {
+                    FavoriteSongIdsUtil.updateSongIds(context, ids)
                 }
             }
         }
@@ -72,8 +78,10 @@ class HomeScreenViewModel @Inject constructor(@ApplicationContext private val co
         launch { _personalizedPlaylist.value = RecommendApi.personalizedPlaylist() }
         launch {
             runCatching {
-                AccountApi.favoriteSongIds().getOrNull()?.ids?.let {
-                    FavoriteSongIdsUtil.updateSongIds(context, it)
+                val storedUid = context.dataStore.data.map { it[userIdKey] ?: 0L }.first()
+                val ids = AccountApi.favoriteSongIds(storedUid).getOrNull()?.ids
+                if (!ids.isNullOrEmpty()) {
+                    FavoriteSongIdsUtil.updateSongIds(context, ids)
                 }
             }
         }

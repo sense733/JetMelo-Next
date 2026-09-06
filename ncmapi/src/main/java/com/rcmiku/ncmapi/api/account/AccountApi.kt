@@ -7,13 +7,21 @@ import com.rcmiku.ncmapi.model.UserDetailResponse
 import com.rcmiku.ncmapi.model.UserInfoBatch
 import com.rcmiku.ncmapi.model.UserPlaylistData
 import com.rcmiku.ncmapi.model.UserPlaylistResponse
+import com.rcmiku.ncmapi.utils.CookieProvider
 import com.rcmiku.ncmapi.utils.HttpManager
 import com.rcmiku.ncmapi.utils.json
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 object AccountApi {
     private const val DEFAULT_USER_PLAYLIST_LIMIT = 1000
     private const val BATCH_USER_PLAYLIST_LIMIT = 1000
+
+    private fun maskId(id: Long): String {
+        val str = id.toString()
+        return if (str.length <= 4) "****" else str.take(2) + "****" + str.takeLast(2)
+    }
 
     suspend fun getSubcount(): Result<GeneralResponse> {
         return runCatching {
@@ -29,6 +37,7 @@ object AccountApi {
     
     suspend fun getUserPlaylist(uid: Long, offset: Int = 0, limit: Int = 30): Result<UserPlaylistResponse> {
         return runCatching {
+            require(uid > 0) { "Invalid user id: ${maskId(uid)}" }
             val body = HttpManager.request(
                 url = "/weapi/user/playlist",
                 data = mapOf(
@@ -40,41 +49,99 @@ object AccountApi {
                 crypto = HttpManager.CryptoType.WEAPI
             )
             val raw = json.decodeFromString(UserPlaylistResponse.serializer(), body)
-            // Ensure data wrapper is always populated for UI.
-            raw.copy(data = UserPlaylistData(playlist = if (raw.playlist.isNotEmpty()) raw.playlist else raw.data.playlist))
+            val unifiedPlaylist = if (raw.playlist.isNotEmpty()) raw.playlist else raw.data.playlist
+            raw.copy(playlist = unifiedPlaylist, data = UserPlaylistData(playlist = unifiedPlaylist))
         }
     }
     
     suspend fun userPlaylist(userId: Long, userPlaylistType: UserPlaylistType): Result<UserPlaylistResponse> {
         return runCatching {
-            val raw = getUserPlaylist(uid = userId, offset = 0, limit = DEFAULT_USER_PLAYLIST_LIMIT).getOrThrow()
-            val list = when (userPlaylistType) {
-                UserPlaylistType.CREATE -> raw.data.playlist.filter { it.subscribed.not() }
-                UserPlaylistType.COLLECT -> raw.data.playlist.filter { it.subscribed }
+            require(userId > 0) { "Invalid user id: ${maskId(userId)}" }
+            val allPlaylists = mutableListOf<com.rcmiku.ncmapi.model.Playlist>()
+            var offset = 0
+            val pageSize = DEFAULT_USER_PLAYLIST_LIMIT
+            var lastCode = 200
+            while (true) {
+                val raw = getUserPlaylist(uid = userId, offset = offset, limit = pageSize).getOrThrow()
+                lastCode = raw.code
+                val currentBatch = raw.playlist
+                if (currentBatch.isEmpty()) break
+                allPlaylists.addAll(currentBatch)
+                if (currentBatch.size < pageSize) break
+                offset += currentBatch.size
             }
-            raw.copy(data = UserPlaylistData(playlist = list), playlist = list)
+            val list = when (userPlaylistType) {
+                UserPlaylistType.CREATE -> allPlaylists.filter { it.subscribed.not() }
+                UserPlaylistType.COLLECT -> allPlaylists.filter { it.subscribed }
+            }
+            UserPlaylistResponse(
+                code = lastCode,
+                playlist = list,
+                data = UserPlaylistData(playlist = list)
+            )
         }
     }
     
-    suspend fun getLikelist(uid: Long): Result<FavoriteSongResponse> = favoriteSong(userId = uid)
+    suspend fun getLikelist(uid: Long): Result<FavoriteSongResponse> {
+        return runCatching {
+            require(uid > 0) { "Invalid user id: ${maskId(uid)}" }
+            val body = HttpManager.request(
+                url = "/weapi/song/like/get",
+                data = mapOf(
+                    "uid" to uid.toString()
+                ),
+                crypto = HttpManager.CryptoType.WEAPI
+            )
+            val response = json.decodeFromString(FavoriteSongResponse.serializer(), body)
+            if (response.code != 200) {
+                error("getLikelist failed with code ${response.code}")
+            }
+            response
+        }
+    }
 
-    suspend fun favoriteSongIds(): Result<FavoriteSongResponse> = favoriteSong(userId = 0)
+    suspend fun favoriteSongIds(userId: Long = 0): Result<FavoriteSongResponse> {
+        return runCatching {
+            val targetUid = if (userId > 0) {
+                userId
+            } else {
+                accountInfo().getOrThrow().profile.userId
+            }
+            require(targetUid > 0) { "Invalid user id: ${maskId(targetUid)}" }
+            getLikelist(targetUid).getOrThrow()
+        }
+    }
 
     suspend fun favoriteSong(userId: Long): Result<FavoriteSongResponse> {
         return runCatching {
-            // EAPI endpoint returns the user's "Liked Songs" playlist object.
-            // ref: captured official request => /api/user/playlist/favorite
+            val hasSession = CookieProvider.hasValidSession()
+            if (!hasSession && userId <= 0) {
+                error("No valid session or userId provided")
+            }
             val body = HttpManager.request(
                 url = "/api/user/playlist/favorite",
                 data = mapOf(
                     "userId" to userId.toString(),
                     "t" to (System.currentTimeMillis() / 1000).toString(),
                     "header" to "{}",
-                    "e_r" to false
+                    "e_r" to "false"
                 ),
                 crypto = HttpManager.CryptoType.EAPI
             )
-            json.decodeFromString(FavoriteSongResponse.serializer(), body)
+            val response = json.decodeFromString(FavoriteSongResponse.serializer(), body)
+            if (response.code != 200) {
+                error("favoriteSong failed with code ${response.code}")
+            }
+            val likeListIds = if (userId > 0) {
+                getLikelist(userId).getOrNull()?.ids.orEmpty()
+            } else {
+                emptyList()
+            }
+            if (likeListIds.isNotEmpty()) {
+                response.copy(ids = likeListIds)
+            } else {
+                response
+            }
         }
     }
 
@@ -93,19 +160,34 @@ object AccountApi {
             )
 
             val root = json.parseToJsonElement(body).jsonObject
+            val topCode = root["code"]?.jsonPrimitive?.intOrNull ?: 200
+            if (topCode != 200) {
+                error("batch request failed with top-level code $topCode")
+            }
+
             // Observed response: {"/api/nuser/account/get":{...},"/api/user/level":{...},"code":200}
             val accountResp = root["/api/nuser/account/get"]?.jsonObject
                 ?: error("batch missing /api/nuser/account/get")
+            val accountCode = accountResp["code"]?.jsonPrimitive?.intOrNull ?: 200
+            if (accountCode != 200) {
+                error("batch /api/nuser/account/get failed with code $accountCode")
+            }
+
             val levelResp = root["/api/user/level"]?.jsonObject
                 ?: error("batch missing /api/user/level")
+            val levelCode = levelResp["code"]?.jsonPrimitive?.intOrNull ?: 200
 
             val account = json.decodeFromJsonElement(
                 com.rcmiku.ncmapi.model.UserAccount.serializer(),
                 accountResp
             )
-            val level = runCatching {
-                json.decodeFromJsonElement(com.rcmiku.ncmapi.model.UserLevel.serializer(), levelResp)
-            }.getOrDefault(com.rcmiku.ncmapi.model.UserLevel())
+            val level = if (levelCode == 200) {
+                runCatching {
+                    json.decodeFromJsonElement(com.rcmiku.ncmapi.model.UserLevel.serializer(), levelResp)
+                }.getOrDefault(com.rcmiku.ncmapi.model.UserLevel())
+            } else {
+                com.rcmiku.ncmapi.model.UserLevel()
+            }
 
             UserInfoBatch(account = account, level = level)
         }
@@ -115,6 +197,7 @@ object AccountApi {
 
     suspend fun userDetail(uid: Long): Result<UserDetailResponse> {
         return runCatching {
+            require(uid > 0) { "Invalid user id: ${maskId(uid)}" }
             // ref: my-netease-cloud-music-api module/user_detail.js => /api/v1/user/detail/{uid}
             val body = HttpManager.request(
                 url = "/api/v1/user/detail/$uid",
@@ -129,6 +212,7 @@ object AccountApi {
 
     suspend fun songRecord(uid: Long, type: SongRecordType = SongRecordType.WEEK): Result<RecordResponse> {
         return runCatching {
+            require(uid > 0) { "Invalid user id: ${maskId(uid)}" }
             // ref: module/user_record.js => /api/v1/play/record
             val body = HttpManager.request(
                 url = "/weapi/v1/play/record",
@@ -157,7 +241,7 @@ object AccountApi {
                     "rqRefer" to "",
                     "t" to (System.currentTimeMillis() / 1000).toString(),
                     "header" to "{}",
-                    "e_r" to false
+                    "e_r" to "false"
                 ),
                 crypto = HttpManager.CryptoType.EAPI
             )
@@ -170,9 +254,9 @@ object AccountApi {
             val body = HttpManager.request(
                 url = "/api/album/sublist",
                 data = mapOf(
-                    "limit" to limit,
-                    "offset" to offset,
-                    "total" to true
+                    "limit" to limit.toString(),
+                    "offset" to offset.toString(),
+                    "total" to "true"
                 ),
                 crypto = HttpManager.CryptoType.WEAPI
             )
@@ -185,8 +269,8 @@ object AccountApi {
             val body = HttpManager.request(
                 url = "/api/v1/cloud/get",
                 data = mapOf(
-                    "limit" to limit,
-                    "offset" to offset
+                    "limit" to limit.toString(),
+                    "offset" to offset.toString()
                 ),
                 crypto = HttpManager.CryptoType.WEAPI
             )
@@ -196,6 +280,7 @@ object AccountApi {
     
     suspend fun userPlaylistV1(userId: Long, trackIds: List<Long>): Result<com.rcmiku.ncmapi.model.UserPlaylistV1Response> {
         return runCatching {
+            require(userId > 0) { "Invalid user id: ${maskId(userId)}" }
             val body = HttpManager.request(
                 url = "/weapi/user/playlist",
                 data = mapOf(

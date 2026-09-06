@@ -68,6 +68,7 @@ import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.navigation.NavGraph
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
+import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.music.utils.rememberPreference
 import android.util.Log
 import androidx.compose.runtime.derivedStateOf
@@ -148,6 +149,11 @@ fun MainScreen() {
                     CookieProvider.init(json.decodeFromString(ncmCookie))
                     AccountApi.account().getOrNull()?.profile?.userId?.let {
                         userId = it
+                        AccountApi.getLikelist(it).getOrNull()?.ids?.let { songIds ->
+                            if (songIds.isNotEmpty()) {
+                                FavoriteSongIdsUtil.mergeSongIds(context, songIds)
+                            }
+                        }
                     }
                 } else {
                     userId = 0L

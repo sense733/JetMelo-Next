@@ -1,11 +1,14 @@
 package com.rcmiku.music.viewModel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.model.FavoriteSongResponse
 import com.rcmiku.ncmapi.model.UserInfoBatch
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +20,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class LibraryScreenViewModel @Inject constructor() : ViewModel() {
+class LibraryScreenViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
     private val _userInfo = MutableStateFlow<UserInfoBatch?>(null)
     val userInfo: StateFlow<UserInfoBatch?> = _userInfo.asStateFlow()
 
@@ -35,7 +40,13 @@ class LibraryScreenViewModel @Inject constructor() : ViewModel() {
     }
 
     private suspend fun fetchFavoriteSong(userId: Long) {
-        _favoriteSong.value = AccountApi.favoriteSong(userId).getOrNull()
+        val response = AccountApi.favoriteSong(userId).getOrNull()
+        _favoriteSong.value = response
+        response?.ids?.let { ids ->
+            if (ids.isNotEmpty()) {
+                FavoriteSongIdsUtil.mergeSongIds(context, ids)
+            }
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

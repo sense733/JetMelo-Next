@@ -190,7 +190,7 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val favCount = favoriteSongState?.ids?.size
+                        val favCount = favoriteSongState?.data?.trackCount?.takeIf { it > 0 } ?: favoriteSongState?.ids?.size
                         val errorColor = MaterialTheme.colorScheme.error
                         QuickActionCard(
                             item = QuickActionItem(

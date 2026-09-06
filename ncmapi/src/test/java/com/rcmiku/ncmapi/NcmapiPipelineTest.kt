@@ -3,6 +3,7 @@ package com.rcmiku.ncmapi
 import com.rcmiku.ncmapi.model.FlexibleDoubleSerializer
 import com.rcmiku.ncmapi.model.GeneralResponse
 import com.rcmiku.ncmapi.model.NcmApiException
+import com.rcmiku.ncmapi.model.NcmHttpException
 import com.rcmiku.ncmapi.model.Playlist
 import com.rcmiku.ncmapi.utils.CookieProvider
 import com.rcmiku.ncmapi.utils.CryptoUtils
@@ -11,6 +12,7 @@ import com.rcmiku.ncmapi.utils.json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -66,6 +68,8 @@ class NcmapiPipelineTest {
         assertEquals("android", CookieProvider.get()["os"])
 
         CookieProvider.clear()
+        assertFalse(CookieProvider.hasValidSession())
+        CookieProvider.clearAll()
         assertTrue(CookieProvider.get().isEmpty())
     }
 
@@ -223,5 +227,147 @@ class NcmapiPipelineTest {
         assertEquals("华语精选歌单", playlists[0].name)
         assertEquals("https://p1.music.126.net/cover.jpg", playlists[0].coverUrl)
         assertEquals("播放量 100万", playlists[0].playCountText)
+    }
+
+    @Test
+    fun testCheckApiResponseCodeNestedBatch() {
+        val batchJson = """
+            {
+                "code": 200,
+                "/api/user/info": {"code": 200, "data": {}},
+                "/api/playlist/detail": {"code": 301, "message": "need login"}
+            }
+        """.trimIndent()
+        try {
+            HttpManager.checkApiResponseCode(batchJson, endpoint = "https://music.163.com/eapi/batch")
+            fail("Expected NcmApiException for nested batch error code")
+        } catch (e: NcmApiException) {
+            assertEquals(301, e.code)
+            assertTrue(e.message.contains("batch[/api/playlist/detail] error code: 301"))
+            assertEquals("https://music.163.com/eapi/batch", e.endpoint)
+        }
+    }
+
+    @Test
+    fun testMaskIfSensitiveEapiKeys() {
+        assertEquals("<masked>", HttpManager.maskIfSensitive("jsessionid", "123456"))
+        assertEquals("<masked>", HttpManager.maskIfSensitive("music_u", "abcdef"))
+        assertEquals("<masked>", HttpManager.maskIfSensitive("osver", "14"))
+        assertEquals("<masked>", HttpManager.maskIfSensitive("kaola", "xyz"))
+        assertEquals("application/json", HttpManager.maskIfSensitive("Content-Type", "application/json"))
+        assertEquals("keep-alive", HttpManager.maskIfSensitive("Connection", "keep-alive"))
+    }
+
+    @Test
+    fun testEapiDelimiterCollision() {
+        val payloadWithDelimiter = """{"comment":"hello-36cd479b6b5-world"}"""
+        val encrypted = CryptoUtils.eapi("https://music.163.com/eapi/song/enhance/player/url/v1", payloadWithDelimiter)
+        val paramsHex = checkNotNull(encrypted["params"]) { "Missing params" }
+        val decryptedPayload = CryptoUtils.eapiDecryptParams(paramsHex)
+        assertEquals(payloadWithDelimiter, decryptedPayload)
+    }
+
+    @Test
+    fun testEapiDecryptInvalidHex() {
+        try {
+            CryptoUtils.eapiDecryptParams("")
+            fail("Expected IllegalArgumentException for empty hex")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("Invalid EAPI params hex") == true)
+        }
+
+        try {
+            CryptoUtils.eapiDecryptParams("ABC")
+            fail("Expected IllegalArgumentException for odd length hex")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("Invalid EAPI params hex") == true)
+        }
+
+        try {
+            CryptoUtils.eapiDecryptParams("ZZZZ")
+            fail("Expected IllegalArgumentException for non-hex chars")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("Invalid EAPI params hex") == true)
+        }
+    }
+
+    @Test
+    fun testExceptionRetryContext() {
+        val apiEx429 = NcmApiException(code = 429, endpoint = "/api/v1")
+        assertTrue(apiEx429.retryable)
+        assertEquals("/api/v1", apiEx429.endpoint)
+
+        val apiEx503 = NcmApiException(code = 503, endpoint = "/api/v2")
+        assertTrue(apiEx503.retryable)
+
+        val apiEx400 = NcmApiException(code = 400)
+        assertFalse(apiEx400.retryable)
+        assertNull(apiEx400.endpoint)
+
+        val httpEx502 = NcmHttpException(statusCode = 502, endpoint = "/api/http")
+        assertTrue(httpEx502.retryable)
+        assertEquals("/api/http", httpEx502.endpoint)
+
+        val httpEx404 = NcmHttpException(statusCode = 404)
+        assertFalse(httpEx404.retryable)
+        assertNull(httpEx404.endpoint)
+    }
+
+    @Test
+    fun testModelHelpers() {
+        val successResp = GeneralResponse(code = 200)
+        assertTrue(successResp.isSuccess)
+        val failResp = GeneralResponse(code = 400)
+        assertFalse(failResp.isSuccess)
+
+        val pEmpty = Playlist(id = 1, name = "Empty")
+        assertTrue(pEmpty.hasAlignedTracks())
+
+        val pDetail = com.rcmiku.ncmapi.model.PlaylistDetailResponse()
+        assertTrue(pDetail.hasAlignedTracksAndPrivileges())
+
+        val recEmpty = com.rcmiku.ncmapi.model.RecordResponse()
+        assertTrue(recEmpty.isEmpty)
+
+        val suggestSongWithArtist = com.rcmiku.ncmapi.model.SuggestSong(
+            id = 1,
+            name = "Song1",
+            artists = listOf(com.rcmiku.ncmapi.model.Artist(id = 10, name = "ArtistA"))
+        )
+        assertEquals("ArtistA", suggestSongWithArtist.artistNameOrNull)
+
+        val suggestSongNoArtist = com.rcmiku.ncmapi.model.SuggestSong(id = 2, name = "Song2")
+        assertNull(suggestSongNoArtist.artistNameOrNull)
+
+        val suggestAlbumWithArtist = com.rcmiku.ncmapi.model.SuggestAlbum(
+            id = 1,
+            name = "Album1",
+            artist = com.rcmiku.ncmapi.model.Artist(id = 10, name = "ArtistA")
+        )
+        assertEquals("ArtistA", suggestAlbumWithArtist.artistNameOrNull)
+
+        val suggestAlbumNoArtist = com.rcmiku.ncmapi.model.SuggestAlbum(id = 2, name = "Album2")
+        assertNull(suggestAlbumNoArtist.artistNameOrNull)
+    }
+
+    @Test
+    fun testClearSession() {
+        HttpManager.clearSession()
+    }
+
+    @Test
+    fun testFavoriteSongResponseDeserialization() {
+        val likelistJson = """{"ids":[12345,67890],"checkPoint":1503019930000,"code":200}"""
+        val resp = json.decodeFromString(com.rcmiku.ncmapi.model.FavoriteSongResponse.serializer(), likelistJson)
+        assertEquals(200, resp.code)
+        assertEquals(listOf(12345L, 67890L), resp.ids)
+        assertEquals(1503019930000L, resp.checkPoint)
+
+        val favPlaylistJson = """{"code":200,"data":{"id":999,"name":"喜欢的音乐","trackCount":50}}"""
+        val favResp = json.decodeFromString(com.rcmiku.ncmapi.model.FavoriteSongResponse.serializer(), favPlaylistJson)
+        assertEquals(200, favResp.code)
+        assertEquals(999L, favResp.data.id)
+        assertEquals(50, favResp.data.trackCount)
+        assertTrue(favResp.ids.isEmpty())
     }
 }

@@ -27,4 +27,17 @@ object FavoriteSongIdsUtil {
             currentData.toBuilder().clearSongIds().addAllSongIds(songIds).build()
         }
     }
+
+    suspend fun mergeSongIds(context: Context, songIds: List<Long>) {
+        if (songIds.isEmpty()) return
+        context.favoriteSongIdsDatastore.updateData { currentData ->
+            val existing = currentData.songIdsList.toSet()
+            if (existing.containsAll(songIds)) {
+                currentData
+            } else {
+                val merged = (currentData.songIdsList + songIds).distinct()
+                currentData.toBuilder().clearSongIds().addAllSongIds(merged).build()
+            }
+        }
+    }
 }

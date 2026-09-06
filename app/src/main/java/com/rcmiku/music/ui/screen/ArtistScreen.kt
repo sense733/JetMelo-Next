@@ -60,6 +60,8 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import coil3.compose.AsyncImage
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
+import com.rcmiku.music.data.favoriteSongIdsDatastore
+import kotlinx.coroutines.flow.map
 import com.rcmiku.music.R
 import com.rcmiku.music.extensions.playMediaAtId
 import com.rcmiku.music.extensions.setPlaylist
@@ -94,6 +96,9 @@ fun ArtistScreen(
     var selectedSongId by rememberSaveable { mutableStateOf<Long?>(null) }
     val selectSong = artistTopSongState?.songs?.firstOrNull { it.id == selectedSongId }
     val context = LocalContext.current
+    val songIds by remember(context) {
+        context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
+    }.collectAsStateWithLifecycle(emptySet())
 
     LaunchedEffect(Unit) {
         artistScreenViewModel.actionError.collect {
@@ -295,6 +300,7 @@ fun ArtistScreen(
                                         SongListItem(
                                             song = song,
                                             isPlaying = isPlaying,
+                                            showLikedIcon = song.id in songIds,
                                             isActive = currentMediaId == song.id,
                                             songIndex = index + 1,
                                             modifier = Modifier

@@ -230,23 +230,30 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun toggleLike(like: Boolean, songId: Long) {
-        scope.launch(Dispatchers.IO) {
-            val result = AccountApi.songLike(like, songId)
-            withContext(Dispatchers.Main) {
-                result.onSuccess {
+        scope.launch {
+            if (like) {
+                FavoriteSongIdsUtil.addSongId(applicationContext, songId)
+            } else {
+                FavoriteSongIdsUtil.removeSongId(applicationContext, songId)
+            }
+            updateCustomLayout()
+            withContext(Dispatchers.IO) {
+                AccountApi.songLike(like, songId)
+            }.onSuccess {
+                updateCustomLayout()
+            }.onFailure {
+                withContext(Dispatchers.Main) {
                     if (like) {
-                        FavoriteSongIdsUtil.addSongId(applicationContext, songId)
-                    } else {
                         FavoriteSongIdsUtil.removeSongId(applicationContext, songId)
+                    } else {
+                        FavoriteSongIdsUtil.addSongId(applicationContext, songId)
                     }
                     updateCustomLayout()
-                }.onFailure {
                     Toast.makeText(
                         applicationContext,
                         applicationContext.getString(R.string.operation_failed),
                         Toast.LENGTH_SHORT
                     ).show()
-                    updateCustomLayout()
                 }
             }
         }

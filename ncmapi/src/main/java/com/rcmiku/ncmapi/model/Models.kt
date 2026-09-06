@@ -1,5 +1,7 @@
 package com.rcmiku.ncmapi.model
 
+// 注意：模型中部分 ID 字段默认值 0L 表示未知/缺失状态的哨兵值，与服务端缺省约定一致
+
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -12,6 +14,7 @@ import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 
+// 针对服务端可能返回脏字符串、null 或非数字类型时的宽容反序列化策略，保底回退为 0.0，避免解析中断
 object FlexibleDoubleSerializer : KSerializer<Double> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("FlexibleDouble", PrimitiveKind.DOUBLE)
 
@@ -39,7 +42,10 @@ data class GeneralResponse(
     val code: Int = 200,
     val message: String? = null,
     val msg: String? = null
-)
+) {
+    // 判断接口响应是否属于 2xx 成功状态
+    val isSuccess: Boolean get() = code in 200..299
+}
 
 @Serializable
 data class Song(
@@ -276,7 +282,7 @@ fun SearchResources.toSearchArtist(): SearchArtist? = artist?.let { a ->
     }
     SearchArtist(
         id = resolvedId,
-        name = a.name ?: "",
+        name = a.name,
         picUrl = a.picUrl,
         alias = a.alias,
         albumSize = a.albumSize,
@@ -419,7 +425,11 @@ data class UserPlaylistResponse(
     val data: UserPlaylistData = UserPlaylistData(),
     val code: Int = 200,
     val playlist: List<Playlist> = emptyList()
-)
+) {
+    // 兼容服务端数据层级差异：优先取顶层 playlist，若为空则回退取 data.playlist
+    val effectivePlaylists: List<Playlist>
+        get() = if (playlist.isNotEmpty()) playlist else data.playlist
+}
 
 @Serializable
 data class AlbumDetailResponse(
@@ -480,6 +490,7 @@ data class ArtistIntroductionItem(
 data class NewAlbumResponse(
     val albums: List<Album> = emptyList()
 ) {
+    // 服务端目前新碟上架接口返回单一 albums 列表，保留 weekData/monthData 废弃 getter 兼容既有调用方
     @Deprecated("Misleading getter, returns albums instead of distinct week data", ReplaceWith("albums"))
     val weekData: List<Album> get() = albums
 
@@ -516,7 +527,8 @@ data class RecommendPlaylistResponse(
 data class FavoriteSongResponse(
     val data: FavoriteSongData = FavoriteSongData(),
     val code: Int = 200,
-    val ids: List<Long> = emptyList()
+    val ids: List<Long> = emptyList(),
+    val checkPoint: Long = 0L
 )
 
 @Serializable
@@ -612,7 +624,10 @@ data class LyricData(
 data class PlaylistDetailResponse(
     val playlist: Playlist = Playlist(id = 0, name = ""),
     val privileges: List<Privilege> = emptyList()
-)
+) {
+    fun hasAlignedTracksAndPrivileges(): Boolean =
+        playlist.tracks.isEmpty() || privileges.isEmpty() || playlist.tracks.size == privileges.size
+}
 
 @Serializable
 data class Playlist(
@@ -639,6 +654,9 @@ data class Playlist(
 ) {
     val cover: String get() = coverImgUrl ?: picUrl ?: ""
     val pic: String get() = picUrl ?: ""
+
+    fun hasAlignedTracks(): Boolean =
+        trackIds.isEmpty() || tracks.isEmpty() || trackIds.size == tracks.size
 }
 
 @Serializable
@@ -688,7 +706,10 @@ data class RadioInfoData(
 data class RecordResponse(
     val weekData: List<PlayRecord> = emptyList(),
     val allData: List<PlayRecord> = emptyList()
-)
+) {
+    // 听歌排行双空列表可能表示用户暂无听歌记录或将排行设为了私密
+    val isEmpty: Boolean get() = weekData.isEmpty() && allData.isEmpty()
+}
 
 @Serializable
 data class PlayRecord(
@@ -756,6 +777,7 @@ data class SuggestSong(
     val duration: Long = 0
 ) {
     val artistName: String get() = artists.joinToString("/") { it.name }
+    val artistNameOrNull: String? get() = if (artists.isEmpty()) null else artists.joinToString("/") { it.name }
 }
 
 @Serializable
@@ -765,5 +787,6 @@ data class SuggestAlbum(
     val artist: Artist? = null
 ) {
     val artistName: String get() = artist?.name ?: ""
+    val artistNameOrNull: String? get() = artist?.name
 }
 
