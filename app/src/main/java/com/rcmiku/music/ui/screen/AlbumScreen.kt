@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -98,13 +99,6 @@ import com.rcmiku.music.utils.formatTimestamp
 import com.rcmiku.music.viewModel.AlbumScreenViewModel
 import kotlinx.coroutines.flow.map
 
-@OptIn(ExperimentalSharedTransitionApi::class)
-private val TitleBoundsTransform = BoundsTransform { _, _ ->
-    spring(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMediumLow
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -136,11 +130,7 @@ fun AlbumScreen(
             listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.99f
         }
     }
-    val showTopBarTitle by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.20f
-        }
-    }
+
     val mediaController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
     val isPlaying = playerState?.isPlaying == true
@@ -190,29 +180,70 @@ fun AlbumScreen(
 
                     val album = albumDetailState?.getOrNull()?.album
                     if (album != null) {
-                        AnimatedVisibility(
-                            visible = showTopBarTitle,
-                            enter = fadeIn(tween(200)),
-                            exit = fadeOut(tween(200)),
-                            modifier = Modifier.weight(1f, fill = false)
+                        val density = LocalDensity.current
+                        val targetDistancePx = remember(density) { with(density) { 296.dp.toPx() } }
+                        val horizontalShiftPx = remember(density) { with(density) { (-14).dp.toPx() } }
+
+                        val currentScroll by remember {
+                            derivedStateOf {
+                                if (listState.firstVisibleItemIndex == 0) {
+                                    listState.firstVisibleItemScrollOffset.toFloat()
+                                } else {
+                                    targetDistancePx
+                                }
+                            }
+                        }
+
+                        val travelFraction by remember {
+                            derivedStateOf {
+                                (currentScroll / targetDistancePx).coerceIn(0f, 1f)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 16.dp)
+                                .graphicsLayer {
+                                    translationY = (targetDistancePx - currentScroll).coerceAtLeast(0f)
+                                    translationX = horizontalShiftPx * (1f - travelFraction)
+                                },
+                            contentAlignment = Alignment.CenterStart
                         ) {
                             Text(
                                 text = album.name,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 28.sp
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .graphicsLayer {
+                                        alpha = (1f - (travelFraction / 0.55f)).coerceIn(0f, 1f)
+                                    }
+                            )
+
+                            Text(
+                                text = album.name,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 20.sp
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Start,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
-                                    .padding(end = 16.dp)
-                                    .sharedBounds(
-                                        sharedContentState = rememberSharedContentState(key = "album_title_${album.id}"),
-                                        animatedVisibilityScope = this,
-                                        boundsTransform = TitleBoundsTransform,
-                                        clipInOverlayDuringTransition = OverlayClip(RectangleShape)
-                                    )
+                                    .fillMaxWidth()
+                                    .graphicsLayer {
+                                        alpha = ((travelFraction - 0.25f) / 0.45f).coerceIn(0f, 1f)
+                                    }
                             )
                         }
                     }
@@ -343,35 +374,16 @@ fun AlbumScreen(
                                         ) {
                                             Text(
                                                 text = detail.album.name,
-                                                style = MaterialTheme.typography.headlineMedium,
-                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.titleLarge.copy(
+                                                    fontSize = 22.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    lineHeight = 28.sp
+                                                ),
                                                 textAlign = TextAlign.Center,
                                                 maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis,
                                                 modifier = Modifier.alpha(0f)
                                             )
-
-                                            androidx.compose.animation.AnimatedVisibility(
-                                                visible = !showTopBarTitle,
-                                                enter = fadeIn(tween(200)),
-                                                exit = fadeOut(tween(200))
-                                            ) {
-                                                Text(
-                                                    text = detail.album.name,
-                                                    style = MaterialTheme.typography.headlineMedium,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    fontWeight = FontWeight.Bold,
-                                                    textAlign = TextAlign.Center,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.sharedBounds(
-                                                        sharedContentState = rememberSharedContentState(key = "album_title_${detail.album.id}"),
-                                                        animatedVisibilityScope = this,
-                                                        boundsTransform = TitleBoundsTransform,
-                                                        clipInOverlayDuringTransition = OverlayClip(RectangleShape)
-                                                    )
-                                                )
-                                            }
                                         }
 
                                         Spacer(Modifier.height(4.dp))
