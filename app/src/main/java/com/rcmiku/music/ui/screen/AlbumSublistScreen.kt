@@ -130,27 +130,19 @@ fun AlbumSublistScreen(
                         key = { index -> index }
                     ) { index ->
                         albumSublist[index]?.let {
-                            with(sharedTransitionScope) {
-                                AlbumListItem(
-                                    album = it,
-                                    thumbnailContent = {
-                                        ListThumbnailImage(
-                                            url = it.picUrl,
-                                            modifier = Modifier.sharedElement(
-                                                sharedTransitionScope.rememberSharedContentState(
-                                                    key = "album_sublist_cover_${it.id}"
-                                                ),
-                                                animatedVisibilityScope = animatedContentScope
-                                            )
-                                        )
-                                    },
-                                    modifier = Modifier
-                                        .clip(JetMeloShapes.medium)
-                                        .clickable(role = Role.Button) {
-                                            navController.navigate(AlbumNav(albumId = it.id))
-                                        }
-                                )
-                            }
+                            AlbumListItem(
+                                album = it,
+                                thumbnailContent = {
+                                    ListThumbnailImage(
+                                        url = it.picUrl
+                                    )
+                                },
+                                modifier = Modifier
+                                    .clip(JetMeloShapes.medium)
+                                    .clickable(role = Role.Button) {
+                                        navController.navigate(AlbumNav(albumId = it.id))
+                                    }
+                            )
                         }
                     }
                     if (loadState.append is LoadState.Loading) {

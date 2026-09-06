@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionScope.OverlayClip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -95,6 +96,7 @@ import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.icons.LibraryAdd
 import com.rcmiku.music.ui.icons.LibraryAddCheck
 import com.rcmiku.music.ui.navigation.ArtistNav
+import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.formatTimestamp
 import com.rcmiku.music.viewModel.AlbumScreenViewModel
@@ -341,7 +343,10 @@ fun AlbumScreen(
                                                         sharedTransitionScope.rememberSharedContentState(
                                                             key = "cover_${detail.album.id}"
                                                         ),
-                                                        animatedVisibilityScope = animatedContentScope
+                                                        animatedVisibilityScope = animatedContentScope,
+                                                        boundsTransform = JetMeloBoundsTransform,
+                                                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                                        clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                                     )
                                             )
                                         }

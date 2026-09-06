@@ -81,6 +81,7 @@ import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.design.DailySongsGridSkeleton
 import com.rcmiku.music.ui.design.PlaylistsRowSkeleton
 import com.rcmiku.music.ui.design.SectionHeader
+import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
@@ -234,6 +235,8 @@ fun HomeScreen(
                                                                 key = "cover_${playlist.id}"
                                                             ),
                                                             animatedVisibilityScope = animatedContentScope,
+                                                            boundsTransform = JetMeloBoundsTransform,
+                                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
                                                             clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
                                                         )
                                                 )

@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.rcmiku.music.R
+import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.viewModel.UserPlaylistScreenViewModel
@@ -168,6 +169,8 @@ fun UserPlaylistScreen(
                                                     key = "cover_${playlist.id}"
                                                 ),
                                                 animatedVisibilityScope = animatedContentScope,
+                                                boundsTransform = JetMeloBoundsTransform,
+                                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
                                                 clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                             )
                                     )

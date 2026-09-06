@@ -1,15 +1,26 @@
 package com.rcmiku.music.ui.navigation
 
+import android.provider.Settings
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,8 +41,11 @@ import com.rcmiku.music.ui.screen.SearchScreen
 import com.rcmiku.music.ui.screen.SettingsScreen
 import com.rcmiku.music.ui.screen.UserPlaylistScreen
 
-private const val NAV_DURATION = 320
+private const val NAV_DURATION_FORWARD = 350
+private const val NAV_DURATION_POP = 350
 private const val NAV_PARALLAX_FACTOR = 0.25f
+private const val SCALE_BG = 0.93f
+private const val SCALE_EXIT_POP = 0.97f
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -40,6 +54,23 @@ fun NavGraph(
     startDestination: String = Screen.Home.route,
     bottomContentPadding: Dp = 0.dp
 ) {
+    val context = LocalContext.current
+    var animatorScale by remember { mutableFloatStateOf(1f) }
+    LaunchedEffect(context) {
+        try {
+            animatorScale = Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f
+            )
+        } catch (_: Exception) {
+            animatorScale = 1f
+        }
+    }
+
+    val forwardDuration = (NAV_DURATION_FORWARD * animatorScale).roundToInt().coerceAtLeast(0)
+    val popDuration = (NAV_DURATION_POP * animatorScale).roundToInt().coerceAtLeast(0)
+
     SharedTransitionLayout {
         NavHost(
             navController = navController,
@@ -47,36 +78,48 @@ fun NavGraph(
             enterTransition = {
                 slideInHorizontally(
                     initialOffsetX = { it },
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing)
                 ) + fadeIn(
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing),
                     initialAlpha = 0.4f
                 )
             },
             exitTransition = {
                 slideOutHorizontally(
                     targetOffsetX = { (-it * NAV_PARALLAX_FACTOR).toInt() },
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing)
+                ) + scaleOut(
+                    targetScale = SCALE_BG,
+                    transformOrigin = TransformOrigin.Center,
+                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing)
                 ) + fadeOut(
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing),
                     targetAlpha = 0.6f
                 )
             },
             popEnterTransition = {
                 slideInHorizontally(
                     initialOffsetX = { (-it * NAV_PARALLAX_FACTOR).toInt() },
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
+                ) + scaleIn(
+                    initialScale = SCALE_BG,
+                    transformOrigin = TransformOrigin.Center,
+                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
                 ) + fadeIn(
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing),
                     initialAlpha = 0.6f
                 )
             },
             popExitTransition = {
                 slideOutHorizontally(
                     targetOffsetX = { it },
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
+                ) + scaleOut(
+                    targetScale = SCALE_EXIT_POP,
+                    transformOrigin = TransformOrigin.Center,
+                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
                 ) + fadeOut(
-                    animationSpec = tween(NAV_DURATION, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing),
                     targetAlpha = 0f
                 )
             }

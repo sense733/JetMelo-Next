@@ -46,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.rcmiku.music.R
+import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
@@ -134,6 +135,8 @@ fun ListScreen(
                                                 key = "cover_${chart.id}"
                                             ),
                                             animatedVisibilityScope = animatedContentScope,
+                                            boundsTransform = JetMeloBoundsTransform,
+                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
                                             clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                         )
                                 )

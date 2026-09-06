@@ -50,6 +50,7 @@ import com.rcmiku.music.R
 import com.rcmiku.music.ui.design.HeroBannerCard
 import com.rcmiku.music.ui.design.SectionHeader
 import com.rcmiku.music.ui.navigation.AlbumNav
+import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
@@ -205,6 +206,8 @@ fun ExploreScreen(
                                                         key = "cover_${album.id}"
                                                     ),
                                                     animatedVisibilityScope = animatedContentScope,
+                                                    boundsTransform = JetMeloBoundsTransform,
+                                                    placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
                                                     clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                                 )
                                         )
@@ -274,6 +277,8 @@ fun ExploreScreen(
                                                         key = "cover_${album.id}"
                                                     ),
                                                     animatedVisibilityScope = animatedContentScope,
+                                                    boundsTransform = JetMeloBoundsTransform,
+                                                    placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
                                                     clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                                 )
                                         )
