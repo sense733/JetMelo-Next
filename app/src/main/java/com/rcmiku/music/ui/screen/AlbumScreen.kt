@@ -64,6 +64,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -182,7 +183,9 @@ fun AlbumScreen(
                     if (album != null) {
                         val density = LocalDensity.current
                         val targetDistancePx = remember(density) { with(density) { 296.dp.toPx() } }
-                        val horizontalShiftPx = remember(density) { with(density) { (-14).dp.toPx() } }
+                        val screenWidthPx = remember(context) { context.resources.displayMetrics.widthPixels.toFloat() }
+                        val backButtonWidthPx = remember(density) { with(density) { 44.dp.toPx() } }
+                        val minLeftMarginOffsetPx = remember(density) { with(density) { (-28).dp.toPx() } }
 
                         val currentScroll by remember {
                             derivedStateOf {
@@ -203,30 +206,10 @@ fun AlbumScreen(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(end = 16.dp)
-                                .graphicsLayer {
-                                    translationY = (targetDistancePx - currentScroll).coerceAtLeast(0f)
-                                    translationX = horizontalShiftPx * (1f - travelFraction)
-                                },
+                                .padding(end = 16.dp),
                             contentAlignment = Alignment.CenterStart
                         ) {
-                            Text(
-                                text = album.name,
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    lineHeight = 28.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = TextAlign.Center,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .graphicsLayer {
-                                        alpha = (1f - (travelFraction / 0.55f)).coerceIn(0f, 1f)
-                                    }
-                            )
+                            var textWidthPx by remember(album.id) { mutableFloatStateOf(0f) }
 
                             Text(
                                 text = album.name,
@@ -236,13 +219,19 @@ fun AlbumScreen(
                                     lineHeight = 20.sp
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = TextAlign.Start,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
-                                    .fillMaxWidth()
+                                    .onSizeChanged { textWidthPx = it.width.toFloat() }
                                     .graphicsLayer {
-                                        alpha = ((travelFraction - 0.25f) / 0.45f).coerceIn(0f, 1f)
+                                        val s = 1f + (1f - travelFraction) * 0.467f
+                                        val scaledWidth = textWidthPx * s
+                                        val centerTargetX = (screenWidthPx / 2f) - backButtonWidthPx - (scaledWidth / 2f)
+                                        translationX = centerTargetX.coerceAtLeast(minLeftMarginOffsetPx) * (1f - travelFraction)
+                                        translationY = (targetDistancePx - currentScroll).coerceAtLeast(0f)
+                                        scaleX = s
+                                        scaleY = s
+                                        transformOrigin = TransformOrigin(0f, 0.5f)
                                     }
                             )
                         }
