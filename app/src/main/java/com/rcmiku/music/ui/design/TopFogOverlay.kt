@@ -12,10 +12,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * 顶部反向白雾隐现遮罩组件 (Top Fog Overlay)
- * 与 [BottomFogOverlay] 纵向对称反转，用于粘性固定条下边缘信息流渐隐过渡
- */
 @Composable
 fun TopFogOverlay(
     modifier: Modifier = Modifier,

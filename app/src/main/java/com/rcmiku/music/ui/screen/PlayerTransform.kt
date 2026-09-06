@@ -255,7 +255,6 @@ fun PlayerTransform(
         val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, progress)
         val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, progress)
 
-        // 1 & 2. 容器物理阴影与描边合并
         if (!isFull) {
             val borderAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
             val containerShape = RoundedCornerShape(containerCornerRadius)
@@ -302,7 +301,6 @@ fun PlayerTransform(
             }
         }
 
-        // 3. 物理形变视口（Container Transform Window）
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -313,7 +311,6 @@ fun PlayerTransform(
                     }
                 }
         ) {
-            // 折叠态跳过沉浸背景渲染，消除过度绘制与高斯模糊开销
             if (!isCollapsed) {
                 ImmersiveBackground(
                     modifier = Modifier.fillMaxSize(),
@@ -321,7 +318,6 @@ fun PlayerTransform(
                 ) {}
             }
 
-            // 折叠态及初段融合 surfaceContainerHigh
             if (progress < 0.25f) {
                 val surfaceAlpha = if (isCollapsed) 1f else (1f - progress / 0.25f).coerceIn(0f, 1f)
                 Box(
@@ -331,7 +327,6 @@ fun PlayerTransform(
                 )
             }
 
-            // Mini 控件层：随容器顶部同步位移，展开 0%~15% 极速淡出
             val miniAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
             if (miniAlpha > 0f) {
                 Box(
@@ -422,7 +417,6 @@ fun PlayerTransform(
                 }
             }
 
-            // Full 控件层：以完整全屏尺寸布局，展开 60%~100% 错峰浮入；收起 100%~60% 优先淡出
             val fullControlsAlpha = ((progress - 0.60f) / 0.40f).coerceIn(0f, 1f)
             val fullControlsOffsetY = 12.dp * (1f - fullControlsAlpha)
 
@@ -546,7 +540,6 @@ fun PlayerTransform(
             }
         }
 
-        // 4. 单一物理封面：用于 Mini ↔ Full 容器形变转场
         if (!isFull) {
             Box(
                 modifier = Modifier
@@ -557,7 +550,6 @@ fun PlayerTransform(
                     )
                     .shadow(currentArtworkElevation, shape = RoundedCornerShape(currentArtworkCorner))
                     .clip(RoundedCornerShape(currentArtworkCorner))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .clickable(
                         role = Role.Button,
                         onClickLabel = "展开播放器",

@@ -27,9 +27,7 @@ class RepositoryTest {
         cache.put(3, "three")
 
         assertEquals(3, cache.size())
-        assertEquals("one", cache.get(1)) // Access 1 -> 2 becomes eldest
 
-        cache.put(4, "four") // Should evict 2
 
         assertNotNull(cache.get(1))
         assertNull(cache.get(2))

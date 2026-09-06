@@ -21,7 +21,6 @@ object PlaylistApi {
     }
 
     suspend fun playlistDetail(id: Long, limit: Int): Result<PlaylistDetailResponse> {
-        // For large playlists (e.g. liked songs), v6 EAPI behaves closer to official client.
         return playlistV6DetailEapi(id = id, n = limit, s = 5)
     }
 
@@ -55,7 +54,6 @@ object PlaylistApi {
 
     suspend fun playlistV6Detail(id: Long): Result<PlaylistDetailResponse> {
         return runCatching {
-            // ref: module/playlist_detail.js => /api/v6/playlist/detail
             if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV6Detail request id=$id")
             val body = HttpManager.request(
                 url = "/api/v6/playlist/detail",
@@ -72,7 +70,6 @@ object PlaylistApi {
 
     suspend fun playlistV6DetailEapi(id: Long, n: Int = DEFAULT_TRACK_LIMIT, s: Int = 5): Result<PlaylistDetailResponse> {
         return runCatching {
-            // EAPI for /api/v6/playlist/detail (liked songs playlist works reliably here)
             if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV6DetailEapi request id=$id n=$n s=$s")
             val body = HttpManager.request(
                 url = "/api/v6/playlist/detail",
@@ -92,7 +89,6 @@ object PlaylistApi {
 
     suspend fun playlistSub(id: Long, targetState: Boolean): Result<GeneralResponse> {
         return runCatching {
-            // ref: module/playlist_subscribe.js => /api/playlist/subscribe|unsubscribe
             val body = HttpManager.request(
                 url = "/weapi/playlist/subscribe",
                 data = mapOf(
@@ -113,7 +109,6 @@ object PlaylistApi {
         return runCatching {
             require(op == "add" || op == "del") { "unsupported op: $op" }
             require(trackIds.isNotEmpty()) { "trackIds must not be empty" }
-            // ref: module/playlist_tracks.js => /api/playlist/manipulate/tracks
             val tracksParam = "[" + trackIds.joinToString(",") + "]"
             val body = HttpManager.request(
                 url = "/weapi/playlist/manipulate/tracks",
@@ -141,7 +136,6 @@ object PlaylistApi {
     
     suspend fun playlistInfo(id: Long): Result<PlaylistInfoResponse> {
          return runCatching {
-             // Use same detail endpoint and map into PlaylistInfoResponse
              val detail = playlistDetail(id).getOrThrow()
              PlaylistInfoResponse(playlist = detail.playlist)
          }
@@ -168,7 +162,6 @@ object PlaylistApi {
                 crypto = HttpManager.CryptoType.WEAPI
             )
 
-            // response shape: { songs: [...], privileges: [...] }
             val root = json.parseToJsonElement(body).jsonObject
             val songsJson = root["songs"]
             val songs = if (songsJson != null) {

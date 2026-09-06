@@ -109,7 +109,6 @@ fun ExploreScreen(
                 contentPadding = PaddingValues(bottom = bottomContentPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 1. Search Bar Entry Pill
                 item {
                     Box(
                         modifier = Modifier
@@ -138,7 +137,6 @@ fun ExploreScreen(
                     }
                 }
 
-                // 2. Music Charts Section (Top Lists)
                 item {
                     if (topList != null && topList.list.isNotEmpty()) {
                         SectionHeader(
@@ -178,7 +176,6 @@ fun ExploreScreen(
                     }
                 }
 
-                // 3. New Releases - Week
                 item {
 
                     if (!weekData.isNullOrEmpty()) {
@@ -255,7 +252,6 @@ fun ExploreScreen(
                     }
                 }
 
-                // 4. New Releases - Month
                 item {
                     if (!monthData.isNullOrEmpty()) {
                         SectionHeader(

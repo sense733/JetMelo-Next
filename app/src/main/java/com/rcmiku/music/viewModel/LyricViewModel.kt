@@ -49,18 +49,10 @@ class LyricViewModel @Inject constructor() : ViewModel() {
             initialValue = null
         )
 
-    /**
-     * 拉取指定歌曲的歌词。
-     *
-     * @param musicId 歌曲 ID
-     */
     fun fetchLyric(musicId: Long) {
         currentMusicId.tryEmit(musicId)
     }
 
-    /**
-     * 清理当前歌词状态与错误信息，供切至非数字 ID（如本地歌曲或空媒体项）时清理残留旧词。
-     */
     fun clearLyric() {
         _lyricError.value = null
         currentMusicId.tryEmit(null)

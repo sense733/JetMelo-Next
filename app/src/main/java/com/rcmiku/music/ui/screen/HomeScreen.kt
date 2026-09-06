@@ -116,7 +116,6 @@ fun HomeScreen(
     var selectSong by remember { mutableStateOf<Song?>(null) }
     val context = LocalContext.current
     val state = rememberPullToRefreshState()
-    // 4.5：刷新指示器由 ViewModel 的真实加载完成态驱动
     val isRefreshing by homeScreenViewModel.isRefreshing.collectAsStateWithLifecycle()
     val songIds by remember(context) {
         context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
@@ -185,7 +184,6 @@ fun HomeScreen(
                     contentPadding = PaddingValues(top = 8.dp, bottom = bottomContentPadding),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // 1. Recommended Playlists Horizontal Carousel (Top Slot)
                     item {
                         val playlistTarget = recommendData?.recommend ?: personalizedData?.result
 
@@ -293,7 +291,6 @@ fun HomeScreen(
                         }
                     }
 
-                    // 3. Daily Songs 4-Row Grid Section (Fixed Slot with Crossfade)
                     item {
                         SectionHeader(
                             title = stringResource(R.string.recommend_songs)
@@ -370,8 +367,6 @@ fun HomeScreen(
         }
     }
 
-    // 旋转/进程恢复兜底：openBottomSheet 为 saveable 而 selectSong 仅 remember，
-    // 恢复后 song 缺失时自动收起，避免空面板（与 SearchScreen 4.9 同款）
     LaunchedEffect(openBottomSheet, selectSong) {
         if (openBottomSheet && selectSong == null) openBottomSheet = false
     }

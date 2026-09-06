@@ -8,13 +8,6 @@ object MvApi {
 
     private val VALID_RESOLUTIONS = setOf(240, 360, 480, 720, 1080)
 
-    /**
-     * 获取 MV 播放链接。
-     *
-     * @param id MV ID，必须大于 0
-     * @param r 分辨率清晰度，支持 240, 360, 480, 720, 1080，默认 1080
-     * @return [Result] 包含 MV 播放链接响应
-     */
     suspend fun mvUrl(id: Long, r: Int = 1080): Result<MvUrlResponse> {
         return runCatching {
             require(id > 0) { "MV ID must be greater than 0" }

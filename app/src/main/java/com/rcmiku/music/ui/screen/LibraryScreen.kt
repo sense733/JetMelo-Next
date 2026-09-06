@@ -143,7 +143,6 @@ fun LibraryScreen(
             contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp + bottomContentPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. User Profile Section
             item {
                 val profile = userInfoBatchState?.account?.profile
                 val level = userInfoBatchState?.level?.data?.level
@@ -182,10 +181,8 @@ fun LibraryScreen(
                 }
             }
 
-            // 2. 2x2 Quick Action Grid (Semantic icon coloring)
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Row 1: Favorite Songs & Cloud Music
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -235,7 +232,6 @@ fun LibraryScreen(
                         )
                     }
 
-                    // Row 2: Listen Ranking & Favorite Albums
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -273,14 +269,12 @@ fun LibraryScreen(
                 }
             }
 
-            // 3. User Playlists Section
             item {
                 SectionHeader(title = stringResource(R.string.my_playlists))
 
                 val currentUserId = userInfoBatchState?.account?.profile?.userId
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Created Playlists
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -326,7 +320,6 @@ fun LibraryScreen(
                         }
                     }
 
-                    // Collected Playlists
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()

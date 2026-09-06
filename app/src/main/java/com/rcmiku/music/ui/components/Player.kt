@@ -220,7 +220,6 @@ fun Player(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top App Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -268,7 +267,6 @@ fun Player(
                 }
             }
 
-            // Cover Artwork Area
             BoxWithConstraints(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -285,13 +283,9 @@ fun Player(
                 }
                 val effectiveArtworkUri = playerState?.currentMediaItem?.mediaMetadata?.artworkUri ?: mediaMetadata.artworkUri
                 Box(
-                    modifier = imageModifier
+                    modifier = Modifier
                         .size(artSize)
                         .aspectRatio(1f)
-                        .shadow(elevation = 16.dp, shape = AdaptiveArtworkShape)
-                        .clip(AdaptiveArtworkShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable(enabled = controlsAlpha > 0.1f, onClick = onClick)
                         .onGloballyPositioned { coords ->
                             if (coords.isAttached) {
                                 onArtworkPositioned?.invoke(coords.boundsInRoot())
@@ -303,7 +297,11 @@ fun Player(
                             targetState = effectiveArtworkUri,
                             animationSpec = tween(durationMillis = 350),
                             label = "player_artwork_crossfade",
-                            modifier = Modifier.fillMaxSize()
+                            modifier = imageModifier
+                                .fillMaxSize()
+                                .shadow(elevation = 16.dp, shape = AdaptiveArtworkShape)
+                                .clip(AdaptiveArtworkShape)
+                                .clickable(enabled = controlsAlpha > 0.1f, onClick = onClick)
                         ) { uri ->
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
@@ -322,7 +320,6 @@ fun Player(
                 }
             }
 
-            // Metadata, Progress & Controls Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -333,7 +330,6 @@ fun Player(
                     },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Title, Artist, and Favorite button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -396,7 +392,6 @@ fun Player(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Playback Controls Row
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -430,7 +425,6 @@ fun Player(
                         )
                     }
 
-                    // 72dp Circular Play/Pause Button
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
@@ -482,7 +476,6 @@ fun Player(
                     }
                 }
 
-                // Bottom Actions Row (Lyric, Queue)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,

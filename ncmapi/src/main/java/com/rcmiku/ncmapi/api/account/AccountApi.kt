@@ -25,7 +25,6 @@ object AccountApi {
 
     suspend fun getSubcount(): Result<GeneralResponse> {
         return runCatching {
-            // ref: module/user_subcount.js => /api/subcount
             val body = HttpManager.request(
                 url = "/api/subcount",
                 data = emptyMap(),
@@ -147,9 +146,6 @@ object AccountApi {
 
     suspend fun accountInfo(): Result<UserInfoBatch> {
         return runCatching {
-            // Use batch to fetch user detail + level.
-            // ref: module/batch.js + user_detail.js + user_level.js
-            // We don't know uid here; server uses cookie session to resolve /api/user/account.
             val body = HttpManager.request(
                 url = "/weapi/batch",
                 data = mapOf(
@@ -165,7 +161,6 @@ object AccountApi {
                 error("batch request failed with top-level code $topCode")
             }
 
-            // Observed response: {"/api/nuser/account/get":{...},"/api/user/level":{...},"code":200}
             val accountResp = root["/api/nuser/account/get"]?.jsonObject
                 ?: error("batch missing /api/nuser/account/get")
             val accountCode = accountResp["code"]?.jsonPrimitive?.intOrNull ?: 200
@@ -198,7 +193,6 @@ object AccountApi {
     suspend fun userDetail(uid: Long): Result<UserDetailResponse> {
         return runCatching {
             require(uid > 0) { "Invalid user id: ${maskId(uid)}" }
-            // ref: my-netease-cloud-music-api module/user_detail.js => /api/v1/user/detail/{uid}
             val body = HttpManager.request(
                 url = "/api/v1/user/detail/$uid",
                 data = emptyMap(),
@@ -213,7 +207,6 @@ object AccountApi {
     suspend fun songRecord(uid: Long, type: SongRecordType = SongRecordType.WEEK): Result<RecordResponse> {
         return runCatching {
             require(uid > 0) { "Invalid user id: ${maskId(uid)}" }
-            // ref: module/user_record.js => /api/v1/play/record
             val body = HttpManager.request(
                 url = "/weapi/v1/play/record",
                 data = mapOf(
@@ -228,8 +221,6 @@ object AccountApi {
 
     suspend fun songLike(like: Boolean, songId: Long): Result<GeneralResponse> {
         return runCatching {
-            // EAPI required for /api/song/like. WEAPI often returns 400 (invalid params).
-            // Captured payload shows additional fields (userActionMap/t/etc.) even when userid=0.
             val body = HttpManager.request(
                 url = "/api/song/like",
                 data = mapOf(

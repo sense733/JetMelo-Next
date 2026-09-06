@@ -10,7 +10,6 @@ import com.rcmiku.ncmapi.utils.json
 object ArtistApi {
     suspend fun artistHeadInfo(id: Long): Result<ArtistHeadInfoResponse> {
         return runCatching {
-            // ref: api-enhanced-main module/artist_detail.js => /api/artist/head/info/get
             val body = HttpManager.request(
                 url = "/api/artist/head/info/get",
                 data = mapOf(
@@ -27,7 +26,6 @@ object ArtistApi {
 
     suspend fun artistDesc(id: Long): Result<ArtistDescResponse> {
         return runCatching {
-            // ref: api-enhanced-main module/artist_desc.js => /api/artist/introduction
             val body = HttpManager.request(
                 url = "/api/artist/introduction",
                 data = mapOf("id" to id.toString()),
@@ -39,7 +37,6 @@ object ArtistApi {
     
     suspend fun artistTopSong(id: Long): Result<ArtistTopSong> {
         return runCatching {
-            // ref: api-enhanced-main module/artist_top_song.js => /api/artist/top/song
             val body = HttpManager.request(
                 url = "/api/artist/top/song",
                 data = mapOf("id" to id.toString()),
@@ -51,7 +48,6 @@ object ArtistApi {
     
     suspend fun artistAlbum(id: Long, limit: Int = 30, offset: Int = 0): Result<ArtistAlbumResponse> {
         return runCatching {
-            // ref: api-enhanced-main module/artist_album.js => /api/artist/albums/{id}
             val body = HttpManager.request(
                 url = "/api/artist/albums/$id",
                 data = mapOf(

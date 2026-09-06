@@ -327,7 +327,6 @@ fun PlaylistScreen(
                             ),
                             state = listState
                         ) {
-                            // 1. Solaris Immersive Hero Header (随滚顶出 + 渐隐)
                             item(key = "hero_header") {
                                 Box(
                                     modifier = Modifier
@@ -343,7 +342,6 @@ fun PlaylistScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        // Cover Artwork
                                         Box(
                                             modifier = Modifier
                                                 .size(220.dp)
@@ -382,7 +380,6 @@ fun PlaylistScreen(
 
                                         Spacer(Modifier.height(16.dp))
 
-                                        // Title Container with Permanent Layout Spacer to prevent jumping
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -405,7 +402,6 @@ fun PlaylistScreen(
 
                                         Spacer(Modifier.height(6.dp))
 
-                                        // Meta (Play count & Update time)
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -456,7 +452,6 @@ fun PlaylistScreen(
                                 }
                             }
 
-                            // 2. 粘性「播放全部」操作条 (Sticky Play All Bar)
                             stickyHeader(key = "sticky_play_all") {
                                 StickyPlayAllBar(
                                     trackCount = tracks.size,
@@ -494,7 +489,6 @@ fun PlaylistScreen(
                                 )
                             }
 
-                        // 3. Track Items (Clean fluid list with dedicated index & active indicator)
                         itemsIndexed(
                             tracks,
                             key = { index, song -> "${song.id}_$index" }
@@ -522,7 +516,6 @@ fun PlaylistScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    // Dedicated Track Number
                                     Box(
                                         modifier = Modifier.width(32.dp),
                                         contentAlignment = Alignment.Center
@@ -541,7 +534,6 @@ fun PlaylistScreen(
 
                                     Spacer(modifier = Modifier.width(6.dp))
 
-                                    // Artwork Thumbnail with Playing Indicator
                                     Box(
                                         contentAlignment = Alignment.Center,
                                         modifier = Modifier
@@ -576,7 +568,6 @@ fun PlaylistScreen(
 
                                     Spacer(modifier = Modifier.width(12.dp))
 
-                                    // Title & Artist
                                     Column(
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -617,7 +608,6 @@ fun PlaylistScreen(
                                         }
                                     }
 
-                                    // More Options Action (⋮)
                                     IconButton(
                                         onClick = {
                                             selectedSongId = song.id
@@ -642,7 +632,6 @@ fun PlaylistScreen(
         }
     }
 
-        // 旋转/进程恢复兜底：openBottomSheet 为 saveable 而 selectSong 仅 remember（4.9 同款）
     LaunchedEffect(openBottomSheet, selectSong) {
         if (openBottomSheet && selectSong == null) openBottomSheet = false
     }

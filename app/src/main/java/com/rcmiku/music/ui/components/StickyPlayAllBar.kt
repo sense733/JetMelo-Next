@@ -37,11 +37,6 @@ import com.rcmiku.music.ui.design.TopFogOverlay
 import com.rcmiku.music.ui.icons.PlayArrowFill
 import com.rcmiku.music.ui.theme.JetMeloShapes
 
-/**
- * 歌单与专辑页面的粘性「播放全部」操作条 (Sticky Play All Bar)
- * 具备对下方内容 100% 实底遮挡能力，未吸顶呈现 16dp 顶部圆角，吸顶平滑切为平角。
- * 下边缘附带 [TopFogOverlay] 反向白雾渐变遮罩，随着控件移动渐显出现并在吸顶时完全展现。
- */
 @Composable
 fun StickyPlayAllBar(
     trackCount: Int,

@@ -11,7 +11,6 @@ import com.rcmiku.ncmapi.model.GeneralResponse
 object AlbumApi {
     suspend fun albumDetail(id: Long): Result<AlbumDetailResponse> {
         return runCatching {
-            // ref: api-enhanced-main module/album.js => /api/v1/album/{id}
             val body = HttpManager.request(
                 url = "/api/v1/album/$id",
                 data = emptyMap(),
@@ -25,7 +24,6 @@ object AlbumApi {
         return runCatching {
             val detail = albumDetail(id).getOrThrow()
 
-            // ref: api-enhanced-main module/album_detail_dynamic.js => /api/album/detail/dynamic
             val dynamic = runCatching {
                 val dynamicBody = HttpManager.request(
                     url = "/api/album/detail/dynamic",

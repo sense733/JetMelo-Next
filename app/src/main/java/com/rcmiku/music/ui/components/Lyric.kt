@@ -106,7 +106,6 @@ fun Lyric(
     var position by rememberSaveable(playerState) {
         mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
     }
-    // 供 snapshotFlow 观测的最新 position（组合层级声明，rememberUpdatedState 必须在组合中调用）
     val currentPositionState = rememberUpdatedState(position)
 
     LaunchedEffect(playbackState, isPlaying) {
@@ -146,7 +145,6 @@ fun Lyric(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Header Bar with artwork and song info
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -209,7 +207,6 @@ fun Lyric(
                 }
             }
 
-            // Lyric Scrolling Content
             lrcLines?.let { lines ->
                 var programmaticScroll by remember { mutableStateOf(false) }
 
@@ -223,7 +220,6 @@ fun Lyric(
                 }
 
                 LaunchedEffect(lines) {
-                    // 以 currentIndex 驱动滚动动画，conflate 避免打断动画
                     snapshotFlow { currentPositionState.value }
                         .collect { pos ->
                             val search = lines.binarySearchBy(pos) { it.time }

@@ -307,7 +307,6 @@ fun AlbumScreen(
                             ),
                             state = listState
                         ) {
-                            // 1. Solaris Immersive Hero Header (随滚顶出 + 渐隐)
                             item(key = "hero_header") {
                                 Box(
                                     modifier = Modifier
@@ -323,7 +322,6 @@ fun AlbumScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        // Cover Artwork
                                         Box(
                                             modifier = Modifier
                                                 .size(220.dp)
@@ -362,7 +360,6 @@ fun AlbumScreen(
 
                                         Spacer(Modifier.height(16.dp))
 
-                                        // Title Container with Permanent Layout Spacer to prevent jumping
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -391,7 +388,6 @@ fun AlbumScreen(
                                                 alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                             }
                                         ) {
-                                            // Artist Subtitle
                                             Text(
                                                 text = detail.album.artist.name,
                                                 style = MaterialTheme.typography.titleMedium,
@@ -409,7 +405,6 @@ fun AlbumScreen(
 
                                             Spacer(Modifier.height(4.dp))
 
-                                            // Release Date
                                             Text(
                                                 text = formatTimestamp(detail.album.publishTime),
                                                 style = MaterialTheme.typography.labelMedium,
@@ -421,7 +416,6 @@ fun AlbumScreen(
                                 }
                             }
 
-                            // 2. 粘性「播放全部」操作条 (Sticky Play All Bar)
                             stickyHeader(key = "sticky_play_all") {
                                 StickyPlayAllBar(
                                     trackCount = detail.songs.size,
@@ -459,7 +453,6 @@ fun AlbumScreen(
                                 )
                             }
 
-                            // 3. Track Items (Read-only list with composite key)
                             itemsIndexed(
                                 detail.songs,
                                 key = { index, song -> "${song.id}_$index" }
@@ -496,7 +489,6 @@ fun AlbumScreen(
         }
     }
 
-    // 旋转/进程恢复兜底：openBottomSheet 为 saveable 而 selectSong 仅 remember（4.9 同款）
     LaunchedEffect(openBottomSheet, selectSong) {
         if (openBottomSheet && selectSong == null) openBottomSheet = false
     }

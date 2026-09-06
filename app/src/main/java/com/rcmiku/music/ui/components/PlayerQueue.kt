@@ -152,7 +152,6 @@ fun PlayerQueue(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // Header Bar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier

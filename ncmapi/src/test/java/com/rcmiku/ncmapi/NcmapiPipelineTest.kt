@@ -80,10 +80,8 @@ class NcmapiPipelineTest {
         val params = weapiResult["params"]!!
         val encSecKey = weapiResult["encSecKey"]!!
         assertTrue(params.isNotEmpty())
-        // encSecKey 为 RSA-1024 NoPadding 输出：128 字节 → 定长 256 位十六进制
         assertTrue("encSecKey must be 256 hex chars", encSecKey.matches(Regex("^[0-9a-fA-F]{256}$")))
 
-        // eapi 为确定性 ECB：密文可解密回原始 message 结构（黄金向量式回环验证）
         val eapiResult = CryptoUtils.eapi("/api/v6/playlist/detail", payload)
         val eapiParams = eapiResult["params"]!!
         assertTrue(eapiParams.isNotEmpty())
@@ -95,19 +93,15 @@ class NcmapiPipelineTest {
 
     @Test
     fun testCheckApiResponseCode() {
-        // 正常状态码 200..299
         HttpManager.checkApiResponseCode("""{"code":200,"data":{}}""")
         HttpManager.checkApiResponseCode("""{"code":204}""")
 
-        // 无 code 端点（如 DailySongsResponse）绝不误伤抛出
         HttpManager.checkApiResponseCode("""{"dailySongs":[{"id":123}]}""")
         HttpManager.checkApiResponseCode("""{"result":[{"id":456}]}""")
 
-        // 根元素为数组或非 JSON
         HttpManager.checkApiResponseCode("""[{"id":1},{"id":2}]""")
         HttpManager.checkApiResponseCode("""<html>502 Bad Gateway</html>""")
 
-        // 错误状态码应准确抛出 NcmApiException
         try {
             HttpManager.checkApiResponseCode("""{"code":400,"message":"参数错误"}""")
             fail("Should throw NcmApiException on code 400")
@@ -211,7 +205,6 @@ class NcmapiPipelineTest {
         assertTrue(response.data.hasMore)
         assertEquals(2, response.data.blocks.size)
 
-        // Banner 提取验证
         val bannerBlock = response.data.blocks[0]
         val banners = bannerBlock.extractBanners()
         assertEquals(1, banners.size)
@@ -219,7 +212,6 @@ class NcmapiPipelineTest {
         assertEquals(123456L, banners[0].targetId)
         assertEquals("新歌首发", banners[0].typeTitle)
 
-        // 歌单提取验证
         val playlistBlock = response.data.blocks[1]
         val playlists = playlistBlock.extractPlaylists()
         assertEquals(1, playlists.size)

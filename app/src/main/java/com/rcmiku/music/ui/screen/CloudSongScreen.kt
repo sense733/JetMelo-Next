@@ -145,7 +145,6 @@ fun CloudSongScreen(
                                 modifier = Modifier.clickable {
                                     if (uid != null) {
                                         val snapshot = cloudSong.itemSnapshotList.items
-                                        // 截断上限避免超大快照拷贝阻塞主线程
                                         val queue = if (snapshot.size > 500) snapshot.take(500) else snapshot
                                         mediaController?.setCloudSongPlaylist(
                                             uid = uid,
@@ -153,7 +152,6 @@ fun CloudSongScreen(
                                         )
                                         mediaController?.playMediaAtId(item.simpleSong.id)
                                     }
-                                    // uid 为 null 时无法构造合法云盘队列，跳过避免误播旧队列
                                 }
                             )
                         }

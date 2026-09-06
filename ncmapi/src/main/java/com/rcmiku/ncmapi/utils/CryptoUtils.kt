@@ -12,7 +12,6 @@ import javax.crypto.spec.SecretKeySpec
 
 object CryptoUtils {
 
-    // 网易云音乐私有 API 协议规范强制要求：固定对称密钥、初始向量与签名公钥，属于既有协议契约，不得升级改造
     private const val PRESET_KEY = "0CoJUm6Qyw8W8jud"
     private const val IV = "0102030405060708"
     private const val LINUXAPI_KEY = "rFgB&h#%2?^eDg:Q"
@@ -51,7 +50,6 @@ object CryptoUtils {
 
     fun eapiDecryptParams(paramsHex: String): String {
         val plain = aesDecryptHexEcb(paramsHex, EAPI_KEY)
-        // plain format: {url}-36cd479b6b5-{json}-36cd479b6b5-{md5}
         val delimiter = "-36cd479b6b5-"
         val firstIdx = plain.indexOf(delimiter)
         val lastIdx = plain.lastIndexOf(delimiter)
@@ -59,7 +57,6 @@ object CryptoUtils {
         return plain.substring(firstIdx + delimiter.length, lastIdx)
     }
 
-    // 网易私有协议强制要求固定 IV，不得升级改造
     private fun aesEncrypt(text: String, key: String, iv: String): String {
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
         val secretKeySpec = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "AES")
@@ -71,7 +68,6 @@ object CryptoUtils {
         return Base64.getEncoder().encodeToString(encryptedBytes)
     }
 
-    // AES/ECB 模式为网易云 LINUXAPI / EAPI 私有协议强制规范要求，不得升级改造
     private fun aesEncryptHexEcb(text: String, key: String): String {
         val cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
         val secretKeySpec = SecretKeySpec(key.toByteArray(Charsets.UTF_8), "AES")
@@ -82,7 +78,6 @@ object CryptoUtils {
         }
     }
 
-    // AES/ECB 模式为网易私有协议强制要求，不得升级改造
     private fun aesDecryptHexEcb(hex: String, key: String): String {
         if (hex.isEmpty() || hex.length % 2 != 0 || !hex.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) {
             throw IllegalArgumentException("Invalid EAPI params hex: length=${hex.length}")
@@ -104,7 +99,6 @@ object CryptoUtils {
         }
     }
 
-    // 网易私有协议强制要求：RSA-1024 模幂 (modPow) 计算，不得升级改造
     private fun rsaEncrypt(text: String, publicKey: String): String {
         val keyBytes = Base64.getDecoder().decode(publicKey)
         val keySpec = X509EncodedKeySpec(keyBytes)
@@ -133,7 +127,6 @@ object CryptoUtils {
         return sb.toString()
     }
 
-    // 网易私有协议强制要求：EAPI 签名校验使用 MD5，不得升级改造
     private fun md5Hex(text: String): String {
         val md = MessageDigest.getInstance("MD5")
         val bytes = md.digest(text.toByteArray(Charsets.UTF_8))

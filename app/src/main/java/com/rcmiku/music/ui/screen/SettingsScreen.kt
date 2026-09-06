@@ -248,7 +248,6 @@ fun SettingsScreen(
                 bottom = bottomContentPadding
             )
         ) {
-            // 1. Appearance & Theme Section
             item {
                 Text(
                     stringResource(R.string.appearance_settings),
@@ -281,7 +280,6 @@ fun SettingsScreen(
                 )
             }
 
-            // 2. Basic Settings Section
             item {
                 Text(
                     stringResource(R.string.basic_settings),
@@ -314,7 +312,6 @@ fun SettingsScreen(
                 )
             }
 
-            // 3. About Section
             item {
                 Text(
                     stringResource(R.string.about),

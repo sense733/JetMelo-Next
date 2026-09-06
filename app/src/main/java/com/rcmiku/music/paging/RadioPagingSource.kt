@@ -15,7 +15,6 @@ class RadioPagingSource(private val radioId: Long) : PagingSource<Int, Radio>() 
     override fun getRefreshKey(state: PagingState<Int, Radio>): Int? {
         return state.anchorPosition?.let { anchorPosition ->
             val anchorPage = state.closestPageToPosition(anchorPosition)
-            // 假设严格单调线性 offset：prevKey 递进实际条数，nextKey 倒推并用 coerceAtLeast(0) 兜底越界
             (anchorPage?.prevKey?.plus(anchorPage.data.size)
                 ?: anchorPage?.nextKey?.minus(anchorPage.data.size))?.coerceAtLeast(0)
         }
@@ -29,7 +28,6 @@ class RadioPagingSource(private val radioId: Long) : PagingSource<Int, Radio>() 
             if (response.isSuccess) {
                 val radio = response.getOrThrow()
                 val data = radio.data.programs
-                // 严格单调 offset 假设：prevKey 递退 limit，nextKey 依据实际返回 data.size 递增
                 val nextKey = if (radio.data.more && data.isNotEmpty()) offset + data.size else null
                 val prevKey = if (offset == 0) null else offset - limit
                 LoadResult.Page(

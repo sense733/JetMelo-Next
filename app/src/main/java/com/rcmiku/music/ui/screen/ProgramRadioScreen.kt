@@ -120,7 +120,6 @@ fun ProgramRadioScreen(
                                 modifier = Modifier.size(48.dp),
                                 onClick = {
                                     val snapshot = radioList.itemSnapshotList.items
-                                    // 截断上限避免超大列表快照拷贝阻塞主线程
                                     val queue = if (snapshot.size > 500) snapshot.take(500) else snapshot
                                     mediaController?.setRadioPlaylist(queue)
                                     mediaController?.playMediaAt()
@@ -180,7 +179,6 @@ fun ProgramRadioScreen(
                             isActive = currentMediaId == item.mainSong.id,
                             modifier = Modifier.clickable {
                                 val snapshot = radioList.itemSnapshotList.items
-                                // 截断上限避免超大列表快照拷贝阻塞主线程
                                 val queue = if (snapshot.size > 500) snapshot.take(500) else snapshot
                                 mediaController?.setRadioPlaylist(queue)
                                 mediaController?.playMediaAtId(item.mainSong.id)

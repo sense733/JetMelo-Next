@@ -45,15 +45,12 @@ object HttpManager {
     private const val TAG_PLAIN = "NcmApiPlain"
 
     private const val LOG_CHUNK_SIZE = 800
-    // 32MB：兼容 n=100000 全量歌单详情等超大响应（万曲级解压后可达 20MB+），
-    // 同时保留对解压炸弹的防护上限
     private const val MAX_DECOMPRESSED_SIZE = 32 * 1024 * 1024L
     private val warnedDebugDisabled = java.util.concurrent.atomic.AtomicBoolean(false)
     private val secureRandom = SecureRandom()
 
     var hostPackageName: String = "com.rcmiku.music"
 
-    // API 层调试日志的统一门控（与 request() 的 debugEnabled 同源）
     internal val debugLogEnabled: Boolean
         get() = defaultDebugEnabled
 
@@ -127,7 +124,6 @@ object HttpManager {
         val envFullDump = defaultEnvFullDump
         val isFullDump = fullDump || envFullDump
         val eapiMinimalCookie = defaultEapiMinimalCookie
-        // 响应体日志上限恒定 50000，私数据永不全量落盘（请求体密文 full 模式保留全量+掩码）
         val logMaxLen = 50000
 
         val headers = mutableMapOf<String, String>()
@@ -143,12 +139,10 @@ object HttpManager {
             headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
         }
         
-        // Merge cookies
         val currentCookies = CookieProvider.get().toMutableMap()
         currentCookies.putAll(cookies)
 
         if (crypto == CryptoType.EAPI) {
-            // Try to match official client cookie flags observed in captures.
             currentCookies.putIfAbsent("EVNSM", "1.0.0")
             currentCookies.putIfAbsent("versioncode", "3007001")
             currentCookies.putIfAbsent("buildver", "250103035128")
@@ -162,7 +156,6 @@ object HttpManager {
             currentCookies.putIfAbsent("packageType", "release")
         }
         
-        // Build cookie string
         val cookieHeader = StringBuilder()
         if (crypto != CryptoType.EAPI) {
             currentCookies.getOrPut("os") { "pc" }
@@ -196,7 +189,6 @@ object HttpManager {
             "$nuid,${System.currentTimeMillis()}"
         }
         if (crypto == CryptoType.EAPI) {
-            // Match official client format observed in captures: vsfmic.1740907910255.01.4
             currentCookies.getOrPut("WNMCID") { "${randomLower(6)}.${System.currentTimeMillis()}.01.4" }
             currentCookies.getOrPut("NMCID") { currentCookies["WNMCID"] ?: "${randomLower(6)}.${System.currentTimeMillis()}.01.4" }
         } else {
@@ -250,9 +242,6 @@ object HttpManager {
         }
         headers["Cookie"] = cookieHeader.toString()
 
-        // Match api-enhanced-main request.js behavior:
-        // - WEAPI: /api/xxx is transported as /weapi/xxx
-        // - EAPI:  /api/xxx is transported as /eapi/xxx (signature still uses original /api/xxx)
         val transportPath = when {
             crypto == CryptoType.WEAPI && url.startsWith("/api/") -> "/weapi/" + url.removePrefix("/api/")
             crypto == CryptoType.EAPI && url.startsWith("/api/") -> "/eapi/" + url.removePrefix("/api/")
@@ -338,8 +327,6 @@ object HttpManager {
                     CryptoUtils.linuxapi(toJsonString(data))
                 }
                 CryptoType.EAPI -> {
-                    // Important: use the original request path for EAPI signature.
-                    // Using encodedPath from finalUrl may differ if host/base changes.
                     CryptoUtils.eapi(url, toJsonString(data))
                 }
             }
@@ -442,9 +429,6 @@ object HttpManager {
         }
     }
 
-    /**
-     * 清除会话 Cookie 数据，支持多账号隔离与状态重置。
-     */
     fun clearSession() {
         CookieProvider.clear()
     }

@@ -13,7 +13,6 @@ val GridThumbnailHeight = 128.dp
 val MediaItemHeight = 72.dp
 val AlbumThumbnailSize = 144.dp
 val MiniPlayerHeight = 64.dp
-// 歌单详情头图封面默认规格
 val PlaylistThumbnailSize = 200.dp
 val SettingItemHeight = 64.dp
 val SettingItemCorner = 16.dp

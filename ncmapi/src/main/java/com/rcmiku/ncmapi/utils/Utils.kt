@@ -12,8 +12,6 @@ val json = Json {
     prettyPrint = false
 }
 
-// 标准 base64（带填充、不换行），与原 android.util.Base64.NO_WRAP 输出逐字节等价；
-// 迁移到纯 JVM 实现以解除对 Android 运行时的依赖（单元测试可用）
 fun base64Encode(data: ByteArray): String {
     return java.util.Base64.getEncoder().encodeToString(data)
 }

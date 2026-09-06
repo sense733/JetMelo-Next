@@ -16,10 +16,6 @@ import androidx.navigation.NavHostController
 import com.rcmiku.music.R
 import com.rcmiku.music.ui.navigation.Screen
 
-/**
- * 架构决策说明：顶栏采用轻量表达式封装并支持外部 Modifier 适配；
- * 路由判断统一引用 Screen 常量。
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(

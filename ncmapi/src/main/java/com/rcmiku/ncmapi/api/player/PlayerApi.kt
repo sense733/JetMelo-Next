@@ -69,19 +69,6 @@ data class SongUrlResponse(
 )
 
 object PlayerApi {
-    /**
-     * 获取歌曲播放链接 (v1)。
-     *
-     * 传参逻辑：
-     * - [songLevel] 优先级高于 [level]，最终音质参数降级回退至 [level]。
-     * - [encodeType] 固定为 "flac"。
-     * - 仅当音质为 "sky"（沉浸声）时追加 "immerseType" = "c51"。
-     *
-     * @param id 歌曲 ID
-     * @param level 字符串音质级别，默认为 "standard"
-     * @param songLevel 枚举音质级别，若提供则覆盖 level
-     * @return [Result] 包含播放链接响应，若业务状态码异常或链接为空则封装为失败
-     */
     suspend fun songPlayUrlV1(id: String, level: String = "standard", songLevel: SongLevel? = null): Result<SongUrlResponse> {
         return runCatching {
             require(id.isNotBlank()) { "Song ID must not be blank" }
@@ -122,12 +109,6 @@ object PlayerApi {
         }
     }
 
-    /**
-     * 获取歌曲歌词。
-     *
-     * @param musicId 歌曲 ID
-     * @return [Result] 包含歌词响应
-     */
     suspend fun songLyric(musicId: Long): Result<LyricResponse> {
         return runCatching {
             val body = HttpManager.request(
