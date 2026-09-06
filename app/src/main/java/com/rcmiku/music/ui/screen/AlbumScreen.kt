@@ -319,6 +319,7 @@ fun AlbumScreen(
                                         }
                                     },
                                     isSticky = isSticky,
+                                    collapseFraction = collapseFraction,
                                     accentColor = pageArtworkColors.accentColor,
                                     onAccentColor = pageArtworkColors.onAccentColor,
                                     isLoading = isLoading,

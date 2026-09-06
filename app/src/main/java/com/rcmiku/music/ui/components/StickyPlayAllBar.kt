@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,16 +28,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.rcmiku.music.R
+import com.rcmiku.music.ui.design.TopFogOverlay
 import com.rcmiku.music.ui.icons.PlayArrowFill
 import com.rcmiku.music.ui.theme.JetMeloShapes
 
 /**
  * 歌单与专辑页面的粘性「播放全部」操作条 (Sticky Play All Bar)
- * 具备对下方内容 100% 实底遮挡能力，未吸顶呈现 16dp 顶部圆角，吸顶平滑切为平角
+ * 具备对下方内容 100% 实底遮挡能力，未吸顶呈现 16dp 顶部圆角，吸顶平滑切为平角。
+ * 下边缘附带 [TopFogOverlay] 反向白雾渐变遮罩，随着控件移动渐显出现并在吸顶时完全展现。
  */
 @Composable
 fun StickyPlayAllBar(
@@ -44,6 +48,7 @@ fun StickyPlayAllBar(
     onPlayAllClick: () -> Unit,
     isSticky: Boolean,
     modifier: Modifier = Modifier,
+    collapseFraction: Float = if (isSticky) 1f else 0f,
     accentColor: Color = MaterialTheme.colorScheme.primary,
     onAccentColor: Color = MaterialTheme.colorScheme.onPrimary,
     isLoading: Boolean = false,
@@ -55,24 +60,41 @@ fun StickyPlayAllBar(
         label = "stickyCornerRadius"
     )
 
+    val fogAlpha = if (isSticky) 1f else collapseFraction.coerceIn(0f, 1f)
     val baseColor = MaterialTheme.colorScheme.background
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
-            .background(baseColor)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {}
     ) {
-        Row(
+        if (fogAlpha > 0f) {
+            TopFogOverlay(
+                height = 37.dp,
+                baseColor = baseColor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = 63.dp)
+                    .graphicsLayer { alpha = fogAlpha }
+            )
+        }
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .align(Alignment.CenterStart),
+                .height(64.dp)
+                .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
+                .background(baseColor)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {}
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .align(Alignment.CenterStart),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -122,5 +144,6 @@ fun StickyPlayAllBar(
                 trailingContent()
             }
         }
+    }
     }
 }
