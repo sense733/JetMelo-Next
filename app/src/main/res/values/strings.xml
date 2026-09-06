@@ -12,6 +12,8 @@
     <string name="newest_album">最新专辑</string>
     <string name="more">更多</string>
     <string name="dev">开发者</string>
+    <string name="original_author">原作者</string>
+    <string name="maintainer">维护者</string>
     <string name="source_code">源代码</string>
     <string name="basic_settings">基础</string>
     <string name="about">关于</string>

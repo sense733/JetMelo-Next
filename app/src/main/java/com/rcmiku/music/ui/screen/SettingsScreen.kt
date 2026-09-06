@@ -205,15 +205,21 @@ fun SettingsScreen(
 
     val settingsItems = listOf(
         SettingItemData(
-            title = stringResource(R.string.dev),
+            title = stringResource(R.string.original_author),
             subtitle = "rcmiku",
             imageVector = UserRound,
             onClick = { uriHandler.openUri("https://github.com/rcmiku") }
         ),
         SettingItemData(
+            title = stringResource(R.string.maintainer),
+            subtitle = "sense733",
+            imageVector = UserRound,
+            onClick = { uriHandler.openUri("https://github.com/sense733") }
+        ),
+        SettingItemData(
             title = stringResource(R.string.source_code),
             imageVector = com.rcmiku.music.ui.icons.Code,
-            onClick = { uriHandler.openUri("https://github.com/rcmiku/JetMelo") }
+            onClick = { uriHandler.openUri("https://github.com/sense733/JetMelo-Next") }
         )
     )
 
