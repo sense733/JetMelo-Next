@@ -2,6 +2,7 @@ package com.rcmiku.music.viewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rcmiku.ncmapi.api.explore.ExploreApi
 import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.api.recommend.RecommendApi
 import com.rcmiku.ncmapi.model.NewAlbumResponse
@@ -26,6 +27,11 @@ class ExploreScreenViewModel @Inject constructor() : ViewModel() {
     val newAlbum: StateFlow<Result<NewAlbumResponse>?> =
         _newAlbum.asStateFlow()
 
+    private val _allNewAlbum =
+        MutableStateFlow<Result<NewAlbumResponse>?>(null)
+    val allNewAlbum: StateFlow<Result<NewAlbumResponse>?> =
+        _allNewAlbum.asStateFlow()
+
     fun fetchTopList() {
         viewModelScope.launch {
             _topList.value = PlaylistApi.topList()
@@ -38,9 +44,16 @@ class ExploreScreenViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    fun fetchAllNewAlbum() {
+        viewModelScope.launch {
+            _allNewAlbum.value = ExploreApi.newAlbum(limit = 30)
+        }
+    }
+
     fun refresh() {
         fetchTopList()
         fetchNewAlbum()
+        fetchAllNewAlbum()
     }
 
     init {

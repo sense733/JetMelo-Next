@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +68,7 @@ fun ExploreScreen(
 ) {
     val topListState by exploreScreenViewModel.topList.collectAsStateWithLifecycle()
     val newAlbumState by exploreScreenViewModel.newAlbum.collectAsStateWithLifecycle()
+    val allNewAlbumState by exploreScreenViewModel.allNewAlbum.collectAsStateWithLifecycle()
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -90,6 +92,16 @@ fun ExploreScreen(
                 )
             }
         ) { padding ->
+            val topList = topListState?.getOrNull()
+            val newAlbum = newAlbumState?.getOrNull()
+            val allNewAlbum = allNewAlbumState?.getOrNull()
+
+            val weekData = newAlbum?.albums
+            val weekIds = remember(weekData) { weekData?.map { it.id }?.toSet().orEmpty() }
+            val monthData = remember(allNewAlbum, weekIds) {
+                allNewAlbum?.albums?.filterNot { it.id in weekIds }
+            }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -128,7 +140,6 @@ fun ExploreScreen(
 
                 // 2. Music Charts Section (Top Lists)
                 item {
-                    val topList = topListState?.getOrNull()
                     if (topList != null && topList.list.isNotEmpty()) {
                         SectionHeader(
                             title = stringResource(R.string.top_list),
@@ -165,11 +176,9 @@ fun ExploreScreen(
                     }
                 }
 
-                val newAlbum = newAlbumState?.getOrNull()
-
                 // 3. New Releases - Week
                 item {
-                    val weekData = newAlbum?.weekData
+
                     if (!weekData.isNullOrEmpty()) {
                         SectionHeader(
                             title = stringResource(R.string.newest_album_week)
@@ -240,7 +249,6 @@ fun ExploreScreen(
 
                 // 4. New Releases - Month
                 item {
-                    val monthData = newAlbum?.monthData
                     if (!monthData.isNullOrEmpty()) {
                         SectionHeader(
                             title = stringResource(R.string.newest_album_month)
@@ -309,7 +317,7 @@ fun ExploreScreen(
                     }
                 }
 
-                if (topListState?.isFailure == true && newAlbumState?.isFailure == true) {
+                if (topListState?.isFailure == true && newAlbumState?.isFailure == true && allNewAlbumState?.isFailure == true) {
                     item {
                         Box(
                             modifier = Modifier
@@ -327,3 +335,4 @@ fun ExploreScreen(
         }
     }
 }
+

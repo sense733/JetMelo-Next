@@ -98,14 +98,20 @@ fun MainScreen() {
     val playerState = LocalPlayerState.current
     val showMiniPlayer =
         (playerState?.timeline?.windowCount ?: 0) != 0 && !isSearchScreen
-    val currentMediaId = playerState?.currentMediaItem?.mediaId
+    val currentMediaItem = playerState?.currentMediaItem
+    val currentMediaId = currentMediaItem?.mediaId
     var currentPlayMediaId by rememberPreference(currentPlayMediaIdKey, 0)
     val isPlaying = playerState?.isPlaying == true
 
-    val artworkUri = playerState?.mediaMetadata?.artworkUri
+    val artworkUri = currentMediaItem?.mediaMetadata?.artworkUri ?: playerState?.mediaMetadata?.artworkUri
+    val fallbackDominant = MaterialTheme.colorScheme.surfaceContainer
+    val fallbackAccent = MaterialTheme.colorScheme.primary
+
     val artworkColors = rememberArtworkColors(
         artworkUri = artworkUri,
-        songId = currentMediaId
+        songId = currentMediaId,
+        fallbackDominant = fallbackDominant,
+        fallbackAccent = fallbackAccent
     )
 
     LaunchedEffect(currentMediaId) {
@@ -114,9 +120,36 @@ fun MainScreen() {
         }
     }
 
+    val context = LocalContext.current
+
+    LaunchedEffect(currentMediaId, playerState?.timeline) {
+        val timeline = playerState?.timeline ?: return@LaunchedEffect
+        val currentIndex = playerState.mediaItemIndex
+        if (timeline.isEmpty || currentIndex < 0) return@LaunchedEffect
+
+        val window = androidx.media3.common.Timeline.Window()
+        val adjacentIndices = listOf(currentIndex + 1, currentIndex - 1)
+        for (index in adjacentIndices) {
+            if (index in 0 until timeline.windowCount) {
+                timeline.getWindow(index, window)
+                val item = window.mediaItem
+                val itemArtwork = item.mediaMetadata.artworkUri
+                val itemId = item.mediaId
+                if (itemArtwork != null) {
+                    com.rcmiku.music.ui.design.PaletteExtractor.preload(
+                        context = context,
+                        artworkUri = itemArtwork,
+                        songId = itemId,
+                        fallbackDominant = fallbackDominant,
+                        fallbackAccent = fallbackAccent
+                    )
+                }
+            }
+        }
+    }
+
     var showPlayer by rememberSaveable { mutableStateOf(false) }
 
-    val context = LocalContext.current
     var animatorScale by remember { mutableFloatStateOf(1f) }
     LaunchedEffect(context) {
         try {
