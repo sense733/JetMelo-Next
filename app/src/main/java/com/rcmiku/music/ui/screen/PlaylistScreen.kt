@@ -108,13 +108,6 @@ import com.rcmiku.music.viewModel.PlaylistScreenViewModel
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalSharedTransitionApi::class)
-private val TitleBoundsTransform = BoundsTransform { _, _ ->
-    spring(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMediumLow
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -145,11 +138,6 @@ fun PlaylistScreen(
     val isSticky by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.99f
-        }
-    }
-    val showTopBarTitle by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.70f
         }
     }
     val mediaController = LocalPlayerController.current.controller
@@ -204,30 +192,24 @@ fun PlaylistScreen(
 
                     val playlist = playlistDetailState?.playlist
                     if (playlist != null) {
-                        AnimatedVisibility(
-                            visible = showTopBarTitle,
-                            enter = fadeIn(tween(180)),
-                            exit = fadeOut(tween(180)),
-                            modifier = Modifier.weight(1f, fill = false)
-                        ) {
-                            Text(
-                                text = playlist.name,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .padding(end = 16.dp)
-                                    .sharedBounds(
-                                        sharedContentState = rememberSharedContentState(key = "playlist_title_${playlist.id}"),
-                                        animatedVisibilityScope = this,
-                                        boundsTransform = TitleBoundsTransform
-                                    )
-                            )
-                        }
+                        Text(
+                            text = playlist.name,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(end = 16.dp)
+                                .graphicsLayer {
+                                    val progress = ((collapseFraction - 0.25f) / 0.45f).coerceIn(0f, 1f)
+                                    alpha = progress
+                                    translationY = (1f - progress) * 28.dp.toPx()
+                                }
+                        )
                     }
                 }
             },
@@ -349,28 +331,26 @@ fun PlaylistScreen(
                                         Spacer(Modifier.height(16.dp))
 
                                         // Title
-                                        AnimatedVisibility(
-                                            visible = !showTopBarTitle,
-                                            enter = fadeIn(tween(180)),
-                                            exit = fadeOut(tween(180))
-                                        ) {
-                                            Text(
-                                                text = detail.playlist.name,
-                                                style = MaterialTheme.typography.headlineMedium,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                fontWeight = FontWeight.Bold,
-                                                textAlign = TextAlign.Center,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier
-                                                    .padding(horizontal = 16.dp)
-                                                    .sharedBounds(
-                                                        sharedContentState = rememberSharedContentState(key = "playlist_title_${detail.playlist.id}"),
-                                                        animatedVisibilityScope = this,
-                                                        boundsTransform = TitleBoundsTransform
-                                                    )
-                                            )
-                                        }
+                                        Text(
+                                            text = detail.playlist.name,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .padding(horizontal = 16.dp)
+                                                .graphicsLayer {
+                                                    val offset = if (listState.firstVisibleItemIndex == 0) {
+                                                        listState.firstVisibleItemScrollOffset.toFloat()
+                                                    } else {
+                                                        0f
+                                                    }
+                                                    translationY = offset * 0.70f
+                                                    alpha = (1f - (collapseFraction / 0.60f)).coerceIn(0f, 1f)
+                                                }
+                                        )
 
                                         Spacer(Modifier.height(6.dp))
 
