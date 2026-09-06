@@ -158,6 +158,7 @@ fun Player(
     imageModifier: Modifier = Modifier,
     titleModifier: Modifier = Modifier,
     artistModifier: Modifier = Modifier,
+    artworkElevation: Dp = 16.dp,
     onBackPressed: () -> Unit = {},
     onClick: () -> Unit = {},
     onContainerClick: () -> Unit = {},
@@ -299,7 +300,7 @@ fun Player(
                             label = "player_artwork_crossfade",
                             modifier = imageModifier
                                 .fillMaxSize()
-                                .shadow(elevation = 16.dp, shape = AdaptiveArtworkShape)
+                                .shadow(elevation = artworkElevation, shape = AdaptiveArtworkShape)
                                 .clip(AdaptiveArtworkShape)
                                 .clickable(enabled = controlsAlpha > 0.1f, onClick = onClick)
                         ) { uri ->

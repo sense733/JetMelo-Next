@@ -41,10 +41,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -243,29 +245,41 @@ fun MainScreen() {
     }
 
     CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
             val p = transitionProgress
             val deviceCornerRadius = rememberDeviceCornerRadius()
+
+            val cardShape = remember(deviceCornerRadius, p) {
+                RoundedCornerShape(deviceCornerRadius * p)
+            }
 
             Scaffold(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(
+                        if (p > 0.05f && Build.VERSION.SDK_INT >= 31) {
+                            Modifier.blur(
+                                radius = (p * 12).dp,
+                                edgeTreatment = BlurredEdgeTreatment.Unbounded
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
                     .graphicsLayer {
                         scaleX = 1f - 0.05f * p
                         scaleY = 1f - 0.05f * p
                         transformOrigin = TransformOrigin(0.5f, 0.5f)
                         if (p > 0f) {
-                            shape = RoundedCornerShape(deviceCornerRadius * p)
+                            shape = cardShape
                             clip = true
+                            shadowElevation = (6 * p).dp.toPx()
                         }
-                    }
-                    .then(
-                        if (p > 0.05f && Build.VERSION.SDK_INT >= 31) {
-                            Modifier.blur((p * 12).dp)
-                        } else {
-                            Modifier
-                        }
-                    ),
+                    },
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     Column {
@@ -342,10 +356,12 @@ fun MainScreen() {
             )
 
             if (p > 0f) {
+                val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                val scrimAlpha = if (isDarkTheme) p * 0.35f else p * 0.12f
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = p * 0.35f))
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -354,7 +370,20 @@ fun MainScreen() {
                                 }
                             }
                         }
-                )
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = 1f - 0.05f * p
+                                scaleY = 1f - 0.05f * p
+                                transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                shape = cardShape
+                                clip = true
+                            }
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = scrimAlpha))
+                    )
+                }
             }
 
             if (showMiniPlayer || transitionProgress > 0f) {

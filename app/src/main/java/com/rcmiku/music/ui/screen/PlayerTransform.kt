@@ -10,6 +10,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
@@ -438,6 +439,18 @@ fun PlayerTransform(
                         label = "player_subview_shared_transition"
                     )
 
+                    val artworkElevation by subViewTransition.animateDp(
+                        transitionSpec = {
+                            spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        },
+                        label = "player_artwork_elevation"
+                    ) { view ->
+                        if (view == FULL_PLAYER) 16.dp else 0.dp
+                    }
+
                     Box(modifier = Modifier.fillMaxSize()) {
                         subViewTransition.AnimatedContent(
                             transitionSpec = {
@@ -460,8 +473,7 @@ fun PlayerTransform(
                                 sharedContentState = rememberSharedContentState(key = coverKey),
                                 animatedVisibilityScope = this,
                                 placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                boundsTransform = AlbumArtBoundsTransform,
-                                clipInOverlayDuringTransition = OverlayClip(AdaptiveArtworkShape)
+                                boundsTransform = AlbumArtBoundsTransform
                             )
 
                             val sharedTitleModifier = Modifier.sharedBounds(
@@ -484,6 +496,7 @@ fun PlayerTransform(
                                         imageModifier = sharedImageModifier,
                                         titleModifier = sharedTitleModifier,
                                         artistModifier = sharedArtistModifier,
+                                        artworkElevation = artworkElevation,
                                         onBackPressed = onBackPressed,
                                         onClick = { safeSwitchView(LYRIC_VIEW) },
                                         onContainerClick = { safeSwitchView(PLAY_QUEUE) },
