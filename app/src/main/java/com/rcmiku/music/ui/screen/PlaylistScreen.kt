@@ -178,22 +178,46 @@ fun PlaylistScreen(
         artworkUri = playlistDetailState?.playlist?.coverImgUrl,
         songId = playlistDetailState?.playlist?.id?.toString()
     )
+    val baseColor = MaterialTheme.colorScheme.background
+    val dominantTopColor = pageArtworkColors.dominantColor.copy(alpha = 0.65f)
+    val topBarProgress by remember {
+        derivedStateOf {
+            (collapseFraction / 0.70f).coerceIn(0f, 1f)
+        }
+    }
+    val currentDominantColor by remember {
+        derivedStateOf {
+            androidx.compose.ui.graphics.lerp(dominantTopColor, baseColor, topBarProgress)
+        }
+    }
+    val topBarEndColor by remember {
+        derivedStateOf {
+            androidx.compose.ui.graphics.lerp(currentDominantColor, baseColor, 0.20f)
+        }
+    }
+    val topBarBrush by remember {
+        derivedStateOf {
+            Brush.verticalGradient(
+                colors = listOf(currentDominantColor, topBarEndColor)
+            )
+        }
+    }
+    val headerBrush by remember {
+        derivedStateOf {
+            Brush.verticalGradient(
+                colors = listOf(topBarEndColor, baseColor)
+            )
+        }
+    }
 
     with(sharedTransitionScope) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                val baseColor = MaterialTheme.colorScheme.background
-                val dominantTopColor = pageArtworkColors.dominantColor.copy(alpha = 0.65f)
-                val topBarBgColor = if (isSticky) {
-                    baseColor
-                } else {
-                    androidx.compose.ui.graphics.lerp(dominantTopColor, baseColor, collapseFraction.coerceIn(0f, 1f))
-                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(topBarBgColor)
+                        .background(topBarBrush)
                         .statusBarsPadding()
                         .height(44.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -285,14 +309,7 @@ fun PlaylistScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                pageArtworkColors.dominantColor.copy(alpha = 0.65f),
-                                                MaterialTheme.colorScheme.background
-                                            )
-                                        )
-                                    )
+                                    .background(headerBrush)
                                     .onSizeChanged { size ->
                                         if (size.height > 0) {
                                             headerHeightPx = size.height.toFloat()
@@ -397,7 +414,11 @@ fun PlaylistScreen(
                                                 textAlign = TextAlign.Center,
                                                 maxLines = 3,
                                                 overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(horizontal = 12.dp)
+                                                modifier = Modifier
+                                                    .padding(horizontal = 12.dp)
+                                                    .graphicsLayer {
+                                                        alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                    }
                                             )
                                         }
                                     }
