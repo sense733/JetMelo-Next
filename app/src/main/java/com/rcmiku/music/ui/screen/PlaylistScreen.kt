@@ -180,35 +180,8 @@ fun PlaylistScreen(
     )
     val baseColor = MaterialTheme.colorScheme.background
     val dominantTopColor = pageArtworkColors.dominantColor.copy(alpha = 0.65f)
-    val topBarProgress by remember {
-        derivedStateOf {
-            (collapseFraction / 0.70f).coerceIn(0f, 1f)
-        }
-    }
-    val currentDominantColor by remember {
-        derivedStateOf {
-            androidx.compose.ui.graphics.lerp(dominantTopColor, baseColor, topBarProgress)
-        }
-    }
-    val topBarEndColor by remember {
-        derivedStateOf {
-            androidx.compose.ui.graphics.lerp(currentDominantColor, baseColor, 0.20f)
-        }
-    }
-    val topBarBrush by remember {
-        derivedStateOf {
-            Brush.verticalGradient(
-                colors = listOf(currentDominantColor, topBarEndColor)
-            )
-        }
-    }
-    val headerBrush by remember {
-        derivedStateOf {
-            Brush.verticalGradient(
-                colors = listOf(topBarEndColor, baseColor)
-            )
-        }
-    }
+    val topBarProgress = (collapseFraction / 0.70f).coerceIn(0f, 1f)
+    val currentDominantColor = androidx.compose.ui.graphics.lerp(dominantTopColor, baseColor, topBarProgress)
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -217,7 +190,7 @@ fun PlaylistScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(topBarBrush)
+                        .background(currentDominantColor)
                         .statusBarsPadding()
                         .height(44.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -309,7 +282,14 @@ fun PlaylistScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(headerBrush)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                currentDominantColor,
+                                                baseColor
+                                            )
+                                        )
+                                    )
                                     .onSizeChanged { size ->
                                         if (size.height > 0) {
                                             headerHeightPx = size.height.toFloat()
