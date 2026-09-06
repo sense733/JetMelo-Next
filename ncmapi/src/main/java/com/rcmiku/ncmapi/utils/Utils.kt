@@ -49,6 +49,8 @@ object CookieProvider {
     @Volatile
     private var cookie: Map<String, String> = emptyMap()
 
+    private val sessionKeys = setOf("MUSIC_U", "MUSIC_A", "__csrf", "__remember_me")
+
     fun init(cookies: Map<String, String>) {
         val mutable = cookies.toMutableMap()
 
@@ -57,11 +59,34 @@ object CookieProvider {
             val raw = "null 02:00:00:00:00:00 $uuid unknown"
             mutable["deviceId"] = URLEncoder.encode(raw, Charsets.UTF_8.name())
         }
-        mutable.putIfAbsent("osver", Build.VERSION.RELEASE)
-        mutable.putIfAbsent("mobilename", Build.MODEL)
+
+        val osVer = runCatching { Build.VERSION.RELEASE }.getOrNull()?.takeIf { it.isNotBlank() } ?: "13"
+        val mobileName = runCatching { Build.MODEL }.getOrNull()?.takeIf { it.isNotBlank() } ?: "Android"
+
+        mutable.putIfAbsent("osver", osVer)
+        mutable.putIfAbsent(CookieKeys.OS_VER, osVer)
+        mutable.putIfAbsent("mobilename", mobileName)
+        mutable.putIfAbsent(CookieKeys.MOBILE_NAME, mobileName)
 
         synchronized(this) {
             cookie = mutable
+        }
+    }
+
+    fun hasValidSession(): Boolean {
+        val current = cookie
+        val sessionCookie = current["MUSIC_U"] ?: current["MUSIC_A"]
+        return !sessionCookie.isNullOrBlank()
+    }
+
+    fun hasValidSession(cookieJson: String): Boolean {
+        if (cookieJson.isBlank()) return false
+        return try {
+            val map = json.decodeFromString<Map<String, String>>(cookieJson)
+            val sessionCookie = map["MUSIC_U"] ?: map["MUSIC_A"]
+            !sessionCookie.isNullOrBlank()
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -74,6 +99,12 @@ object CookieProvider {
     }
 
     fun clear() {
+        synchronized(this) {
+            cookie = cookie.filterKeys { it !in sessionKeys }
+        }
+    }
+
+    fun clearAll() {
         synchronized(this) {
             cookie = emptyMap()
         }

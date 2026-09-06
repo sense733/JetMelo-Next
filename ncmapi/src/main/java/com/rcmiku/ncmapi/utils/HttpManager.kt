@@ -127,7 +127,8 @@ object HttpManager {
         val envFullDump = defaultEnvFullDump
         val isFullDump = fullDump || envFullDump
         val eapiMinimalCookie = defaultEapiMinimalCookie
-        val logMaxLen = if (isFullDump) Int.MAX_VALUE else 50000
+        // 响应体日志上限恒定 50000，私数据永不全量落盘（请求体密文 full 模式保留全量+掩码）
+        val logMaxLen = 50000
 
         val headers = mutableMapOf<String, String>()
         val defaultUa = UserAgentProvider.get().let { current ->
@@ -301,22 +302,18 @@ object HttpManager {
                 .sortedBy { it.key.lowercase() }
                 .joinToString(" | ") { (k, v) ->
                     if (k.equals("Cookie", ignoreCase = true)) {
-                        if (isFullDump) {
-                            "$k=$v"
-                        } else {
-                            val maskedCookie = v.split(";").joinToString("; ") { part ->
-                                val trimmed = part.trim()
-                                val eqIdx = trimmed.indexOf('=')
-                                if (eqIdx != -1) {
-                                    val cKey = trimmed.substring(0, eqIdx)
-                                    val cVal = trimmed.substring(eqIdx + 1)
-                                    "$cKey=${maskIfSensitive(cKey, cVal)}"
-                                } else {
-                                    trimmed
-                                }
+                        val maskedCookie = v.split(";").joinToString("; ") { part ->
+                            val trimmed = part.trim()
+                            val eqIdx = trimmed.indexOf('=')
+                            if (eqIdx != -1) {
+                                val cKey = trimmed.substring(0, eqIdx)
+                                val cVal = trimmed.substring(eqIdx + 1)
+                                "$cKey=${maskIfSensitive(cKey, cVal)}"
+                            } else {
+                                trimmed
                             }
-                            "$k(len=${v.length},masked=$maskedCookie)"
                         }
+                        "$k(len=${v.length},masked=$maskedCookie)"
                     } else {
                         val vv = maskIfSensitive(k, if (v.length > 200) v.take(200) + "..." else v)
                         "$k=$vv"
@@ -382,7 +379,7 @@ object HttpManager {
         }
 
         if (response.status.value !in 200..299) {
-            throw NcmHttpException(response.status.value, "HTTP ${response.status.value} for $finalUrl")
+            throw NcmHttpException(response.status.value, "HTTP ${response.status.value} for $finalUrl", endpoint = finalUrl)
         }
 
         val contentEncoding = response.headers["Content-Encoding"]
@@ -401,18 +398,7 @@ object HttpManager {
                 .sortedBy { it.key.lowercase() }
                 .joinToString(" | ") { (k, vs) ->
                     if (k.equals("Set-Cookie", ignoreCase = true)) {
-                        val masked = vs.joinToString("; ") { cookieStr ->
-                            val parts = cookieStr.split(";").map { it.trim() }
-                            val first = parts.firstOrNull() ?: ""
-                            val eqIdx = first.indexOf('=')
-                            if (eqIdx != -1) {
-                                val cKey = first.substring(0, eqIdx)
-                                "$cKey=<masked>"
-                            } else {
-                                "<masked>"
-                            }
-                        }
-                        "$k=$masked"
+                        "$k(count=${vs.size})=<masked>"
                     } else {
                         val joined = vs.joinToString(";")
                         val vv = if (joined.length > 200) joined.take(200) + "..." else joined
@@ -427,11 +413,11 @@ object HttpManager {
             logChunked(TAG_BODY, "respBody $bodyForLog", debugEnabled)
         }
 
-        checkApiResponseCode(body)
+        checkApiResponseCode(body, endpoint = finalUrl)
         return body
     }
 
-    internal fun checkApiResponseCode(body: String) {
+    internal fun checkApiResponseCode(body: String, endpoint: String = "<unknown>") {
         val trimmed = body.trimStart()
         if (!trimmed.startsWith("{")) return
         val element = runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject ?: return
@@ -441,8 +427,26 @@ object HttpManager {
             val message = (element["message"] as? JsonPrimitive)?.content
                 ?: (element["msg"] as? JsonPrimitive)?.content
                 ?: "NCM API error code: $code"
-            throw NcmApiException(code = code, message = message)
+            throw NcmApiException(code = code, message = message, endpoint = endpoint)
         }
+
+        for ((key, child) in element) {
+            if (key == "code") continue
+            if (child is JsonObject) {
+                val nestedCode = (child["code"] as? JsonPrimitive)?.intOrNull
+                if (nestedCode != null && nestedCode !in 200..299) {
+                    val message = "batch[$key] error code: $nestedCode"
+                    throw NcmApiException(code = nestedCode, message = message, endpoint = endpoint)
+                }
+            }
+        }
+    }
+
+    /**
+     * 清除会话 Cookie 数据，支持多账号隔离与状态重置。
+     */
+    fun clearSession() {
+        CookieProvider.clear()
     }
 
     private fun logChunked(tag: String, message: String, debugEnabled: Boolean) {
@@ -487,7 +491,30 @@ object HttpManager {
             "phone",
             "captcha",
             "ckid",
-            "deviceid"
+            "deviceid",
+            "evnsm",
+            "nmcid",
+            "wnmcid",
+            "nmtid",
+            "ntes_nuid",
+            "ntes_nnid",
+            "wevnsm",
+            "remember_me",
+            "kaola",
+            "versioncode",
+            "buildver",
+            "resolution",
+            "distributechannel",
+            "screentype",
+            "modelcode",
+            "appver",
+            "packagetype",
+            "osver",
+            "mobilename",
+            "jsessionid",
+            "yd_sess",
+            "p_info",
+            "s_info"
         )
         if (sensitive.any { k.contains(it) }) {
             return "<masked>"
@@ -509,7 +536,7 @@ object HttpManager {
                 if (read <= 0) break
                 totalBytes += read
                 if (totalBytes > MAX_DECOMPRESSED_SIZE) {
-                    throw IllegalStateException("Decompressed response exceeded 10MB limit: $totalBytes bytes")
+                    throw IllegalStateException("Decompressed response exceeded 32MB limit: $totalBytes bytes")
                 }
                 bos.write(buffer, 0, read)
             }
