@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -65,6 +66,7 @@ import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.ui.components.tabs
 import com.rcmiku.music.ui.design.BottomFogOverlay
+import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.navigation.NavGraph
@@ -257,6 +259,15 @@ fun MainScreen() {
                 RoundedCornerShape(deviceCornerRadius * p)
             }
 
+            if (p > 0f) {
+                ImmersiveBackground(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = p },
+                    artworkUri = artworkUri
+                ) {}
+            }
+
             Scaffold(
                 modifier = Modifier
                     .fillMaxSize()
@@ -382,6 +393,15 @@ fun MainScreen() {
                                 clip = true
                             }
                             .background(MaterialTheme.colorScheme.scrim.copy(alpha = scrimAlpha))
+                            .then(
+                                if (p > 0.05f) {
+                                    Modifier.border(
+                                        width = 0.8.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f * p),
+                                        shape = cardShape
+                                    )
+                                } else Modifier
+                            )
                     )
                 }
             }
