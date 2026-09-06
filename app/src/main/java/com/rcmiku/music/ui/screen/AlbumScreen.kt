@@ -36,10 +36,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.BoundsTransform
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -89,6 +96,14 @@ import com.rcmiku.music.utils.formatTimestamp
 import com.rcmiku.music.viewModel.AlbumScreenViewModel
 import kotlinx.coroutines.flow.map
 
+@OptIn(ExperimentalSharedTransitionApi::class)
+private val TitleBoundsTransform = BoundsTransform { _, _ ->
+    spring(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AlbumScreen(
@@ -117,6 +132,11 @@ fun AlbumScreen(
     val isSticky by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.99f
+        }
+    }
+    val showTopBarTitle by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.70f
         }
     }
     val mediaController = LocalPlayerController.current.controller
@@ -171,8 +191,36 @@ fun AlbumScreen(
                             contentDescription = null
                         )
                     }
+
+                    val album = albumDetailState?.getOrNull()?.album
+                    if (album != null) {
+                        AnimatedVisibility(
+                            visible = showTopBarTitle,
+                            enter = fadeIn(tween(180)),
+                            exit = fadeOut(tween(180)),
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Text(
+                                text = album.name,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .sharedBounds(
+                                        sharedContentState = rememberSharedContentState(key = "album_title_${album.id}"),
+                                        animatedVisibilityScope = this,
+                                        boundsTransform = TitleBoundsTransform
+                                    )
+                            )
+                        }
+                    }
                 }
-            }
+            },
         ) { padding ->
             val result = albumDetailState
             val detail = result?.getOrNull()
@@ -233,9 +281,6 @@ fun AlbumScreen(
                                             headerHeightPx = size.height.toFloat()
                                         }
                                     }
-                                    .graphicsLayer {
-                                        alpha = (1f - collapseFraction).coerceIn(0f, 1f)
-                                    }
                                     .padding(horizontal = 20.dp, vertical = 16.dp)
                             ) {
                                     Column(
@@ -246,6 +291,9 @@ fun AlbumScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(220.dp)
+                                                .graphicsLayer {
+                                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                }
                                                 .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
                                                 .clip(JetMeloShapes.medium)
                                         ) {
@@ -267,43 +315,63 @@ fun AlbumScreen(
                                         Spacer(Modifier.height(16.dp))
 
                                         // Title
-                                        Text(
-                                            text = detail.album.name,
-                                            style = MaterialTheme.typography.headlineMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.Bold,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                        AnimatedVisibility(
+                                            visible = !showTopBarTitle,
+                                            enter = fadeIn(tween(180)),
+                                            exit = fadeOut(tween(180))
+                                        ) {
+                                            Text(
+                                                text = detail.album.name,
+                                                style = MaterialTheme.typography.headlineMedium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontWeight = FontWeight.Bold,
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier
+                                                    .padding(horizontal = 16.dp)
+                                                    .sharedBounds(
+                                                        sharedContentState = rememberSharedContentState(key = "album_title_${detail.album.id}"),
+                                                        animatedVisibilityScope = this,
+                                                        boundsTransform = TitleBoundsTransform
+                                                    )
+                                            )
+                                        }
 
                                         Spacer(Modifier.height(4.dp))
 
-                                        // Artist Subtitle
-                                        Text(
-                                            text = detail.album.artist.name,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold,
-                                            textAlign = TextAlign.Center,
-                                            modifier = Modifier
-                                                .clip(JetMeloShapes.small)
-                                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                                .clickable(role = Role.Button) {
-                                                    navController.navigate(ArtistNav(artistId = detail.album.artist.id))
-                                                }
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                        )
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.graphicsLayer {
+                                                alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                            }
+                                        ) {
+                                            // Artist Subtitle
+                                            Text(
+                                                text = detail.album.artist.name,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.SemiBold,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier
+                                                    .clip(JetMeloShapes.small)
+                                                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                    .clickable(role = Role.Button) {
+                                                        navController.navigate(ArtistNav(artistId = detail.album.artist.id))
+                                                    }
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            )
 
-                                        Spacer(Modifier.height(4.dp))
+                                            Spacer(Modifier.height(4.dp))
 
-                                        // Release Date
-                                        Text(
-                                            text = formatTimestamp(detail.album.publishTime),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = TextAlign.Center
-                                        )
+                                            // Release Date
+                                            Text(
+                                                text = formatTimestamp(detail.album.publishTime),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
                                     }
                                 }
                             }

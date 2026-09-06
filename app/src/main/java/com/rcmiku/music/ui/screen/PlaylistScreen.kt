@@ -37,10 +37,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.BoundsTransform
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -101,6 +108,14 @@ import com.rcmiku.music.viewModel.PlaylistScreenViewModel
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalSharedTransitionApi::class)
+private val TitleBoundsTransform = BoundsTransform { _, _ ->
+    spring(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun PlaylistScreen(
@@ -130,6 +145,11 @@ fun PlaylistScreen(
     val isSticky by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.99f
+        }
+    }
+    val showTopBarTitle by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || collapseFraction >= 0.70f
         }
     }
     val mediaController = LocalPlayerController.current.controller
@@ -186,6 +206,34 @@ fun PlaylistScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = null
                         )
+                    }
+
+                    val playlist = playlistDetailState?.playlist
+                    if (playlist != null) {
+                        AnimatedVisibility(
+                            visible = showTopBarTitle,
+                            enter = fadeIn(tween(180)),
+                            exit = fadeOut(tween(180)),
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Text(
+                                text = playlist.name,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .sharedBounds(
+                                        sharedContentState = rememberSharedContentState(key = "playlist_title_${playlist.id}"),
+                                        animatedVisibilityScope = this,
+                                        boundsTransform = TitleBoundsTransform
+                                    )
+                            )
+                        }
                     }
                 }
             },
@@ -250,9 +298,6 @@ fun PlaylistScreen(
                                             headerHeightPx = size.height.toFloat()
                                         }
                                     }
-                                    .graphicsLayer {
-                                        alpha = (1f - collapseFraction).coerceIn(0f, 1f)
-                                    }
                                     .padding(horizontal = 20.dp, vertical = 16.dp)
                             ) {
                                     Column(
@@ -263,6 +308,9 @@ fun PlaylistScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(220.dp)
+                                                .graphicsLayer {
+                                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                }
                                                 .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
                                                 .clip(JetMeloShapes.medium)
                                         ) {
@@ -284,21 +332,38 @@ fun PlaylistScreen(
                                         Spacer(Modifier.height(16.dp))
 
                                         // Title
-                                        Text(
-                                            text = detail.playlist.name,
-                                            style = MaterialTheme.typography.headlineMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.Bold,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                        AnimatedVisibility(
+                                            visible = !showTopBarTitle,
+                                            enter = fadeIn(tween(180)),
+                                            exit = fadeOut(tween(180))
+                                        ) {
+                                            Text(
+                                                text = detail.playlist.name,
+                                                style = MaterialTheme.typography.headlineMedium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontWeight = FontWeight.Bold,
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier
+                                                    .padding(horizontal = 16.dp)
+                                                    .sharedBounds(
+                                                        sharedContentState = rememberSharedContentState(key = "playlist_title_${detail.playlist.id}"),
+                                                        animatedVisibilityScope = this,
+                                                        boundsTransform = TitleBoundsTransform
+                                                    )
+                                            )
+                                        }
 
                                         Spacer(Modifier.height(6.dp))
 
                                         // Meta (Play count & Update time)
                                         Row(
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .graphicsLayer {
+                                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                },
                                             horizontalArrangement = Arrangement.Center,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
