@@ -107,6 +107,8 @@ import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
+import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import kotlin.math.roundToInt
 
 const val FULL_PLAYER = 0
@@ -221,6 +223,13 @@ fun PlayerTransform(
         val miniBottomPx = screenHeightPx - dockedBottomPx - miniVerticalPaddingPx
         val miniTopPx = miniBottomPx - miniHeightPx
 
+        val miniRect = remember(miniLeftPx, miniTopPx, miniRightPx, miniBottomPx) {
+            Rect(miniLeftPx, miniTopPx, miniRightPx, miniBottomPx)
+        }
+        val fullRect = remember(screenWidthPx, screenHeightPx) {
+            Rect(0f, 0f, screenWidthPx, screenHeightPx)
+        }
+
         val defaultFullArtworkRect = remember(screenWidthPx, screenHeightPx, statusBarInsetPx) {
             val horizontalPaddingPx = with(density) { 40.dp.toPx() }
             val availableWidthPx = screenWidthPx - horizontalPaddingPx
@@ -237,42 +246,97 @@ fun PlayerTransform(
             Rect(leftPx, topPx, leftPx + sizePx, topPx + sizePx)
         }
 
+        val containerRect = lerpRect(miniRect, fullRect, progress)
+        val deviceCornerRadius = rememberDeviceCornerRadius()
+        val containerCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, progress)
+        val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, progress)
+
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
         val artworkProgress = (progress / 0.88f).coerceIn(0f, 1f)
         val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, artworkProgress)
         val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, artworkProgress)
         val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, artworkProgress)
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        if (!isFull) {
+            val borderAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
+            val containerShape = RoundedCornerShape(containerCornerRadius)
+            val shadowModifier = if (containerElevation > 0.dp) {
+                Modifier.shadow(containerElevation, shape = containerShape)
+            } else Modifier
+
+            val borderModifier = if (borderAlpha > 0f) {
+                Modifier.border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(
+                        alpha = 0.5f * borderAlpha
+                    ),
+                    shape = containerShape
+                )
+            } else Modifier
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
+                    .size(
+                        width = with(density) { containerRect.width.toDp() },
+                        height = with(density) { containerRect.height.toDp() }
+                    )
+                    .then(shadowModifier)
+                    .then(borderModifier)
+            )
+        }
+
+        val clipShape = remember(containerRect, containerCornerRadius) {
+            object : Shape {
+                override fun createOutline(
+                    size: Size,
+                    layoutDirection: LayoutDirection,
+                    density: Density
+                ): Outline {
+                    return Outline.Rounded(
+                        RoundRect(
+                            rect = containerRect,
+                            cornerRadius = CornerRadius(with(density) { containerCornerRadius.toPx() })
+                        )
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    clip = !isFull
+                    if (!isFull) {
+                        shape = clipShape
+                    }
+                }
+        ) {
             if (!isCollapsed) {
                 ImmersiveBackground(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = progress },
+                    modifier = Modifier.fillMaxSize(),
                     artworkUri = effectiveArtworkUri
                 ) {}
             }
 
-            val miniAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
-            if (miniAlpha > 0f) {
-                val miniShape = RoundedCornerShape(16.dp)
-                val miniElevation = 6.dp * miniAlpha
+            if (progress < 0.25f) {
+                val surfaceAlpha = if (isCollapsed) 1f else (1f - progress / 0.25f).coerceIn(0f, 1f)
                 Box(
                     modifier = Modifier
-                        .offset { IntOffset(miniLeftPx.roundToInt(), miniTopPx.roundToInt()) }
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = surfaceAlpha))
+                )
+            }
+
+            val miniAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
+            if (miniAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
                         .size(
-                            width = with(density) { (miniRightPx - miniLeftPx).toDp() },
+                            width = with(density) { containerRect.width.toDp() },
                             height = with(density) { miniHeightPx.toDp() }
-                        )
-                        .shadow(miniElevation, shape = miniShape)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f * miniAlpha),
-                            shape = miniShape
-                        )
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = miniAlpha),
-                            shape = miniShape
                         )
                         .graphicsLayer { alpha = miniAlpha }
                         .clickable(

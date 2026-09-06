@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -45,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
@@ -70,7 +68,6 @@ import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.navigation.NavGraph
 import com.rcmiku.music.ui.navigation.Screen
-import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.music.utils.rememberPreference
 import android.util.Log
@@ -252,11 +249,6 @@ fun MainScreen() {
                 .background(MaterialTheme.colorScheme.background)
         ) {
             val p = transitionProgress
-            val deviceCornerRadius = rememberDeviceCornerRadius()
-
-            val cardShape = remember(deviceCornerRadius, p) {
-                RoundedCornerShape(deviceCornerRadius * p)
-            }
 
             Scaffold(
                 modifier = Modifier
@@ -270,17 +262,7 @@ fun MainScreen() {
                         } else {
                             Modifier
                         }
-                    )
-                    .graphicsLayer {
-                        scaleX = 1f - 0.05f * p
-                        scaleY = 1f - 0.05f * p
-                        transformOrigin = TransformOrigin(0.5f, 0.5f)
-                        if (p > 0f) {
-                            shape = cardShape
-                            clip = true
-                            shadowElevation = (6 * p).dp.toPx()
-                        }
-                    },
+                    ),
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     Column {
@@ -363,6 +345,7 @@ fun MainScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = scrimAlpha))
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -371,29 +354,7 @@ fun MainScreen() {
                                 }
                             }
                         }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = 1f - 0.05f * p
-                                scaleY = 1f - 0.05f * p
-                                transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                shape = cardShape
-                                clip = true
-                            }
-                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = scrimAlpha))
-                            .then(
-                                if (p > 0.05f) {
-                                    Modifier.border(
-                                        width = 0.8.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f * p),
-                                        shape = cardShape
-                                    )
-                                } else Modifier
-                            )
-                    )
-                }
+                )
             }
 
             if (showMiniPlayer || transitionProgress > 0f) {
