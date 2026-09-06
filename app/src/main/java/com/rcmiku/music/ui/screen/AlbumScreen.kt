@@ -162,16 +162,17 @@ fun AlbumScreen(
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .height(44.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .height(44.dp)
                 ) {
                     IconButton(
                         onClick = { navController.navigateUp() },
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier
+                            .size(44.dp)
+                            .align(Alignment.CenterStart)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -183,9 +184,6 @@ fun AlbumScreen(
                     if (album != null) {
                         val density = LocalDensity.current
                         val targetDistancePx = remember(density) { with(density) { 296.dp.toPx() } }
-                        val screenWidthPx = remember(context) { context.resources.displayMetrics.widthPixels.toFloat() }
-                        val backButtonWidthPx = remember(density) { with(density) { 44.dp.toPx() } }
-                        val minLeftMarginOffsetPx = remember(density) { with(density) { (-28).dp.toPx() } }
 
                         val currentScroll by remember {
                             derivedStateOf {
@@ -205,33 +203,29 @@ fun AlbumScreen(
 
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 16.dp),
-                            contentAlignment = Alignment.CenterStart
+                                .fillMaxWidth()
+                                .padding(horizontal = 52.dp)
+                                .align(Alignment.Center),
+                            contentAlignment = Alignment.Center
                         ) {
-                            var textWidthPx by remember(album.id) { mutableFloatStateOf(0f) }
-
                             Text(
                                 text = album.name,
                                 style = MaterialTheme.typography.titleMedium.copy(
-                                    fontSize = 15.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    lineHeight = 20.sp
+                                    lineHeight = 18.sp
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
-                                    .onSizeChanged { textWidthPx = it.width.toFloat() }
                                     .graphicsLayer {
-                                        val s = 1f + (1f - travelFraction) * 0.467f
-                                        val scaledWidth = textWidthPx * s
-                                        val centerTargetX = (screenWidthPx / 2f) - backButtonWidthPx - (scaledWidth / 2f)
-                                        translationX = centerTargetX.coerceAtLeast(minLeftMarginOffsetPx) * (1f - travelFraction)
+                                        val s = 1f + (1f - travelFraction) * 0.571f
                                         translationY = (targetDistancePx - currentScroll).coerceAtLeast(0f)
                                         scaleX = s
                                         scaleY = s
-                                        transformOrigin = TransformOrigin(0f, 0.5f)
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
                                     }
                             )
                         }
