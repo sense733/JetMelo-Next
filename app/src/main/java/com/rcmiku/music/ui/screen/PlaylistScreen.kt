@@ -96,9 +96,10 @@ import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.playMediaAt
 import com.rcmiku.music.extensions.playMediaAtId
 import com.rcmiku.music.extensions.setPlaylist
+import com.rcmiku.music.ui.components.ActiveBoxAlpha
+import com.rcmiku.music.ui.components.PlayingIndicatorBox
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.design.rememberArtworkColors
-import com.rcmiku.music.ui.icons.AudioLines
 import com.rcmiku.music.ui.icons.FavoriteFill
 import com.rcmiku.music.ui.icons.LibraryAdd
 import com.rcmiku.music.ui.icons.LibraryAddCheck
@@ -484,7 +485,6 @@ fun PlaylistScreen(
                             key = { index, song -> "${song.id}_$index" }
                         ) { index, song ->
                             val isActive = currentMediaId == song.id
-                            val isItemPlaying = isActive && isPlaying
 
                             Box(
                                 modifier = Modifier
@@ -507,49 +507,57 @@ fun PlaylistScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    // Dedicated Track Number or Playing Waveform
+                                    // Dedicated Track Number
                                     Box(
                                         modifier = Modifier.width(32.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        if (isItemPlaying) {
-                                            Icon(
-                                                imageVector = AudioLines,
-                                                contentDescription = null,
-                                                tint = pageArtworkColors.accentColor,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        } else {
-                                            Text(
-                                                text = (index + 1).toString(),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = if (isActive)
-                                                    pageArtworkColors.accentColor
-                                                else
-                                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
+                                        Text(
+                                            text = (index + 1).toString(),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = if (isActive)
+                                                pageArtworkColors.accentColor
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                            textAlign = TextAlign.Center
+                                        )
                                     }
 
                                     Spacer(modifier = Modifier.width(6.dp))
 
-                                    // Artwork Thumbnail
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(song.al.picUrl)
-                                            .size(Size(176, 176))
-                                            .memoryCacheKey(song.al.picUrl.ifEmpty { song.id.toString() })
-                                            .diskCacheKey(song.al.picUrl.ifEmpty { song.id.toString() })
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = song.name,
-                                        contentScale = ContentScale.Crop,
+                                    // Artwork Thumbnail with Playing Indicator
+                                    Box(
+                                        contentAlignment = Alignment.Center,
                                         modifier = Modifier
                                             .size(44.dp)
                                             .clip(AdaptiveArtworkShape)
-                                    )
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(song.al.picUrl)
+                                                .size(Size(176, 176))
+                                                .memoryCacheKey(song.al.picUrl.ifEmpty { song.id.toString() })
+                                                .diskCacheKey(song.al.picUrl.ifEmpty { song.id.toString() })
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = song.name,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+
+                                        PlayingIndicatorBox(
+                                            isActive = isActive,
+                                            playWhenReady = isPlaying,
+                                            color = Color.White,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    color = Color.Black.copy(alpha = ActiveBoxAlpha),
+                                                    shape = AdaptiveArtworkShape
+                                                )
+                                        )
+                                    }
 
                                     Spacer(modifier = Modifier.width(12.dp))
 

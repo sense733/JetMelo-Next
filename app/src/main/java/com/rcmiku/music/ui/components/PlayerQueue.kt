@@ -83,7 +83,6 @@ import com.rcmiku.music.extensions.playMediaAtMediaId
 import com.rcmiku.music.extensions.removeSong
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
-import com.rcmiku.music.ui.icons.AudioLines
 import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.icons.DragHandle
 import com.rcmiku.music.ui.icons.Repeat
@@ -531,20 +530,37 @@ fun PlayerQueue(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(LocalContext.current)
-                                                .data(mediaItem.mediaMetadata.artworkUri)
-                                                .size(Size(176, 176))
-                                                .memoryCacheKey(mediaItem.mediaMetadata.artworkUri?.toString())
-                                                .diskCacheKey(mediaItem.mediaMetadata.artworkUri?.toString())
-                                                .crossfade(true)
-                                                .build(),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
+                                        Box(
+                                            contentAlignment = Alignment.Center,
                                             modifier = (if (isCurrent) imageModifier else Modifier)
                                                 .size(44.dp)
                                                 .clip(AdaptiveArtworkShape)
-                                        )
+                                        ) {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(LocalContext.current)
+                                                    .data(mediaItem.mediaMetadata.artworkUri)
+                                                    .size(Size(176, 176))
+                                                    .memoryCacheKey(mediaItem.mediaMetadata.artworkUri?.toString())
+                                                    .diskCacheKey(mediaItem.mediaMetadata.artworkUri?.toString())
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+
+                                            PlayingIndicatorBox(
+                                                isActive = isCurrent,
+                                                playWhenReady = isPlaying,
+                                                color = Color.White,
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(
+                                                        color = Color.Black.copy(alpha = ActiveBoxAlpha),
+                                                        shape = AdaptiveArtworkShape
+                                                    )
+                                            )
+                                        }
 
                                         Spacer(modifier = Modifier.width(12.dp))
 
@@ -570,17 +586,6 @@ fun PlayerQueue(
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                                 modifier = if (isCurrent) artistModifier else Modifier
-                                            )
-                                        }
-
-                                        if (isCurrent && isPlaying) {
-                                            Icon(
-                                                imageVector = AudioLines,
-                                                contentDescription = null,
-                                                tint = artworkColors.accentColor,
-                                                modifier = Modifier
-                                                    .size(20.dp)
-                                                    .padding(end = 6.dp)
                                             )
                                         }
 
