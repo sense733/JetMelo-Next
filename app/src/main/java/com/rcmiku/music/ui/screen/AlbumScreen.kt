@@ -164,17 +164,16 @@ fun AlbumScreen(
     )
     val baseColor = MaterialTheme.colorScheme.background
     val dominantTopColor = pageArtworkColors.dominantColor.copy(alpha = 0.65f)
-    val topBarProgress = (collapseFraction / 0.70f).coerceIn(0f, 1f)
-    val currentDominantColor = androidx.compose.ui.graphics.lerp(dominantTopColor, baseColor, topBarProgress)
 
     with(sharedTransitionScope) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
+                val topBarAlpha = (collapseFraction / 0.70f).coerceIn(0f, 1f)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(currentDominantColor)
+                        .background(baseColor.copy(alpha = topBarAlpha))
                         .statusBarsPadding()
                         .height(44.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -251,35 +250,49 @@ fun AlbumScreen(
                     }
                 }
                 else -> {
-                    LazyColumn(
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding()),
-                        contentPadding = PaddingValues(
-                            bottom = bottomContentPadding
-                        ),
-                        state = listState
+                            .background(baseColor)
                     ) {
-                        // 1. Solaris Immersive Hero Header (随滚顶出 + 渐隐)
-                        item(key = "hero_header") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                currentDominantColor,
-                                                baseColor
-                                            )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(420.dp)
+                                .graphicsLayer {
+                                    alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                                }
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            dominantTopColor,
+                                            baseColor
                                         )
                                     )
-                                    .onSizeChanged { size ->
-                                        if (size.height > 0) {
-                                            headerHeightPx = size.height.toFloat()
+                                )
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = padding.calculateTopPadding()),
+                            contentPadding = PaddingValues(
+                                bottom = bottomContentPadding
+                            ),
+                            state = listState
+                        ) {
+                            // 1. Solaris Immersive Hero Header (随滚顶出 + 渐隐)
+                            item(key = "hero_header") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onSizeChanged { size ->
+                                            if (size.height > 0) {
+                                                headerHeightPx = size.height.toFloat()
+                                            }
                                         }
-                                    }
-                                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                            ) {
+                                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                                ) {
                                     Column(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalAlignment = Alignment.CenterHorizontally
@@ -442,6 +455,7 @@ fun AlbumScreen(
                                 )
                             }
                         }
+                    }
                 }
             }
         }
