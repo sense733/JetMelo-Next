@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -184,6 +186,16 @@ fun Player(
     var openPlayerBottomSheet by rememberSaveable { mutableStateOf(false) }
     val shuffleMode = playerState?.shuffleModeEnabled == true
     val artworkColors = LocalArtworkColors.current
+    val animatedAccentColor by animateColorAsState(
+        targetValue = artworkColors.accentColor,
+        animationSpec = tween(durationMillis = 350),
+        label = "player_accent_color"
+    )
+    val animatedOnAccentColor by animateColorAsState(
+        targetValue = artworkColors.onAccentColor,
+        animationSpec = tween(durationMillis = 350),
+        label = "player_on_accent_color"
+    )
 
     BackHandler(enabled = !openBottomSheet && !openPlayerBottomSheet) {
         onBackPressed()
@@ -371,7 +383,7 @@ fun Player(
 
 
                 PlayerProgressSlider(
-                    accentColor = artworkColors.accentColor,
+                    accentColor = animatedAccentColor,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -392,7 +404,7 @@ fun Player(
                         Icon(
                             imageVector = Shuffle,
                             contentDescription = null,
-                            tint = if (shuffleMode) artworkColors.accentColor else Color.White.copy(alpha = 0.5f),
+                            tint = if (shuffleMode) animatedAccentColor else Color.White.copy(alpha = 0.5f),
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -416,7 +428,7 @@ fun Player(
                             .size(72.dp)
                             .shadow(8.dp, shape = JetMeloShapes.full)
                             .clip(JetMeloShapes.full)
-                            .background(artworkColors.accentColor)
+                            .background(animatedAccentColor)
                             .clickable(enabled = controlsAlpha > 0.1f) {
                                 if (!isPlaying) mediaController?.play() else mediaController?.pause()
                             }
@@ -424,7 +436,7 @@ fun Player(
                         Icon(
                             imageVector = if (isPlaying) PauseFill else com.rcmiku.music.ui.icons.PlayArrowFill,
                             contentDescription = null,
-                            tint = artworkColors.onAccentColor,
+                            tint = animatedOnAccentColor,
                             modifier = Modifier.size(40.dp)
                         )
                     }
@@ -455,7 +467,7 @@ fun Player(
                         Icon(
                             imageVector = repeatIcon,
                             contentDescription = null,
-                            tint = if (repeatMode != 0) artworkColors.accentColor else Color.White.copy(alpha = 0.5f),
+                            tint = if (repeatMode != 0) animatedAccentColor else Color.White.copy(alpha = 0.5f),
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -500,7 +512,13 @@ fun Player(
                 onDismiss = { openBottomSheet = false },
                 openBottomSheet = openBottomSheet,
                 onAlbumClick = { album ->
-                    navController.navigate(AlbumNav(albumId = album.id))
+                    navController.navigate(
+                        AlbumNav(
+                            albumId = album.id,
+                            coverImgUrl = album.picUrl,
+                            title = album.name
+                        )
+                    )
                     onBackPressed()
                 }
             )

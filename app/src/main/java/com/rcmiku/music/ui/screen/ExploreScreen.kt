@@ -165,7 +165,9 @@ fun ExploreScreen(
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = chart.id,
-                                                    limit = chart.trackCount?.takeIf { it > 0 } ?: 999
+                                                    limit = chart.trackCount?.takeIf { it > 0 } ?: 999,
+                                                    coverImgUrl = chart.cover,
+                                                    title = chart.name
                                                 )
                                             )
                                         }
@@ -194,7 +196,13 @@ fun ExploreScreen(
                                         .width(150.dp)
                                         .clip(JetMeloShapes.medium)
                                         .clickable(role = Role.Button) {
-                                            navController.navigate(AlbumNav(albumId = album.id))
+                                            navController.navigate(
+                                                AlbumNav(
+                                                    albumId = album.id,
+                                                    coverImgUrl = album.picUrl,
+                                                    title = album.name
+                                                )
+                                            )
                                         }
                                 ) {
                                     Box(
@@ -264,7 +272,13 @@ fun ExploreScreen(
                                         .width(150.dp)
                                         .clip(JetMeloShapes.medium)
                                         .clickable(role = Role.Button) {
-                                            navController.navigate(AlbumNav(albumId = album.id))
+                                            navController.navigate(
+                                                AlbumNav(
+                                                    albumId = album.id,
+                                                    coverImgUrl = album.picUrl,
+                                                    title = album.name
+                                                )
+                                            )
                                         }
                                 ) {
                                     Box(

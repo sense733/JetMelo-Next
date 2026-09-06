@@ -24,6 +24,7 @@ import kotlin.math.roundToInt
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
 import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.ui.screen.AlbumScreen
 import com.rcmiku.music.ui.screen.AlbumSublistScreen
@@ -159,20 +160,26 @@ fun NavGraph(
                     bottomContentPadding = bottomContentPadding
                 )
             }
-            composable<PlaylistNav> {
+            composable<PlaylistNav> { backStackEntry ->
+                val nav = backStackEntry.toRoute<PlaylistNav>()
                 PlaylistScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = bottomContentPadding,
+                    initialArtworkUri = nav.coverImgUrl,
+                    initialTitle = nav.title
                 )
             }
-            composable<AlbumNav> {
+            composable<AlbumNav> { backStackEntry ->
+                val nav = backStackEntry.toRoute<AlbumNav>()
                 AlbumScreen(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = bottomContentPadding,
+                    initialArtworkUri = nav.coverImgUrl,
+                    initialTitle = nav.title
                 )
             }
             composable(Screen.TopList.route) {

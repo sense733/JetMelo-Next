@@ -40,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -110,7 +111,9 @@ fun AlbumScreen(
     albumScreenViewModel: AlbumScreenViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    bottomContentPadding: Dp = 0.dp
+    bottomContentPadding: Dp = 0.dp,
+    initialArtworkUri: String? = null,
+    initialTitle: String? = null
 ) {
     val albumDetailState by albumScreenViewModel.albumDetail.collectAsStateWithLifecycle()
     val isLoading by albumScreenViewModel.isLoading.collectAsStateWithLifecycle()
@@ -154,11 +157,16 @@ fun AlbumScreen(
     }
 
     val pageArtworkColors = rememberArtworkColors(
-        artworkUri = albumDetailState?.getOrNull()?.album?.picUrl,
+        artworkUri = albumDetailState?.getOrNull()?.album?.picUrl ?: initialArtworkUri,
         songId = albumDetailState?.getOrNull()?.album?.id?.toString()
     )
     val baseColor = MaterialTheme.colorScheme.background
-    val dominantTopColor = pageArtworkColors.dominantColor.copy(alpha = 0.65f)
+    val animatedDominantColor by animateColorAsState(
+        targetValue = pageArtworkColors.dominantColor,
+        animationSpec = tween(durationMillis = 350),
+        label = "album_dominant_color"
+    )
+    val dominantTopColor = animatedDominantColor.copy(alpha = 0.65f)
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -183,7 +191,8 @@ fun AlbumScreen(
                     }
 
                     val album = albumDetailState?.getOrNull()?.album
-                    if (album != null) {
+                    val titleText = album?.name ?: initialTitle
+                    if (titleText != null) {
                         val density = LocalDensity.current
                         val targetDistancePx = remember(density) { with(density) { 296.dp.toPx() } }
 
@@ -211,7 +220,7 @@ fun AlbumScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = album.name,
+                                text = titleText,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
@@ -238,57 +247,57 @@ fun AlbumScreen(
             val result = albumDetailState
             val detail = result?.getOrNull()
 
-            when {
-                result == null && isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding()),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(baseColor)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(420.dp)
+                        .graphicsLayer {
+                            alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                        }
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    dominantTopColor,
+                                    baseColor
+                                )
+                            )
+                        )
+                )
+
+                when {
+                    result == null && isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = padding.calculateTopPadding()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-                result == null || detail == null -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding())
+                    result == null || detail == null -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = padding.calculateTopPadding())
                             .clickable(role = Role.Button) {
                                 albumScreenViewModel.retry()
                             },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.operation_failed),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.operation_failed),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                }
-                else -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(baseColor)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(420.dp)
-                                .graphicsLayer {
-                                    alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                }
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            dominantTopColor,
-                                            baseColor
-                                        )
-                                    )
-                                )
-                        )
-
+                    else -> {
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()

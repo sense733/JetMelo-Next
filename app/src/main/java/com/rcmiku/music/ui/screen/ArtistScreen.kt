@@ -382,7 +382,13 @@ fun ArtistScreen(
                                                 modifier = Modifier
                                                     .clip(JetMeloShapes.small)
                                                     .clickable {
-                                                        navController.navigate(AlbumNav(albumId = it.id))
+                                                        navController.navigate(
+                                                            AlbumNav(
+                                                                albumId = it.id,
+                                                                coverImgUrl = it.picUrl,
+                                                                title = it.name
+                                                            )
+                                                        )
                                                     }
                                             )
                                         }

@@ -140,7 +140,13 @@ fun AlbumSublistScreen(
                                 modifier = Modifier
                                     .clip(JetMeloShapes.medium)
                                     .clickable(role = Role.Button) {
-                                        navController.navigate(AlbumNav(albumId = it.id))
+                                        navController.navigate(
+                                            AlbumNav(
+                                                albumId = it.id,
+                                                coverImgUrl = it.picUrl,
+                                                title = it.name
+                                            )
+                                        )
                                     }
                             )
                         }

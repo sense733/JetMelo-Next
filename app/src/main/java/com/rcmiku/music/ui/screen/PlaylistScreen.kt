@@ -41,6 +41,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -124,7 +125,9 @@ fun PlaylistScreen(
     playlistScreenViewModel: PlaylistScreenViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
-    bottomContentPadding: Dp = 0.dp
+    bottomContentPadding: Dp = 0.dp,
+    initialArtworkUri: String? = null,
+    initialTitle: String? = null
 ) {
     val playlistDetailState by playlistScreenViewModel.playlistDetail.collectAsStateWithLifecycle()
     val tracks by playlistScreenViewModel.tracks.collectAsStateWithLifecycle()
@@ -172,11 +175,16 @@ fun PlaylistScreen(
     }
 
     val pageArtworkColors = rememberArtworkColors(
-        artworkUri = playlistDetailState?.playlist?.coverImgUrl,
+        artworkUri = playlistDetailState?.playlist?.coverImgUrl ?: initialArtworkUri,
         songId = playlistDetailState?.playlist?.id?.toString()
     )
     val baseColor = MaterialTheme.colorScheme.background
-    val dominantTopColor = pageArtworkColors.dominantColor.copy(alpha = 0.65f)
+    val animatedDominantColor by animateColorAsState(
+        targetValue = pageArtworkColors.dominantColor,
+        animationSpec = tween(durationMillis = 350),
+        label = "playlist_dominant_color"
+    )
+    val dominantTopColor = animatedDominantColor.copy(alpha = 0.65f)
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -201,7 +209,8 @@ fun PlaylistScreen(
                     }
 
                     val playlist = playlistDetailState?.playlist
-                    if (playlist != null) {
+                    val titleText = playlist?.name ?: initialTitle
+                    if (titleText != null) {
                         val density = LocalDensity.current
                         val targetDistancePx = remember(density) { with(density) { 296.dp.toPx() } }
 
@@ -229,7 +238,7 @@ fun PlaylistScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = playlist.name,
+                                text = titleText,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
@@ -255,58 +264,59 @@ fun PlaylistScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { padding ->
             val detail = playlistDetailState
-            when {
-                detail == null && isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding()),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-                detail == null -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = padding.calculateTopPadding())
-                            .clickable(role = Role.Button) {
-                                playlistScreenViewModel.retry()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.operation_failed),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                else -> {
-                    val isOwner = detail.playlist.userId == currentUserId && currentUserId != 0L
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(baseColor)
-                    ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(baseColor)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(420.dp)
+                        .graphicsLayer {
+                            alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                        }
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    dominantTopColor,
+                                    baseColor
+                                )
+                            )
+                        )
+                )
+
+                when {
+                    detail == null && isLoading -> {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(420.dp)
-                                .graphicsLayer {
-                                    alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                }
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            dominantTopColor,
-                                            baseColor
-                                        )
-                                    )
-                                )
-                        )
+                                .fillMaxSize()
+                                .padding(top = padding.calculateTopPadding()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    detail == null -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = padding.calculateTopPadding())
+                                .clickable(role = Role.Button) {
+                                    playlistScreenViewModel.retry()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.operation_failed),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    else -> {
+                        val isOwner = detail.playlist.userId == currentUserId && currentUserId != 0L
 
                         LazyColumn(
                             modifier = Modifier

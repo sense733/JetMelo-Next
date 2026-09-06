@@ -19,7 +19,9 @@ const val DEFAULT_PLAYLIST_FETCH_LIMIT = 999
 data class PlaylistNav(
     val playlistId: Long,
     val limit: Int = DEFAULT_PLAYLIST_FETCH_LIMIT,
-    val noCache: Boolean = false
+    val noCache: Boolean = false,
+    val coverImgUrl: String? = null,
+    val title: String? = null
 )
 
 @Serializable
@@ -32,7 +34,11 @@ data class CloudSongNav(val uid: Long)
 data class ArtistNav(val artistId: Long)
 
 @Serializable
-data class AlbumNav(val albumId: Long)
+data class AlbumNav(
+    val albumId: Long,
+    val coverImgUrl: String? = null,
+    val title: String? = null
+)
 
 @Serializable
 data class RadioNav(val radioId: Long)

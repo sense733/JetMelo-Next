@@ -48,8 +48,8 @@ data class ArtworkColors(
 val LocalArtworkColors = compositionLocalOf { ArtworkColors() }
 
 object PaletteExtractor {
-    private const val MAX_CACHE_SIZE = 60
-    private const val SAMPLE_SIZE = 128
+    private const val MAX_CACHE_SIZE = 120
+    private const val SAMPLE_SIZE = 48
     private const val BLUR_RADIUS = 16
 
     private const val MIN_BACKGROUND_CONTRAST = 4.5f
@@ -65,6 +65,29 @@ object PaletteExtractor {
     }
 
     private val cache = LruCache<String, ArtworkColors>(MAX_CACHE_SIZE)
+
+    fun getCached(
+        artworkUri: Any?,
+        songId: String?,
+        fallbackDominant: Color,
+        fallbackAccent: Color
+    ): ArtworkColors? {
+        val fallbackSuffix = "${fallbackDominant.toArgb()},${fallbackAccent.toArgb()}"
+        val baseKey = songId ?: artworkUri?.toString()
+        val cacheKey = if (baseKey.isNullOrEmpty()) "" else "$baseKey|$fallbackSuffix"
+        if (cacheKey.isEmpty()) return null
+        return cache.get(cacheKey)
+    }
+
+    suspend fun preload(
+        context: Context,
+        artworkUri: Any?,
+        songId: String?,
+        fallbackDominant: Color,
+        fallbackAccent: Color
+    ) {
+        extract(context, artworkUri, songId, fallbackDominant, fallbackAccent)
+    }
 
     suspend fun extract(
         context: Context,
@@ -93,8 +116,8 @@ object PaletteExtractor {
                 .size(SAMPLE_SIZE, SAMPLE_SIZE)
                 .allowHardware(false)
                 .bitmapConfig(Bitmap.Config.ARGB_8888)
-                .memoryCachePolicy(CachePolicy.DISABLED)
-                .diskCachePolicy(CachePolicy.DISABLED)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
                 .build()
 
             val result = imageLoader.execute(request)
@@ -484,8 +507,14 @@ fun rememberArtworkColors(
 ): ArtworkColors {
     val context = LocalContext.current
     var colors by remember(songId, artworkUri, fallbackDominant, fallbackAccent) {
+        val cached = PaletteExtractor.getCached(
+            artworkUri = artworkUri,
+            songId = songId,
+            fallbackDominant = fallbackDominant,
+            fallbackAccent = fallbackAccent
+        )
         mutableStateOf(
-            ArtworkColors(
+            cached ?: ArtworkColors(
                 dominantColor = fallbackDominant,
                 onDominantColor = PaletteExtractor.getAccessibleTextColor(fallbackDominant),
                 accentColor = fallbackAccent,

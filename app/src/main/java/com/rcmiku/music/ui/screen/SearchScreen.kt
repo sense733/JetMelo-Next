@@ -717,7 +717,9 @@ fun SearchScreen(
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = playlist.id,
-                                                    limit = playlist.trackCount?.takeIf { it > 0 } ?: 999
+                                                    limit = playlist.trackCount?.takeIf { it > 0 } ?: 999,
+                                                    coverImgUrl = playlist.cover,
+                                                    title = playlist.name
                                                 )
                                             )
                                         }
@@ -803,7 +805,13 @@ fun SearchScreen(
                                     AlbumListItem(
                                         album = album,
                                         modifier = Modifier.clickable {
-                                            navController.navigate(AlbumNav(albumId = album.id))
+                                            navController.navigate(
+                                                AlbumNav(
+                                                    albumId = album.id,
+                                                    coverImgUrl = album.picUrl,
+                                                    title = album.name
+                                                )
+                                            )
                                         }
                                     )
                                 }

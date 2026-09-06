@@ -112,7 +112,9 @@ fun ListScreen(
                                     navController.navigate(
                                         PlaylistNav(
                                             playlistId = chart.id,
-                                            limit = chart.trackCount?.takeIf { it > 0 } ?: 999
+                                            limit = chart.trackCount?.takeIf { it > 0 } ?: 999,
+                                            coverImgUrl = chart.cover,
+                                            title = chart.name
                                         )
                                     )
                                 }

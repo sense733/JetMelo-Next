@@ -203,8 +203,15 @@ fun LibraryScreen(
                                 iconTint = errorColor,
                                 iconBackground = errorColor.copy(alpha = 0.12f),
                                 onClick = {
-                                    favoriteSongState?.data?.id?.let {
-                                        navController.navigate(PlaylistNav(playlistId = it, noCache = true))
+                                    favoriteSongState?.data?.let { fav ->
+                                        navController.navigate(
+                                            PlaylistNav(
+                                                playlistId = fav.id,
+                                                noCache = true,
+                                                coverImgUrl = fav.coverImgUrl,
+                                                title = fav.name
+                                            )
+                                        )
                                     }
                                 }
                             ),

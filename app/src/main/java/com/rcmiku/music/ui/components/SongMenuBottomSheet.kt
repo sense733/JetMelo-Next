@@ -190,7 +190,15 @@ fun SongMenuBottomSheet(
                                 .fillMaxWidth()
                                 .height(64.dp)
                                 .clickable(role = Role.Button) {
-                                    song?.al?.id?.takeIf { it != 0L }?.let { albumId -> navController.navigate(AlbumNav(albumId = albumId)) }
+                                    song?.al?.id?.takeIf { it != 0L }?.let { albumId ->
+                                        navController.navigate(
+                                            AlbumNav(
+                                                albumId = albumId,
+                                                coverImgUrl = song.al.picUrl,
+                                                title = song.al.name
+                                            )
+                                        )
+                                    }
                                     onDismiss()
                                 }, verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -354,7 +362,13 @@ fun SongMenuBottomSheet(
             },
             openBottomSheet = openArtistBottomSheet,
             onAlbumClick = { album ->
-                navController.navigate(AlbumNav(albumId = album.id))
+                navController.navigate(
+                    AlbumNav(
+                        albumId = album.id,
+                        coverImgUrl = album.picUrl,
+                        title = album.name
+                    )
+                )
             })
         SongListBottomSheet(song = it, onDismiss = {
             openSongListBottomSheet = false
