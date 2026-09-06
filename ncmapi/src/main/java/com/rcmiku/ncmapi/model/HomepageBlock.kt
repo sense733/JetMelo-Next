@@ -1,5 +1,7 @@
 package com.rcmiku.ncmapi.model
 
+import android.util.Log
+import com.rcmiku.ncmapi.utils.HttpManager
 import com.rcmiku.ncmapi.utils.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -33,7 +35,12 @@ data class HomepageBlock(
         val element = extInfo ?: return emptyList()
         return runCatching {
             json.decodeFromJsonElement(HomepageBannerExtInfo.serializer(), element).banners
-        }.getOrDefault(emptyList())
+        }.getOrElse { e ->
+            if (HttpManager.debugLogEnabled) {
+                Log.w("HomepageBlock", "extractBanners failed: element=$element", e)
+            }
+            emptyList()
+        }
     }
 
     fun extractPlaylists(): List<SimplifiedBlockPlaylist> {
