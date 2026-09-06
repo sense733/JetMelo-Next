@@ -66,7 +66,6 @@ import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.ui.components.tabs
 import com.rcmiku.music.ui.design.BottomFogOverlay
-import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.navigation.NavGraph
@@ -257,15 +256,6 @@ fun MainScreen() {
 
             val cardShape = remember(deviceCornerRadius, p) {
                 RoundedCornerShape(deviceCornerRadius * p)
-            }
-
-            if (p > 0f) {
-                ImmersiveBackground(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = p },
-                    artworkUri = artworkUri
-                ) {}
             }
 
             Scaffold(
