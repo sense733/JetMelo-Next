@@ -14,7 +14,7 @@ import kotlinx.serialization.json.jsonObject
 object PlaylistApi {
     private const val TAG = "PlaylistApi"
     private const val DEFAULT_TRACK_LIMIT = 1000
-    private const val MAX_DETAIL_LIMIT = 100000
+    private const val MAX_DETAIL_LIMIT = 1000
 
     suspend fun playlistDetail(id: Long): Result<PlaylistDetailResponse> {
         return playlistV3Detail(id)
@@ -26,7 +26,7 @@ object PlaylistApi {
     }
 
     suspend fun playlistV3Detail(id: Long): Result<PlaylistDetailResponse> {
-        return runCatching {
+        val v3Result = runCatching {
             if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV3Detail request id=$id")
             val body = HttpManager.request(
                 url = "/weapi/v3/playlist/detail",
@@ -38,10 +38,19 @@ object PlaylistApi {
                 crypto = HttpManager.CryptoType.WEAPI
             )
             json.decodeFromString(PlaylistDetailResponse.serializer(), body)
-        }.recoverCatching { e ->
-            if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV3Detail failed, fallback to v6. id=$id", e)
-            playlistV6Detail(id).getOrThrow()
         }
+        if (v3Result.isSuccess) {
+            return v3Result
+        }
+        val v3Exception = v3Result.exceptionOrNull() ?: Exception("playlistV3Detail failed")
+        if (HttpManager.debugLogEnabled) Log.w(TAG, "playlistV3Detail failed, fallback to v6. id=$id", v3Exception)
+        return playlistV6Detail(id).fold(
+            onSuccess = { Result.success(it) },
+            onFailure = { v6Exception ->
+                v3Exception.addSuppressed(v6Exception)
+                Result.failure(v3Exception)
+            }
+        )
     }
 
     suspend fun playlistV6Detail(id: Long): Result<PlaylistDetailResponse> {
@@ -102,6 +111,8 @@ object PlaylistApi {
         trackIds: List<Long>
     ): Result<GeneralResponse> {
         return runCatching {
+            require(op == "add" || op == "del") { "unsupported op: $op" }
+            require(trackIds.isNotEmpty()) { "trackIds must not be empty" }
             // ref: module/playlist_tracks.js => /api/playlist/manipulate/tracks
             val tracksParam = "[" + trackIds.joinToString(",") + "]"
             val body = HttpManager.request(
@@ -166,7 +177,10 @@ object PlaylistApi {
                 emptyList()
             }
 
-            detail.copy(playlist = detail.playlist.copy(tracks = songs))
+            val songMap = songs.associateBy { it.id }
+            val orderedSongs = slice.mapNotNull { songMap[it.id] }
+
+            detail.copy(playlist = detail.playlist.copy(tracks = orderedSongs))
         }
     }
 }

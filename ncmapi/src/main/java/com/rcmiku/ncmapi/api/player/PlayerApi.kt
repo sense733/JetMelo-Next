@@ -69,10 +69,25 @@ data class SongUrlResponse(
 )
 
 object PlayerApi {
+    /**
+     * 获取歌曲播放链接 (v1)。
+     *
+     * 传参逻辑：
+     * - [songLevel] 优先级高于 [level]，最终音质参数降级回退至 [level]。
+     * - [encodeType] 固定为 "flac"。
+     * - 仅当音质为 "sky"（沉浸声）时追加 "immerseType" = "c51"。
+     *
+     * @param id 歌曲 ID
+     * @param level 字符串音质级别，默认为 "standard"
+     * @param songLevel 枚举音质级别，若提供则覆盖 level
+     * @return [Result] 包含播放链接响应，若业务状态码异常或链接为空则封装为失败
+     */
     suspend fun songPlayUrlV1(id: String, level: String = "standard", songLevel: SongLevel? = null): Result<SongUrlResponse> {
         return runCatching {
-            // ref: NeteaseCloudMusicApi -> /api/song/enhance/player/url/v1
+            require(id.isNotBlank()) { "Song ID must not be blank" }
             val finalLevel = songLevel?.level ?: level
+            require(finalLevel.isNotBlank()) { "Song level must not be blank" }
+
             val data = mutableMapOf(
                 "ids" to "[$id]",
                 "level" to finalLevel,
@@ -91,21 +106,39 @@ object PlayerApi {
             if (HttpManager.debugLogEnabled) {
                 Log.w("PlayerApi", "songPlayUrlV1 id=$id level=$finalLevel code=${resp.code} urlPresent=${first?.url != null}")
             }
+            if (resp.code != 200) {
+                error("songPlayUrlV1 failed with response code ${resp.code}")
+            }
+            if (first == null) {
+                error("songPlayUrlV1 returned empty song url list for id=$id")
+            }
+            if (first.code != 200) {
+                error("songPlayUrlV1 item failed with item code ${first.code} for id=$id")
+            }
+            if (first.url.isNullOrBlank()) {
+                error("songPlayUrlV1 returned blank url for id=$id")
+            }
             resp
         }
     }
 
+    /**
+     * 获取歌曲歌词。
+     *
+     * @param musicId 歌曲 ID
+     * @return [Result] 包含歌词响应
+     */
     suspend fun songLyric(musicId: Long): Result<LyricResponse> {
         return runCatching {
             val body = HttpManager.request(
                 url = "/weapi/song/lyric",
                 data = mapOf(
-                    "id" to musicId,
-                    "lv" to -1,
-                    "tv" to -1,
-                    "rv" to -1,
-                    "kv" to -1,
-                    "_nmclfl" to 1
+                    "id" to musicId.toString(),
+                    "lv" to "-1",
+                    "tv" to "-1",
+                    "rv" to "-1",
+                    "kv" to "-1",
+                    "_nmclfl" to "1"
                 ),
                 crypto = HttpManager.CryptoType.WEAPI
             )

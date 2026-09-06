@@ -13,7 +13,12 @@ object ArtistApi {
             // ref: api-enhanced-main module/artist_detail.js => /api/artist/head/info/get
             val body = HttpManager.request(
                 url = "/api/artist/head/info/get",
-                data = mapOf("id" to id.toString()),
+                data = mapOf(
+                    "id" to id.toString(),
+                    "t" to (System.currentTimeMillis() / 1000).toString(),
+                    "header" to "{}",
+                    "e_r" to false
+                ),
                 crypto = HttpManager.CryptoType.EAPI
             )
             json.decodeFromString(ArtistHeadInfoResponse.serializer(), body)
@@ -50,9 +55,9 @@ object ArtistApi {
             val body = HttpManager.request(
                 url = "/api/artist/albums/$id",
                 data = mapOf(
-                    "limit" to limit,
-                    "offset" to offset,
-                    "total" to true
+                    "limit" to limit.toString(),
+                    "offset" to offset.toString(),
+                    "total" to "true"
                 ),
                 crypto = HttpManager.CryptoType.WEAPI
             )

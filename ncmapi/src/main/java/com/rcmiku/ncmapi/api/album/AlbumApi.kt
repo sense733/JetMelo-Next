@@ -26,27 +26,31 @@ object AlbumApi {
             val detail = albumDetail(id).getOrThrow()
 
             // ref: api-enhanced-main module/album_detail_dynamic.js => /api/album/detail/dynamic
-            val dynamicBody = HttpManager.request(
-                url = "/api/album/detail/dynamic",
-                data = mapOf("id" to id.toString()),
-                crypto = HttpManager.CryptoType.WEAPI
-            )
-            val dynamic = json.decodeFromString(AlbumDetailDynamicResponse.serializer(), dynamicBody)
+            val dynamic = runCatching {
+                val dynamicBody = HttpManager.request(
+                    url = "/api/album/detail/dynamic",
+                    data = mapOf("id" to id.toString()),
+                    crypto = HttpManager.CryptoType.WEAPI
+                )
+                json.decodeFromString(AlbumDetailDynamicResponse.serializer(), dynamicBody)
+            }.getOrNull()
 
             AlbumInfoResponse(
                 album = detail.album,
                 songs = detail.songs,
-                isSub = dynamic.isSub
+                isSub = dynamic?.isSub ?: false
             )
         }
     }
 
     suspend fun albumSub(id: Long, targetState: Boolean): Result<GeneralResponse> {
         return runCatching {
-            // ref: api-enhanced-main module/album_sub.js => /api/album/sub|unsub
-            val action = if (targetState) "sub" else "unsub"
+            val url = when {
+                targetState -> "/api/album/sub"
+                else -> "/api/album/unsub"
+            }
             val body = HttpManager.request(
-                url = "/api/album/$action",
+                url = url,
                 data = mapOf("id" to id.toString()),
                 crypto = HttpManager.CryptoType.WEAPI
             )

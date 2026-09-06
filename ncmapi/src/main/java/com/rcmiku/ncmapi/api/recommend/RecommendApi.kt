@@ -22,7 +22,9 @@ object RecommendApi {
             runCatching {
                 json.decodeFromString(DailySongsResponse.serializer(), body)
             }.getOrElse { e ->
-                Log.w(TAG, "decode failed: /api/v3/discovery/recommend/songs bodyPrefix=${body.take(400)}", e)
+                if (HttpManager.debugLogEnabled) {
+                    Log.w(TAG, "decode failed: /api/v3/discovery/recommend/songs bodyPrefix=${body.take(400)}", e)
+                }
                 throw e
             }
         }
@@ -42,7 +44,9 @@ object RecommendApi {
             runCatching {
                 json.decodeFromString(NewAlbumResponse.serializer(), body)
             }.getOrElse { e ->
-                Log.w(TAG, "decode failed: /api/discovery/newAlbum bodyPrefix=${body.take(400)}", e)
+                if (HttpManager.debugLogEnabled) {
+                    Log.w(TAG, "decode failed: /api/discovery/newAlbum bodyPrefix=${body.take(400)}", e)
+                }
                 throw e
             }
         }
@@ -60,7 +64,9 @@ object RecommendApi {
             runCatching {
                 json.decodeFromString(PersonalizedPlaylistResponse.serializer(), body)
             }.getOrElse { e ->
-                Log.w(TAG, "decode failed: /api/personalized/playlist bodyPrefix=${body.take(400)}", e)
+                if (HttpManager.debugLogEnabled) {
+                    Log.w(TAG, "decode failed: /api/personalized/playlist bodyPrefix=${body.take(400)}", e)
+                }
                 throw e
             }
         }
@@ -76,7 +82,9 @@ object RecommendApi {
             runCatching {
                 json.decodeFromString(RecommendPlaylistResponse.serializer(), body)
             }.getOrElse { e ->
-                Log.w(TAG, "decode failed: /api/v1/discovery/recommend/resource bodyPrefix=${body.take(400)}", e)
+                if (HttpManager.debugLogEnabled) {
+                    Log.w(TAG, "decode failed: /api/v1/discovery/recommend/resource bodyPrefix=${body.take(400)}", e)
+                }
                 throw e
             }
         }
