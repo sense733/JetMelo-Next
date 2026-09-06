@@ -39,10 +39,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.rcmiku.music.R
 import com.rcmiku.music.constants.userIdKey
+import com.rcmiku.music.di.RepositoryEntryPoint
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.model.Song
+import dagger.hilt.android.EntryPointAccessors
 import com.rcmiku.ncmapi.model.UserPlaylistV1Response
 import kotlinx.coroutines.launch
 
@@ -209,6 +211,10 @@ fun SongListBottomSheet(
                                                         pid = selectedId,
                                                         trackIds = listOf(songId)
                                                     ).onSuccess {
+                                                        EntryPointAccessors.fromApplication(
+                                                            context.applicationContext,
+                                                            RepositoryEntryPoint::class.java
+                                                        ).playlistRepository().invalidate(selectedId)
                                                         Toast.makeText(
                                                             context,
                                                             context.getText(R.string.add_success),
@@ -248,6 +254,10 @@ fun SongListBottomSheet(
                                         pid = selectedId,
                                         trackIds = listOf(songId)
                                     ).onSuccess {
+                                        EntryPointAccessors.fromApplication(
+                                            context.applicationContext,
+                                            RepositoryEntryPoint::class.java
+                                        ).playlistRepository().invalidate(selectedId)
                                         onDismiss()
                                     }.onFailure {
                                         Toast.makeText(

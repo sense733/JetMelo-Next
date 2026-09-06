@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rcmiku.music.data.favoriteSongIdsDatastore
+import com.rcmiku.music.data.repository.PlaylistRepository
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.model.PlaylistDetailResponse
@@ -28,7 +29,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PlaylistScreenViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val playlistRepository: PlaylistRepository
 ) : ViewModel() {
 
     companion object {
@@ -64,12 +66,18 @@ class PlaylistScreenViewModel @Inject constructor(
     private var observerStarted = false
 
     init {
+        playlistId?.let { id ->
+            playlistRepository.getCachedPlaylist(id)?.let { cached ->
+                applyDetail(cached.detail, isFromCache = true)
+                cached.info?.let { _playlistInfo.value = it }
+            }
+        }
         load()
     }
 
-    fun retry() = load()
+    fun retry() = load(forceRefresh = true)
 
-    fun load() {
+    fun load(forceRefresh: Boolean = false) {
         _loadError.value = false
         val id = playlistId
         if (id == null) {
@@ -82,14 +90,23 @@ class PlaylistScreenViewModel @Inject constructor(
                 observerStarted = true
                 fetchWithObserver()
             }
-            fetchPlaylistInfo()
+            fetchPlaylistInfo(forceRefresh = forceRefresh)
             return
         }
 
         viewModelScope.launch {
-            _isLoading.value = true
+            val cached = playlistRepository.getCachedPlaylist(id)
+            val hasCache = cached != null
+            if (!hasCache) {
+                _isLoading.value = true
+            }
             val effectiveLimit = limit?.takeIf { it > 0 } ?: DEFAULT_LIMIT
-            val result = PlaylistApi.playlistDetail(id = id, limit = effectiveLimit)
+            val shouldForce = forceRefresh || cached?.isExpired() == true
+            val result = playlistRepository.getPlaylistDetail(
+                id = id,
+                limit = effectiveLimit,
+                forceRefresh = shouldForce
+            )
             result.onSuccess { detail ->
                 applyDetail(detail)
             }.onFailure {
@@ -100,15 +117,21 @@ class PlaylistScreenViewModel @Inject constructor(
                 }
             }
             _isLoading.value = false
-            fetchPlaylistInfo()
+            fetchPlaylistInfo(forceRefresh = shouldForce)
         }
     }
 
-    private fun applyDetail(detail: PlaylistDetailResponse) {
+    private fun applyDetail(detail: PlaylistDetailResponse, isFromCache: Boolean = false) {
         _playlistDetail.value = detail
         val songList = detail.playlist.tracks
         _tracks.value = songList
         originalOrder = songList.mapIndexed { index, song -> song.id to index }.toMap()
+        if (!isFromCache) {
+            val id = playlistId ?: detail.playlist.id
+            if (id != 0L) {
+                playlistRepository.putCachedDetail(id, detail)
+            }
+        }
         if (noCache && songList.isNotEmpty()) {
             viewModelScope.launch {
                 FavoriteSongIdsUtil.mergeSongIds(context, songList.map { it.id })
@@ -133,12 +156,14 @@ class PlaylistScreenViewModel @Inject constructor(
         val id = playlistId ?: return
         val effectiveLimit = limit?.takeIf { it > 0 } ?: DEFAULT_LIMIT
         viewModelScope.launch {
-            _isLoading.value = true
+            if (_playlistDetail.value == null) {
+                _isLoading.value = true
+            }
             context.favoriteSongIdsDatastore.data
                 .debounce(500)
                 .distinctUntilChanged()
                 .collectLatest {
-                    PlaylistApi.playlistV6DetailEapi(id = id, n = effectiveLimit).fold(
+                    playlistRepository.getPlaylistV6DetailEapi(id = id, limit = effectiveLimit).fold(
                         onSuccess = { detail ->
                             applyDetail(detail)
                             _isLoading.value = false
@@ -154,10 +179,10 @@ class PlaylistScreenViewModel @Inject constructor(
         }
     }
 
-    private fun fetchPlaylistInfo() {
+    private fun fetchPlaylistInfo(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             playlistId?.let { id ->
-                PlaylistApi.playlistInfo(id).onSuccess { info ->
+                playlistRepository.getPlaylistInfo(id, forceRefresh = forceRefresh).onSuccess { info ->
                     _playlistInfo.value = info
                 }
             }
@@ -171,9 +196,11 @@ class PlaylistScreenViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            PlaylistApi.playlistSub(id = id, targetState = !isSub).fold(
+            val targetState = !isSub
+            PlaylistApi.playlistSub(id = id, targetState = targetState).fold(
                 onSuccess = {
-                    fetchPlaylistInfo()
+                    playlistRepository.updateSubscribed(id, targetState)
+                    fetchPlaylistInfo(forceRefresh = true)
                 },
                 onFailure = {
                     _actionError.tryEmit(Unit)
@@ -190,7 +217,8 @@ class PlaylistScreenViewModel @Inject constructor(
             return
         }
 
-        _tracks.value = currentTracks.filterNot { it.id == trackId }
+        val updatedTracks = currentTracks.filterNot { it.id == trackId }
+        _tracks.value = updatedTracks
 
         val pid = playlistId
         if (pid == null) {
@@ -206,6 +234,7 @@ class PlaylistScreenViewModel @Inject constructor(
                 trackIds = listOf(trackId)
             )
             if (result.isSuccess) {
+                playlistRepository.updateTracks(pid, updatedTracks)
                 onResult(true)
             } else {
                 _tracks.value = insertByOriginal(_tracks.value, songToDelete)
@@ -220,6 +249,8 @@ class PlaylistScreenViewModel @Inject constructor(
             onResult(false)
             return
         }
+        val currentTracks = _tracks.value
+        val updatedTracks = insertByOriginal(currentTracks, song)
         viewModelScope.launch {
             val result = PlaylistApi.playlistTracksManipulate(
                 op = "add",
@@ -227,7 +258,8 @@ class PlaylistScreenViewModel @Inject constructor(
                 trackIds = listOf(song.id)
             )
             if (result.isSuccess) {
-                _tracks.value = insertByOriginal(_tracks.value, song)
+                _tracks.value = updatedTracks
+                playlistRepository.updateTracks(pid, updatedTracks)
                 onResult(true)
             } else {
                 onResult(false)

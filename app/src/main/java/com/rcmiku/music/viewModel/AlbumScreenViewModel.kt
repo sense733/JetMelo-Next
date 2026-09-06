@@ -3,6 +3,7 @@ package com.rcmiku.music.viewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rcmiku.music.data.repository.AlbumRepository
 import com.rcmiku.ncmapi.api.album.AlbumApi
 import com.rcmiku.ncmapi.model.AlbumDetailResponse
 import com.rcmiku.ncmapi.model.AlbumInfoResponse
@@ -18,8 +19,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class AlbumScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandle) :
-    ViewModel() {
+class AlbumScreenViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val albumRepository: AlbumRepository
+) : ViewModel() {
     private val albumId = savedStateHandle.get<Long>("albumId")
 
     private val _albumDetail =
@@ -42,12 +45,18 @@ class AlbumScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandl
     val actionError: SharedFlow<Unit> = _actionError.asSharedFlow()
 
     init {
+        albumId?.let { id ->
+            albumRepository.getCachedAlbum(id)?.let { cached ->
+                _albumDetail.value = Result.success(cached.detail)
+                cached.info?.let { _albumInfo.value = it }
+            }
+        }
         load()
     }
 
-    fun retry() = load()
+    fun retry() = load(forceRefresh = true)
 
-    fun load() {
+    fun load(forceRefresh: Boolean = false) {
         _loadError.value = false
         val id = albumId
         if (id == null) {
@@ -56,9 +65,14 @@ class AlbumScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandl
         }
 
         viewModelScope.launch {
-            _isLoading.value = true
-            val detailDeferred = async { AlbumApi.albumDetail(id) }
-            val infoDeferred = async { AlbumApi.albumInfo(id) }
+            val cached = albumRepository.getCachedAlbum(id)
+            val hasCache = cached != null
+            if (!hasCache) {
+                _isLoading.value = true
+            }
+            val shouldForce = forceRefresh || cached?.isExpired() == true
+            val detailDeferred = async { albumRepository.getAlbumDetail(id, forceRefresh = shouldForce) }
+            val infoDeferred = async { albumRepository.getAlbumInfo(id, forceRefresh = shouldForce) }
 
             val detailResult = detailDeferred.await()
             val infoResult = infoDeferred.await()
@@ -76,7 +90,9 @@ class AlbumScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandl
             infoResult.onSuccess { info ->
                 _albumInfo.value = info
             }.onFailure {
-                _actionError.tryEmit(Unit)
+                if (_albumDetail.value == null) {
+                    _actionError.tryEmit(Unit)
+                }
             }
 
             _isLoading.value = false
@@ -86,7 +102,7 @@ class AlbumScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandl
     private fun fetchAlbumInfo() {
         val id = albumId ?: return
         viewModelScope.launch {
-            AlbumApi.albumInfo(id).fold(
+            albumRepository.getAlbumInfo(id, forceRefresh = true).fold(
                 onSuccess = { _albumInfo.value = it },
                 onFailure = { _actionError.tryEmit(Unit) }
             )
@@ -100,8 +116,10 @@ class AlbumScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandl
             return
         }
         viewModelScope.launch {
-            AlbumApi.albumSub(id = id, targetState = !isSub).fold(
+            val targetState = !isSub
+            AlbumApi.albumSub(id = id, targetState = targetState).fold(
                 onSuccess = {
+                    albumRepository.updateSubscribed(id, targetState)
                     fetchAlbumInfo()
                 },
                 onFailure = {

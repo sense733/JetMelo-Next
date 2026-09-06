@@ -3,7 +3,7 @@ package com.rcmiku.music.viewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rcmiku.ncmapi.api.account.AccountApi
+import com.rcmiku.music.data.repository.UserPlaylistRepository
 import com.rcmiku.ncmapi.api.account.UserPlaylistType
 import com.rcmiku.ncmapi.model.UserPlaylistResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,8 +14,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class UserPlaylistScreenViewModel @Inject constructor(savedStateHandle: SavedStateHandle) :
-    ViewModel() {
+class UserPlaylistScreenViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val userPlaylistRepository: UserPlaylistRepository
+) : ViewModel() {
     private val userId = savedStateHandle.get<Long>("userId")
     private val type = savedStateHandle.get<String>("type")
     val userPlaylistType: UserPlaylistType? =
@@ -33,12 +35,19 @@ class UserPlaylistScreenViewModel @Inject constructor(savedStateHandle: SavedSta
     val loadError: StateFlow<Boolean> = _loadError.asStateFlow()
 
     init {
+        val id = userId
+        val playlistType = userPlaylistType
+        if (id != null && playlistType != null) {
+            userPlaylistRepository.getCachedUserPlaylist(id, playlistType.type)?.let { cached ->
+                _playlist.value = cached
+            }
+        }
         load()
     }
 
-    fun retry() = load()
+    fun retry() = load(forceRefresh = true)
 
-    fun load() {
+    fun load(forceRefresh: Boolean = false) {
         _loadError.value = false
         val id = userId
         val playlistType = userPlaylistType
@@ -48,16 +57,22 @@ class UserPlaylistScreenViewModel @Inject constructor(savedStateHandle: SavedSta
         }
 
         viewModelScope.launch {
-            _isLoading.value = true
-            AccountApi.userPlaylist(
+            val cached = userPlaylistRepository.getCachedUserPlaylist(id, playlistType.type)
+            if (cached == null) {
+                _isLoading.value = true
+            }
+            userPlaylistRepository.getUserPlaylist(
                 userId = id,
-                userPlaylistType = playlistType
+                userPlaylistType = playlistType,
+                forceRefresh = forceRefresh
             ).fold(
                 onSuccess = { response ->
                     _playlist.value = response
                 },
                 onFailure = {
-                    _loadError.value = true
+                    if (_playlist.value == null) {
+                        _loadError.value = true
+                    }
                 }
             )
             _isLoading.value = false
