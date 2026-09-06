@@ -168,7 +168,8 @@ fun NavGraph(
                     animatedContentScope = this@composable,
                     bottomContentPadding = bottomContentPadding,
                     initialArtworkUri = nav.coverImgUrl,
-                    initialTitle = nav.title
+                    initialTitle = nav.title,
+                    enableSharedTransition = nav.enableSharedTransition
                 )
             }
             composable<AlbumNav> { backStackEntry ->

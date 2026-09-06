@@ -4,8 +4,15 @@ import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.model.PlaylistDetailResponse
 import com.rcmiku.ncmapi.model.PlaylistInfoResponse
 import com.rcmiku.ncmapi.model.Song
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 data class CachedPlaylistEntry(
     val detail: PlaylistDetailResponse,
@@ -25,9 +32,38 @@ class PlaylistRepository @Inject constructor() {
     }
 
     private val cache = SimpleLruCache<Long, CachedPlaylistEntry>(MAX_CACHE_SIZE)
+    private val preloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val preloadingIds = ConcurrentHashMap.newKeySet<Long>()
 
     fun getCachedPlaylist(id: Long): CachedPlaylistEntry? {
         return cache.get(id)
+    }
+
+    fun hasCachedPlaylist(id: Long): Boolean {
+        val entry = cache.get(id) ?: return false
+        return !entry.isExpired()
+    }
+
+    fun preloadPlaylists(ids: List<Long>, limit: Int = 1000) {
+        if (ids.isEmpty()) return
+        preloadScope.launch {
+            val semaphore = Semaphore(2)
+            ids.forEach { id ->
+                if (hasCachedPlaylist(id) || !preloadingIds.add(id)) {
+                    return@forEach
+                }
+                launch {
+                    try {
+                        semaphore.withPermit {
+                            getPlaylistDetail(id = id, limit = limit, forceRefresh = false)
+                        }
+                    } catch (_: Throwable) {
+                    } finally {
+                        preloadingIds.remove(id)
+                    }
+                }
+            }
+        }
     }
 
     fun putCachedDetail(id: Long, detail: PlaylistDetailResponse) {

@@ -11,6 +11,8 @@ import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.model.PlaylistDetailResponse
 import com.rcmiku.ncmapi.model.PlaylistInfoResponse
 import com.rcmiku.ncmapi.model.Song
+import androidx.navigation.toRoute
+import com.rcmiku.music.ui.navigation.PlaylistNav
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
@@ -40,9 +42,10 @@ class PlaylistScreenViewModel @Inject constructor(
         private const val DEFAULT_LIMIT = 1000
     }
 
-    private val playlistId = savedStateHandle.get<Long>(KEY_PLAYLIST_ID)
-    private val limit = savedStateHandle.get<Int>(KEY_LIMIT)
-    private val noCache = savedStateHandle.get<Boolean>(KEY_NO_CACHE) ?: false
+    private val nav: PlaylistNav? = runCatching { savedStateHandle.toRoute<PlaylistNav>() }.getOrNull()
+    private val playlistId: Long? = nav?.playlistId ?: savedStateHandle.get<Long>(KEY_PLAYLIST_ID)
+    private val limit: Int? = nav?.limit ?: savedStateHandle.get<Int>(KEY_LIMIT)
+    private val noCache: Boolean = nav?.noCache ?: savedStateHandle.get<Boolean>(KEY_NO_CACHE) ?: false
 
     private val _playlistDetail = MutableStateFlow<PlaylistDetailResponse?>(null)
     val playlistDetail: StateFlow<PlaylistDetailResponse?> = _playlistDetail.asStateFlow()

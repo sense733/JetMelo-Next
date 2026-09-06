@@ -160,12 +160,14 @@ fun ExploreScreen(
                                         subtitle = chart.description ?: stringResource(R.string.song_size, chart.trackCount ?: 0),
                                         aspectRatio = 1.7f,
                                         onClick = {
+                                            val hasCache = exploreScreenViewModel.hasPlaylistCache(chart.id)
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = chart.id,
                                                     limit = chart.trackCount?.takeIf { it > 0 } ?: 999,
                                                     coverImgUrl = chart.cover,
-                                                    title = chart.name
+                                                    title = chart.name,
+                                                    enableSharedTransition = hasCache
                                                 )
                                             )
                                         }

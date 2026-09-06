@@ -101,6 +101,7 @@ import com.rcmiku.music.extensions.setPlaylist
 import com.rcmiku.music.ui.components.ActiveBoxAlpha
 import com.rcmiku.music.ui.components.PlayingIndicatorBox
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
+import com.rcmiku.music.ui.design.PlaylistDetailSkeleton
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.icons.FavoriteFill
 import com.rcmiku.music.ui.icons.LibraryAdd
@@ -127,7 +128,8 @@ fun PlaylistScreen(
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp,
     initialArtworkUri: String? = null,
-    initialTitle: String? = null
+    initialTitle: String? = null,
+    enableSharedTransition: Boolean = false
 ) {
     val playlistDetailState by playlistScreenViewModel.playlistDetail.collectAsStateWithLifecycle()
     val tracks by playlistScreenViewModel.tracks.collectAsStateWithLifecycle()
@@ -289,13 +291,20 @@ fun PlaylistScreen(
 
                 when {
                     detail == null && isLoading -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding()),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                        if (!enableSharedTransition) {
+                            PlaylistDetailSkeleton(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = padding.calculateTopPadding()),
+                                showCoverSkeleton = true,
+                                bottomContentPadding = bottomContentPadding
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = padding.calculateTopPadding())
+                            )
                         }
                     }
                     detail == null -> {
@@ -366,14 +375,20 @@ fun PlaylistScreen(
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .sharedElement(
-                                                        sharedTransitionScope.rememberSharedContentState(
-                                                            key = "cover_${detail.playlist.id}"
-                                                        ),
-                                                        animatedVisibilityScope = animatedContentScope,
-                                                        boundsTransform = JetMeloBoundsTransform,
-                                                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                        clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                                    .then(
+                                                        if (enableSharedTransition) {
+                                                            Modifier.sharedElement(
+                                                                sharedTransitionScope.rememberSharedContentState(
+                                                                    key = "cover_${detail.playlist.id}"
+                                                                ),
+                                                                animatedVisibilityScope = animatedContentScope,
+                                                                boundsTransform = JetMeloBoundsTransform,
+                                                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                                                clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                                            )
+                                                        } else {
+                                                            Modifier
+                                                        }
                                                     )
                                             )
                                         }

@@ -2,6 +2,7 @@ package com.rcmiku.music.viewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rcmiku.music.data.repository.PlaylistRepository
 import com.rcmiku.ncmapi.api.explore.ExploreApi
 import com.rcmiku.ncmapi.api.playlist.PlaylistApi
 import com.rcmiku.ncmapi.api.recommend.RecommendApi
@@ -15,7 +16,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ExploreScreenViewModel @Inject constructor() : ViewModel() {
+class ExploreScreenViewModel @Inject constructor(
+    private val playlistRepository: PlaylistRepository
+) : ViewModel() {
 
     private val _topList =
         MutableStateFlow<Result<TopListResponse>?>(null)
@@ -32,9 +35,14 @@ class ExploreScreenViewModel @Inject constructor() : ViewModel() {
     val allNewAlbum: StateFlow<Result<NewAlbumResponse>?> =
         _allNewAlbum.asStateFlow()
 
+    fun hasPlaylistCache(playlistId: Long): Boolean =
+        playlistRepository.hasCachedPlaylist(playlistId)
+
     fun fetchTopList() {
         viewModelScope.launch {
-            _topList.value = PlaylistApi.topList()
+            val res = PlaylistApi.topList()
+            _topList.value = res
+            res.getOrNull()?.list?.take(10)?.map { it.id }?.let { playlistRepository.preloadPlaylists(it) }
         }
     }
 

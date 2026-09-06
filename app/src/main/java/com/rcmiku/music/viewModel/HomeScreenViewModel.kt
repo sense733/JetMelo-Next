@@ -11,6 +11,7 @@ import com.rcmiku.ncmapi.api.recommend.RecommendApi
 import com.rcmiku.ncmapi.model.DailySongsResponse
 import com.rcmiku.ncmapi.model.PersonalizedPlaylistResponse
 import com.rcmiku.ncmapi.model.RecommendPlaylistResponse
+import com.rcmiku.music.data.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,8 +24,10 @@ import kotlinx.coroutines.supervisorScope
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeScreenViewModel @Inject constructor(@ApplicationContext private val context: Context) :
-    ViewModel() {
+class HomeScreenViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val playlistRepository: PlaylistRepository
+) : ViewModel() {
 
     private val _recommendSongs =
         MutableStateFlow<Result<DailySongsResponse>?>(null)
@@ -60,22 +63,37 @@ class HomeScreenViewModel @Inject constructor(@ApplicationContext private val co
         }
     }
 
+    fun hasPlaylistCache(playlistId: Long): Boolean =
+        playlistRepository.hasCachedPlaylist(playlistId)
+
     fun fetchRecommendPlaylist() {
         viewModelScope.launch {
-            _recommendPlaylist.value = RecommendApi.recommendPlaylist()
+            val res = RecommendApi.recommendPlaylist()
+            _recommendPlaylist.value = res
+            res.getOrNull()?.recommend?.map { it.id }?.let { playlistRepository.preloadPlaylists(it) }
         }
     }
 
     fun fetchPersonalizedPlaylist() {
         viewModelScope.launch {
-            _personalizedPlaylist.value = RecommendApi.personalizedPlaylist()
+            val res = RecommendApi.personalizedPlaylist()
+            _personalizedPlaylist.value = res
+            res.getOrNull()?.result?.map { it.id }?.let { playlistRepository.preloadPlaylists(it) }
         }
     }
 
     private suspend fun loadAll() = supervisorScope {
         launch { _recommendSongs.value = RecommendApi.recommendSongs() }
-        launch { _recommendPlaylist.value = RecommendApi.recommendPlaylist() }
-        launch { _personalizedPlaylist.value = RecommendApi.personalizedPlaylist() }
+        launch {
+            val res = RecommendApi.recommendPlaylist()
+            _recommendPlaylist.value = res
+            res.getOrNull()?.recommend?.map { it.id }?.let { playlistRepository.preloadPlaylists(it) }
+        }
+        launch {
+            val res = RecommendApi.personalizedPlaylist()
+            _personalizedPlaylist.value = res
+            res.getOrNull()?.result?.map { it.id }?.let { playlistRepository.preloadPlaylists(it) }
+        }
         launch {
             runCatching {
                 val storedUid = context.dataStore.data.map { it[userIdKey] ?: 0L }.first()

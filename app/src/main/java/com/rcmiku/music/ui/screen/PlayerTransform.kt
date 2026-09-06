@@ -252,9 +252,10 @@ fun PlayerTransform(
         val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, progress)
 
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
-        val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, progress)
-        val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, progress)
-        val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, progress)
+        val artworkProgress = (progress / 0.88f).coerceIn(0f, 1f)
+        val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, artworkProgress)
+        val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, artworkProgress)
+        val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, artworkProgress)
 
         if (!isFull) {
             val borderAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
@@ -418,8 +419,8 @@ fun PlayerTransform(
                 }
             }
 
-            val fullControlsAlpha = ((progress - 0.60f) / 0.40f).coerceIn(0f, 1f)
-            val fullControlsOffsetY = 12.dp * (1f - fullControlsAlpha)
+            val fullControlsAlpha = ((progress - 0.78f) / 0.22f).coerceIn(0f, 1f)
+            val fullControlsOffsetY = 8.dp * (1f - fullControlsAlpha)
 
             val coverKey = "player_active_cover"
             val titleKey = "player_active_title"

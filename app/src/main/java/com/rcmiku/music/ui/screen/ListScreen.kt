@@ -104,6 +104,7 @@ fun ListScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(topList.list, key = { it.id }) { chart ->
+                        val hasCache = exploreScreenViewModel.hasPlaylistCache(chart.id)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -114,7 +115,8 @@ fun ListScreen(
                                             playlistId = chart.id,
                                             limit = chart.trackCount?.takeIf { it > 0 } ?: 999,
                                             coverImgUrl = chart.cover,
-                                            title = chart.name
+                                            title = chart.name,
+                                            enableSharedTransition = hasCache
                                         )
                                     )
                                 }
@@ -132,14 +134,20 @@ fun ListScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(JetMeloShapes.medium)
-                                        .sharedElement(
-                                            sharedTransitionScope.rememberSharedContentState(
-                                                key = "cover_${chart.id}"
-                                            ),
-                                            animatedVisibilityScope = animatedContentScope,
-                                            boundsTransform = JetMeloBoundsTransform,
-                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                        .then(
+                                            if (hasCache) {
+                                                Modifier.sharedElement(
+                                                    sharedTransitionScope.rememberSharedContentState(
+                                                        key = "cover_${chart.id}"
+                                                    ),
+                                                    animatedVisibilityScope = animatedContentScope,
+                                                    boundsTransform = JetMeloBoundsTransform,
+                                                    placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                                    clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
                                         )
                                 )
                             }

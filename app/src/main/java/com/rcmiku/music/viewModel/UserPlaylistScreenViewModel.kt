@@ -3,6 +3,7 @@ package com.rcmiku.music.viewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rcmiku.music.data.repository.PlaylistRepository
 import com.rcmiku.music.data.repository.UserPlaylistRepository
 import com.rcmiku.ncmapi.api.account.UserPlaylistType
 import com.rcmiku.ncmapi.model.UserPlaylistResponse
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class UserPlaylistScreenViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val userPlaylistRepository: UserPlaylistRepository
+    private val userPlaylistRepository: UserPlaylistRepository,
+    private val playlistRepository: PlaylistRepository
 ) : ViewModel() {
     private val userId = savedStateHandle.get<Long>("userId")
     private val type = savedStateHandle.get<String>("type")
@@ -40,10 +42,14 @@ class UserPlaylistScreenViewModel @Inject constructor(
         if (id != null && playlistType != null) {
             userPlaylistRepository.getCachedUserPlaylist(id, playlistType.type)?.let { cached ->
                 _playlist.value = cached
+                playlistRepository.preloadPlaylists(cached.data.playlist.map { it.id })
             }
         }
         load()
     }
+
+    fun hasPlaylistCache(playlistId: Long): Boolean =
+        playlistRepository.hasCachedPlaylist(playlistId)
 
     fun retry() = load(forceRefresh = true)
 
@@ -68,6 +74,7 @@ class UserPlaylistScreenViewModel @Inject constructor(
             ).fold(
                 onSuccess = { response ->
                     _playlist.value = response
+                    playlistRepository.preloadPlaylists(response.data.playlist.map { it.id })
                 },
                 onFailure = {
                     if (_playlist.value == null) {

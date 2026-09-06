@@ -21,7 +21,8 @@ data class PlaylistNav(
     val limit: Int = DEFAULT_PLAYLIST_FETCH_LIMIT,
     val noCache: Boolean = false,
     val coverImgUrl: String? = null,
-    val title: String? = null
+    val title: String? = null,
+    val enableSharedTransition: Boolean = false
 )
 
 @Serializable
