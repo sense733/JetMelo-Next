@@ -185,11 +185,9 @@ fun PlaylistScreen(
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                val topBarAlpha = (collapseFraction / 0.70f).coerceIn(0f, 1f)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(baseColor.copy(alpha = topBarAlpha))
                         .statusBarsPadding()
                         .height(44.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -319,7 +317,16 @@ fun PlaylistScreen(
                                             modifier = Modifier
                                                 .size(220.dp)
                                                 .graphicsLayer {
-                                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                    val offset = if (listState.firstVisibleItemIndex == 0) {
+                                                        listState.firstVisibleItemScrollOffset.toFloat()
+                                                    } else {
+                                                        0f
+                                                    }
+                                                    translationY = offset * 0.85f
+                                                    val fraction = collapseFraction
+                                                    scaleX = (1f - fraction * 0.25f).coerceIn(0.75f, 1f)
+                                                    scaleY = scaleX
+                                                    alpha = (1f - (fraction / 0.70f)).coerceIn(0f, 1f)
                                                 }
                                                 .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
                                                 .clip(JetMeloShapes.medium)
@@ -372,7 +379,7 @@ fun PlaylistScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .graphicsLayer {
-                                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                    alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                                 },
                                             horizontalArrangement = Arrangement.Center,
                                             verticalAlignment = Alignment.CenterVertically
@@ -410,7 +417,7 @@ fun PlaylistScreen(
                                                 modifier = Modifier
                                                     .padding(horizontal = 12.dp)
                                                     .graphicsLayer {
-                                                        alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                        alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                                     }
                                             )
                                         }

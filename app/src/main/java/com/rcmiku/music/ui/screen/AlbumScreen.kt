@@ -169,11 +169,9 @@ fun AlbumScreen(
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                val topBarAlpha = (collapseFraction / 0.70f).coerceIn(0f, 1f)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(baseColor.copy(alpha = topBarAlpha))
                         .statusBarsPadding()
                         .height(44.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -302,7 +300,16 @@ fun AlbumScreen(
                                             modifier = Modifier
                                                 .size(220.dp)
                                                 .graphicsLayer {
-                                                    alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                    val offset = if (listState.firstVisibleItemIndex == 0) {
+                                                        listState.firstVisibleItemScrollOffset.toFloat()
+                                                    } else {
+                                                        0f
+                                                    }
+                                                    translationY = offset * 0.85f
+                                                    val fraction = collapseFraction
+                                                    scaleX = (1f - fraction * 0.25f).coerceIn(0.75f, 1f)
+                                                    scaleY = scaleX
+                                                    alpha = (1f - (fraction / 0.70f)).coerceIn(0f, 1f)
                                                 }
                                                 .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
                                                 .clip(JetMeloShapes.medium)
@@ -353,7 +360,7 @@ fun AlbumScreen(
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             modifier = Modifier.graphicsLayer {
-                                                alpha = (1f - collapseFraction).coerceIn(0f, 1f)
+                                                alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                             }
                                         ) {
                                             // Artist Subtitle
