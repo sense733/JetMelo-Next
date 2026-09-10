@@ -293,30 +293,34 @@ fun Player(
                             }
                         }
                 ) {
-                    if (showArtwork) {
-                        Crossfade(
-                            targetState = effectiveArtworkUri,
-                            animationSpec = tween(durationMillis = 350),
-                            label = "player_artwork_crossfade",
-                            modifier = imageModifier
-                                .fillMaxSize()
-                                .shadow(elevation = artworkElevation, shape = AdaptiveArtworkShape)
-                                .clip(AdaptiveArtworkShape)
-                                .clickable(enabled = controlsAlpha > 0.1f, onClick = onClick)
-                        ) { uri ->
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(uri)
-                                    .size(Size(1080, 1080))
-                                    .memoryCacheKey(uri?.toString())
-                                    .diskCacheKey(uri?.toString())
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                    Crossfade(
+                        targetState = effectiveArtworkUri,
+                        animationSpec = tween(durationMillis = 350),
+                        label = "player_artwork_crossfade",
+                        modifier = imageModifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                alpha = if (showArtwork) 1f else 0f
+                            }
+                            .shadow(
+                                elevation = if (showArtwork) artworkElevation else 0.dp,
+                                shape = AdaptiveArtworkShape
                             )
-                        }
+                            .clip(AdaptiveArtworkShape)
+                            .clickable(enabled = controlsAlpha > 0.1f && showArtwork, onClick = onClick)
+                    ) { uri ->
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(uri)
+                                .size(Size(1080, 1080))
+                                .memoryCacheKey(uri?.toString())
+                                .diskCacheKey(uri?.toString())
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
             }

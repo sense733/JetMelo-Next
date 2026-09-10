@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -212,6 +213,7 @@ fun PlayerTransform(
         val screenWidthPx = constraints.maxWidth.toFloat()
         val screenHeightPx = constraints.maxHeight.toFloat()
         val statusBarInsetPx = WindowInsets.statusBars.getTop(density).toFloat()
+        val navBarInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
 
         val miniHorizontalPaddingPx = with(density) { 12.dp.toPx() }
         val miniVerticalPaddingPx = with(density) { 8.dp.toPx() }
@@ -230,14 +232,15 @@ fun PlayerTransform(
             Rect(0f, 0f, screenWidthPx, screenHeightPx)
         }
 
-        val defaultFullArtworkRect = remember(screenWidthPx, screenHeightPx, statusBarInsetPx) {
+        val defaultFullArtworkRect = remember(screenWidthPx, screenHeightPx, statusBarInsetPx, navBarInsetPx) {
             val horizontalPaddingPx = with(density) { 40.dp.toPx() }
             val availableWidthPx = screenWidthPx - horizontalPaddingPx
             val fullWidthPx = availableWidthPx * 0.88f
             val fullLeftPx = (screenWidthPx - fullWidthPx) / 2f
-            val availableHeight = screenHeightPx - statusBarInsetPx - with(density) { (56.dp + 284.dp).toPx() }
-            val fullTopPx = statusBarInsetPx + with(density) { 56.dp.toPx() } + ((availableHeight - fullWidthPx) / 2f).coerceAtLeast(0f)
-            Rect(fullLeftPx, fullTopPx, fullLeftPx + fullWidthPx, fullTopPx + fullWidthPx)
+            val availableHeight = (screenHeightPx - statusBarInsetPx - navBarInsetPx - with(density) { (56.dp + 296.dp).toPx() }).coerceAtLeast(0f)
+            val artSizePx = if (availableHeight in 1f..<fullWidthPx) availableHeight else fullWidthPx
+            val fullTopPx = statusBarInsetPx + with(density) { 56.dp.toPx() } + ((availableHeight - artSizePx) / 2f).coerceAtLeast(0f)
+            Rect(fullLeftPx, fullTopPx, fullLeftPx + artSizePx, fullTopPx + artSizePx)
         }
         val miniArtworkRect = remember(miniLeftPx, miniTopPx) {
             val sizePx = with(density) { 44.dp.toPx() }
@@ -252,7 +255,7 @@ fun PlayerTransform(
         val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, progress)
 
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
-        val artworkProgress = (progress / 0.88f).coerceIn(0f, 1f)
+        val artworkProgress = progress
         val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, artworkProgress)
         val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, artworkProgress)
         val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, artworkProgress)
@@ -426,13 +429,12 @@ fun PlayerTransform(
             val titleKey = "player_active_title"
             val artistKey = "player_active_artist"
 
-            if (fullControlsAlpha > 0f) {
+            if (!isCollapsed) {
                 SharedTransitionLayout(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
                             alpha = fullControlsAlpha
-                            translationY = fullControlsOffsetY.toPx()
                         }
                 ) {
                     val subViewTransition = updateTransition(
@@ -502,7 +504,7 @@ fun PlayerTransform(
                                         onClick = { safeSwitchView(LYRIC_VIEW) },
                                         onContainerClick = { safeSwitchView(PLAY_QUEUE) },
                                         controlsAlpha = 1f,
-                                        controlsOffsetY = 0.dp,
+                                        controlsOffsetY = fullControlsOffsetY,
                                         showArtwork = isFull,
                                         showBackground = false,
                                         onArtworkPositioned = { rect ->
@@ -535,7 +537,7 @@ fun PlayerTransform(
                             }
                         }
 
-                        if (subViewTransition.currentState != subViewTransition.targetState) {
+                        if (!isFull || subViewTransition.currentState != subViewTransition.targetState) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -576,7 +578,7 @@ fun PlayerTransform(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(effectiveArtworkUri)
-                        .size(CoilSize(768, 768))
+                        .size(CoilSize(1080, 1080))
                         .memoryCacheKey(effectiveArtworkUri?.toString())
                         .diskCacheKey(effectiveArtworkUri?.toString())
                         .crossfade(true)
