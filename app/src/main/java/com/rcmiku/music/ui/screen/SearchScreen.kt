@@ -165,17 +165,18 @@ fun SearchScreen(
         }
     }
 
-    val handleExpandedChange: (Boolean) -> Unit = remember(currentSubmittedKeyword) {
+    val handleExpandedChange: (Boolean) -> Unit = remember(currentSubmittedKeyword, navController) {
         { isExpanded ->
             if (!isExpanded) {
+                keyboardController?.hide()
+                focusManager.clearFocus()
                 if (currentSubmittedKeyword.isNotEmpty()) {
                     searchValue = currentSubmittedKeyword
                     expanded = false
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
                 } else {
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
+                    searchValue = ""
+                    searchViewModel.updateSearchValue("")
+                    navController.navigateUp()
                 }
             } else {
                 expanded = true
