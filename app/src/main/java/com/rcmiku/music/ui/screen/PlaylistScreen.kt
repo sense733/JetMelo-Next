@@ -361,16 +361,33 @@ fun PlaylistScreen(
                                                         Modifier
                                                     }
                                                 )
-                                                .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                                .shadow(
+                                                    elevation = 6.dp,
+                                                    shape = JetMeloShapes.medium,
+                                                    ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                                    spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                                )
                                                 .clip(JetMeloShapes.medium)
                                         )
                                     } else {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                                .shadow(
+                                                    elevation = 4.dp,
+                                                    shape = JetMeloShapes.medium,
+                                                    ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                                                    spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                                )
                                                 .clip(JetMeloShapes.medium)
-                                                .background(shimmerBrush)
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                    shape = JetMeloShapes.medium
+                                                )
+                                                .background(
+                                                    brush = shimmerBrush,
+                                                    shape = JetMeloShapes.medium
+                                                )
                                         )
                                     }
                                 }
@@ -390,7 +407,7 @@ fun PlaylistScreen(
                                                 .width(180.dp)
                                                 .height(24.dp)
                                                 .clip(JetMeloShapes.small)
-                                                .background(shimmerBrush)
+                                                .background(shimmerBrush, shape = JetMeloShapes.small)
                                                 .graphicsLayer {
                                                     alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                                 }
@@ -467,7 +484,7 @@ fun PlaylistScreen(
                                             .width(130.dp)
                                             .height(14.dp)
                                             .clip(JetMeloShapes.extraSmall)
-                                            .background(shimmerBrush)
+                                            .background(shimmerBrush, shape = JetMeloShapes.extraSmall)
                                             .graphicsLayer {
                                                 alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                             }
@@ -478,7 +495,7 @@ fun PlaylistScreen(
                                             .width(200.dp)
                                             .height(12.dp)
                                             .clip(JetMeloShapes.extraSmall)
-                                            .background(shimmerBrush)
+                                            .background(shimmerBrush, shape = JetMeloShapes.extraSmall)
                                             .graphicsLayer {
                                                 alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                             }

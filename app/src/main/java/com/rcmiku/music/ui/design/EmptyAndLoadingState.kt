@@ -108,35 +108,35 @@ fun EmptyState(
 
 @Composable
 fun rememberShimmerBrush(enabled: Boolean = true): Brush {
+    val baseColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.28f)
+    val highlightColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.08f)
     if (!enabled) {
         return Brush.linearGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f),
-                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f)
-            )
+            colors = listOf(baseColor, baseColor)
         )
     }
+    val bandWidth = 800f
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1800f,
+        initialValue = -bandWidth,
+        targetValue = 2200f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1300, easing = LinearEasing),
+            animation = tween(durationMillis = 1400, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shimmer_anim"
     )
 
     val shimmerColors = listOf(
-        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.15f),
-        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+        baseColor,
+        highlightColor,
+        baseColor,
     )
 
     return Brush.linearGradient(
         colors = shimmerColors,
-        start = Offset(x = translateAnim - 500f, y = translateAnim - 500f),
-        end = Offset(x = translateAnim, y = translateAnim)
+        start = Offset(x = translateAnim, y = translateAnim),
+        end = Offset(x = translateAnim + bandWidth, y = translateAnim + bandWidth)
     )
 }
 
@@ -149,7 +149,7 @@ fun SkeletonPlaceholder(
     Box(
         modifier = modifier
             .clip(shape)
-            .background(brush)
+            .background(brush, shape = shape)
     )
 }
 
@@ -407,9 +407,21 @@ fun DetailCoverSkeleton(
     Box(
         modifier = modifier
             .size(220.dp)
-            .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+            .shadow(
+                elevation = 4.dp,
+                shape = JetMeloShapes.medium,
+                ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+            )
             .clip(JetMeloShapes.medium)
-            .background(brush)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = JetMeloShapes.medium
+            )
+            .background(
+                brush = brush,
+                shape = JetMeloShapes.medium
+            )
     )
 }
 
@@ -430,13 +442,13 @@ fun DetailPlayBarSkeleton(
                 .width(140.dp)
                 .height(44.dp)
                 .clip(JetMeloShapes.large)
-                .background(brush)
+                .background(brush, shape = JetMeloShapes.large)
         )
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(JetMeloShapes.full)
-                .background(brush)
+                .background(brush, shape = JetMeloShapes.full)
         )
     }
 }
@@ -456,7 +468,7 @@ fun DetailTrackItemSkeleton(
             modifier = Modifier
                 .size(44.dp)
                 .clip(AdaptiveArtworkShape)
-                .background(brush)
+                .background(brush, shape = AdaptiveArtworkShape)
         )
 
         Spacer(Modifier.width(14.dp))
@@ -470,14 +482,14 @@ fun DetailTrackItemSkeleton(
                     .fillMaxWidth(0.65f)
                     .height(16.dp)
                     .clip(JetMeloShapes.extraSmall)
-                    .background(brush)
+                    .background(brush, shape = JetMeloShapes.extraSmall)
             )
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.4f)
                     .height(12.dp)
                     .clip(JetMeloShapes.extraSmall)
-                    .background(brush)
+                    .background(brush, shape = JetMeloShapes.extraSmall)
             )
         }
 
@@ -487,7 +499,7 @@ fun DetailTrackItemSkeleton(
             modifier = Modifier
                 .size(24.dp)
                 .clip(JetMeloShapes.full)
-                .background(brush)
+                .background(brush, shape = JetMeloShapes.full)
         )
     }
 }
