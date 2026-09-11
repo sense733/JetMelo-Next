@@ -46,3 +46,4 @@ docs/code-review*.md
 docs/code-review-chains/
 jetmelo_shared_element_transition_report.md
 *_report.md
+.agents/
