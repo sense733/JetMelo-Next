@@ -365,100 +365,6 @@ fun PlayerTransform(
                 )
             }
 
-            val miniAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
-            if (miniAlpha > 0f) {
-                val miniTranslationY = (-10.dp * (1f - miniAlpha))
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
-                        .size(
-                            width = with(density) { containerRect.width.toDp() },
-                            height = with(density) { miniHeightPx.toDp() }
-                        )
-                        .graphicsLayer {
-                            alpha = miniAlpha
-                            translationY = with(density) { miniTranslationY.toPx() }
-                        }
-                        .clickable(
-                            role = Role.Button,
-                            onClickLabel = "展开播放器",
-                            interactionSource = null,
-                            indication = null,
-                            enabled = isCollapsed,
-                            onClick = onClick
-                        )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(start = 60.dp, end = 4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 4.dp)
-                        ) {
-                            mediaMetadata.title?.let {
-                                Text(
-                                    text = it.toString(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.basicMarquee()
-                                )
-                            }
-                            mediaMetadata.artist?.let {
-                                Text(
-                                    text = it.toString(),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.basicMarquee()
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = {
-                                if (playerState?.isPlaying == true) mediaController?.pause()
-                                else mediaController?.play()
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
-                                contentDescription = stringResource(if (playerState?.isPlaying == true) R.string.pause else R.string.play),
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { mediaController?.seekToNext() },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = SkipNext,
-                                contentDescription = "下一首",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    MiniPlayerProgressBar(
-                        accentColor = artworkColors.accentColor,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 60.dp, end = 12.dp)
-                            .height(2.5.dp)
-                            .align(Alignment.BottomCenter)
-                    )
-                }
-            }
-
             val fullControlsAlpha = ((progress - 0.28f) / 0.52f).coerceIn(0f, 1f)
             val fullControlsOffsetY = 16.dp * (1f - fullControlsAlpha)
 
@@ -584,17 +490,119 @@ fun PlayerTransform(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .pointerInput(Unit) {
-                                        awaitPointerEventScope {
-                                            while (true) {
-                                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                                event.changes.forEach { it.consume() }
+                                    .clickable(
+                                        interactionSource = null,
+                                        indication = null,
+                                        enabled = !isExpanded,
+                                        onClick = onClick
+                                    )
+                                    .pointerInput(isExpanded) {
+                                        if (isExpanded) {
+                                            awaitPointerEventScope {
+                                                while (true) {
+                                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                                    event.changes.forEach { it.consume() }
+                                                }
                                             }
                                         }
                                     }
                             )
                         }
                     }
+                }
+            }
+
+            val miniAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
+            if (miniAlpha > 0f) {
+                val miniTranslationY = (-10.dp * (1f - miniAlpha))
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
+                        .size(
+                            width = with(density) { containerRect.width.toDp() },
+                            height = with(density) { miniHeightPx.toDp() }
+                        )
+                        .graphicsLayer {
+                            alpha = miniAlpha
+                            translationY = with(density) { miniTranslationY.toPx() }
+                        }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = "展开播放器",
+                            interactionSource = null,
+                            indication = null,
+                            enabled = !isExpanded,
+                            onClick = onClick
+                        )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = 60.dp, end = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 4.dp)
+                        ) {
+                            mediaMetadata.title?.let {
+                                Text(
+                                    text = it.toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.basicMarquee()
+                                )
+                            }
+                            mediaMetadata.artist?.let {
+                                Text(
+                                    text = it.toString(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.basicMarquee()
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                if (playerState?.isPlaying == true) mediaController?.pause()
+                                else mediaController?.play()
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
+                                contentDescription = stringResource(if (playerState?.isPlaying == true) R.string.pause else R.string.play),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { mediaController?.seekToNext() },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = SkipNext,
+                                contentDescription = "下一首",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    MiniPlayerProgressBar(
+                        accentColor = artworkColors.accentColor,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 60.dp, end = 12.dp)
+                            .height(2.5.dp)
+                            .align(Alignment.BottomCenter)
+                    )
                 }
             }
         }
@@ -614,7 +622,7 @@ fun PlayerTransform(
                         onClickLabel = "展开播放器",
                         interactionSource = null,
                         indication = null,
-                        enabled = isCollapsed,
+                        enabled = !isExpanded,
                         onClick = onClick
                     )
             ) {
