@@ -2,10 +2,12 @@ package com.rcmiku.music.ui.components
 
 import android.content.Context
 import android.os.Bundle
+import android.os.SystemClock
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -45,10 +47,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
@@ -65,6 +69,7 @@ import com.google.common.util.concurrent.Futures
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -167,7 +172,10 @@ fun Player(
     controlsOffsetY: Dp = 0.dp,
     showArtwork: Boolean = true,
     showBackground: Boolean = true,
-    onArtworkPositioned: ((Rect) -> Unit)? = null
+    onArtworkPositioned: ((Rect) -> Unit)? = null,
+    onSheetOpenChange: (Boolean) -> Unit = {},
+    dismissSheets: Boolean = false,
+    onSheetsDismissed: () -> Unit = {}
 ) {
     val playerState = LocalPlayerState.current
     val mediaController = LocalPlayerController.current.controller
@@ -199,8 +207,16 @@ fun Player(
         label = "player_on_accent_color"
     )
 
-    BackHandler(enabled = !openBottomSheet && !openPlayerBottomSheet) {
-        onBackPressed()
+    LaunchedEffect(dismissSheets) {
+        if (dismissSheets) {
+            openBottomSheet = false
+            openPlayerBottomSheet = false
+            onSheetsDismissed()
+        }
+    }
+
+    LaunchedEffect(openBottomSheet, openPlayerBottomSheet) {
+        onSheetOpenChange(openBottomSheet || openPlayerBottomSheet)
     }
 
     LaunchedEffect(mediaId) {
@@ -227,7 +243,7 @@ fun Player(
                     .height(56.dp)
                     .graphicsLayer {
                         alpha = controlsAlpha
-                        translationY = controlsOffsetY.toPx()
+                        translationY = (-10.dp * (1f - controlsAlpha)).toPx()
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -309,14 +325,19 @@ fun Player(
                             .clip(AdaptiveArtworkShape)
                             .clickable(enabled = controlsAlpha > 0.1f && showArtwork, onClick = onClick)
                     ) { uri ->
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
+                        val context = LocalContext.current
+                        val imageRequest = remember(context, uri) {
+                            val key = uri?.toString()
+                            ImageRequest.Builder(context)
                                 .data(uri)
                                 .size(Size(1080, 1080))
-                                .memoryCacheKey(uri?.toString())
-                                .diskCacheKey(uri?.toString())
+                                .memoryCacheKey(key)
+                                .diskCacheKey(key)
                                 .crossfade(true)
-                                .build(),
+                                .build()
+                        }
+                        AsyncImage(
+                            model = imageRequest,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
@@ -681,10 +702,13 @@ private fun PlayerProgressSlider(
     val isPlaying = playerState?.isPlaying == true
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
 
-    var position by rememberSaveable(playerState) {
-        mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
+    val initialPosition = remember(playerState) {
+        (playerState?.player?.currentPosition ?: 0L).toFloat()
     }
+    val animatablePosition = remember { Animatable(initialPosition) }
+
     var duration by rememberSaveable(playerState) {
         mutableLongStateOf(playerState?.player?.duration ?: 0L)
     }
@@ -693,37 +717,68 @@ private fun PlayerProgressSlider(
     }
     val isDragging = sliderPosition != null
 
-    LaunchedEffect(playbackState, isPlaying) {
-        if (playbackState == STATE_READY && isPlaying) {
-            while (isActive) {
-                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                    delay(1000)
-                    continue
-                }
-                if (!isDragging) {
-                    position = playerState?.player?.currentPosition ?: 0L
-                    val dur = playerState?.player?.duration ?: 0L
-                    duration = if (dur > 0) dur else 0L
-                }
-                delay(100)
+    var pendingSeekTarget by remember { mutableStateOf<Long?>(null) }
+    var seekLockUntilMs by remember { mutableLongStateOf(0L) }
+
+    val pollIntervalMs = 100L
+
+    LaunchedEffect(playbackState, isPlaying, currentMediaId) {
+        while (isActive) {
+            if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                delay(1000)
+                continue
             }
-        } else if (playbackState == STATE_READY) {
+            val rawPos = playerState?.player?.currentPosition ?: 0L
+            val dur = playerState?.player?.duration ?: 0L
+            if (dur > 0 && dur != C.TIME_UNSET) {
+                duration = dur
+            }
+
             if (!isDragging) {
-                position = playerState?.player?.currentPosition ?: 0L
-                val dur = playerState?.player?.duration ?: 0L
-                duration = if (dur > 0) dur else 0L
+                val now = SystemClock.uptimeMillis()
+                val target = pendingSeekTarget
+                if (target != null) {
+                    val diff = kotlin.math.abs(rawPos - target)
+                    if (now < seekLockUntilMs && diff > 300L) {
+                        delay(pollIntervalMs)
+                        continue
+                    } else {
+                        pendingSeekTarget = null
+                    }
+                }
+
+                val currentAnimVal = animatablePosition.value
+                val diff = kotlin.math.abs(rawPos.toFloat() - currentAnimVal)
+                if (diff > 1500f) {
+                    animatablePosition.snapTo(rawPos.toFloat())
+                } else if (isPlaying && playbackState == STATE_READY) {
+                    val maxTarget = if (duration > 0) duration.toFloat() else Float.MAX_VALUE
+                    val targetPos = (rawPos + pollIntervalMs).toFloat().coerceAtMost(maxTarget)
+                    animatablePosition.animateTo(
+                        targetValue = targetPos,
+                        animationSpec = tween(
+                            durationMillis = pollIntervalMs.toInt(),
+                            easing = LinearEasing
+                        )
+                    )
+                    continue
+                } else {
+                    animatablePosition.snapTo(rawPos.toFloat())
+                }
             }
+            delay(pollIntervalMs)
         }
     }
 
     LaunchedEffect(currentMediaId) {
-        position = 0L
+        animatablePosition.snapTo(0f)
         duration = 0L
+        pendingSeekTarget = null
     }
 
     Column(modifier = modifier) {
         val interactionSource = remember { MutableInteractionSource() }
-        val currentPos = sliderPosition ?: position
+        val currentPos = sliderPosition ?: animatablePosition.value.toLong()
         val safeDuration = if (duration > 0 && duration != C.TIME_UNSET) duration else 0L
         val seekEnabled = safeDuration > 0 && playbackState != STATE_IDLE
 
@@ -734,7 +789,11 @@ private fun PlayerProgressSlider(
             onValueChange = { sliderPosition = it.toLong() },
             onValueChangeFinished = {
                 sliderPosition?.let { newPos ->
-                    position = newPos
+                    pendingSeekTarget = newPos
+                    seekLockUntilMs = SystemClock.uptimeMillis() + 600L
+                    coroutineScope.launch {
+                        animatablePosition.snapTo(newPos.toFloat())
+                    }
                     playerController?.seekTo(newPos)
                 }
                 sliderPosition = null
@@ -768,11 +827,8 @@ private fun PlayerProgressSlider(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = makeTimeString(currentPos),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White.copy(alpha = 0.7f)
+            PlayerTimeText(
+                positionMsProvider = { sliderPosition ?: animatablePosition.value.toLong() }
             )
             Text(
                 text = makeTimeString(safeDuration),
@@ -782,4 +838,21 @@ private fun PlayerProgressSlider(
             )
         }
     }
+}
+
+@Composable
+private fun PlayerTimeText(
+    positionMsProvider: () -> Long,
+    modifier: Modifier = Modifier
+) {
+    val currentSecond by remember {
+        derivedStateOf { (positionMsProvider() / 1000L).coerceAtLeast(0L) }
+    }
+    Text(
+        text = makeTimeString(currentSecond * 1000L),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = Color.White.copy(alpha = 0.7f),
+        modifier = modifier
+    )
 }

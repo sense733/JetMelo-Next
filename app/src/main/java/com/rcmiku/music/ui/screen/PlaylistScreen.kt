@@ -127,6 +127,7 @@ fun PlaylistScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp,
+    playlistId: Long? = null,
     initialArtworkUri: String? = null,
     initialTitle: String? = null,
     enableSharedTransition: Boolean = false
@@ -178,7 +179,7 @@ fun PlaylistScreen(
 
     val pageArtworkColors = rememberArtworkColors(
         artworkUri = playlistDetailState?.playlist?.coverImgUrl ?: initialArtworkUri,
-        songId = playlistDetailState?.playlist?.id?.toString()
+        songId = (playlistDetailState?.playlist?.id ?: playlistId)?.toString()
     )
     val baseColor = MaterialTheme.colorScheme.background
     val animatedDominantColor by animateColorAsState(
@@ -304,7 +305,50 @@ fun PlaylistScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(top = padding.calculateTopPadding())
-                            )
+                            ) {
+                                PlaylistDetailSkeleton(
+                                    modifier = Modifier.fillMaxSize(),
+                                    showCoverSkeleton = false,
+                                    bottomContentPadding = bottomContentPadding
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(220.dp)
+                                            .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                            .clip(JetMeloShapes.medium)
+                                    ) {
+                                        val id = playlistId
+                                        AsyncImage(
+                                            model = initialArtworkUri,
+                                            contentDescription = initialTitle,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .then(
+                                                    if (id != null) {
+                                                        Modifier.sharedElement(
+                                                            sharedTransitionScope.rememberSharedContentState(
+                                                                key = "cover_$id"
+                                                            ),
+                                                            animatedVisibilityScope = animatedContentScope,
+                                                            boundsTransform = JetMeloBoundsTransform,
+                                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                                        )
+                                                    } else {
+                                                        Modifier
+                                                    }
+                                                )
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                     detail == null -> {
@@ -555,14 +599,20 @@ fun PlaylistScreen(
                                             .size(44.dp)
                                             .clip(AdaptiveArtworkShape)
                                     ) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(LocalContext.current)
-                                                .data(song.al.picUrl)
+                                        val context = LocalContext.current
+                                        val artworkUrl = song.al.picUrl
+                                        val imageKey = remember(artworkUrl, song.id) { artworkUrl.ifEmpty { song.id.toString() } }
+                                        val imageRequest = remember(context, artworkUrl, imageKey) {
+                                            ImageRequest.Builder(context)
+                                                .data(artworkUrl)
                                                 .size(Size(176, 176))
-                                                .memoryCacheKey(song.al.picUrl.ifEmpty { song.id.toString() })
-                                                .diskCacheKey(song.al.picUrl.ifEmpty { song.id.toString() })
+                                                .memoryCacheKey(imageKey)
+                                                .diskCacheKey(imageKey)
                                                 .crossfade(true)
-                                                .build(),
+                                                .build()
+                                        }
+                                        AsyncImage(
+                                            model = imageRequest,
                                             contentDescription = song.name,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()

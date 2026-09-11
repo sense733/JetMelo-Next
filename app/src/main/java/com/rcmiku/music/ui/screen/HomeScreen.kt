@@ -201,7 +201,6 @@ fun HomeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     items(playlists, key = { it.id }) { playlist ->
-                                        val hasCache = homeScreenViewModel.hasPlaylistCache(playlist.id)
                                         Column(
                                             modifier = Modifier
                                                 .width(160.dp)
@@ -213,7 +212,7 @@ fun HomeScreen(
                                                             limit = playlist.trackCount?.takeIf { it > 0 } ?: 999,
                                                             coverImgUrl = playlist.cover,
                                                             title = playlist.name,
-                                                            enableSharedTransition = hasCache
+                                                            enableSharedTransition = true
                                                         )
                                                     )
                                                 }
@@ -232,20 +231,14 @@ fun HomeScreen(
                                                     modifier = Modifier
                                                         .fillMaxSize()
                                                         .clip(JetMeloShapes.large)
-                                                        .then(
-                                                            if (hasCache) {
-                                                                Modifier.sharedElement(
-                                                                    sharedTransitionScope.rememberSharedContentState(
-                                                                        key = "cover_${playlist.id}"
-                                                                    ),
-                                                                    animatedVisibilityScope = animatedContentScope,
-                                                                    boundsTransform = JetMeloBoundsTransform,
-                                                                    placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                                    clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
-                                                                )
-                                                            } else {
-                                                                Modifier
-                                                            }
+                                                        .sharedElement(
+                                                            sharedTransitionScope.rememberSharedContentState(
+                                                                key = "cover_${playlist.id}"
+                                                            ),
+                                                            animatedVisibilityScope = animatedContentScope,
+                                                            boundsTransform = JetMeloBoundsTransform,
+                                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
                                                         )
                                                 )
                                             }

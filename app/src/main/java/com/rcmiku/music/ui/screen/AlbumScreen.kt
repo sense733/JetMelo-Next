@@ -112,6 +112,7 @@ fun AlbumScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
     bottomContentPadding: Dp = 0.dp,
+    albumId: Long? = null,
     initialArtworkUri: String? = null,
     initialTitle: String? = null
 ) {
@@ -158,7 +159,7 @@ fun AlbumScreen(
 
     val pageArtworkColors = rememberArtworkColors(
         artworkUri = albumDetailState?.getOrNull()?.album?.picUrl ?: initialArtworkUri,
-        songId = albumDetailState?.getOrNull()?.album?.id?.toString()
+        songId = (albumDetailState?.getOrNull()?.album?.id ?: albumId)?.toString()
     )
     val baseColor = MaterialTheme.colorScheme.background
     val animatedDominantColor by animateColorAsState(
@@ -274,10 +275,50 @@ fun AlbumScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding()),
-                            contentAlignment = Alignment.Center
+                                .padding(top = padding.calculateTopPadding())
                         ) {
-                            CircularProgressIndicator()
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(220.dp)
+                                        .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                        .clip(JetMeloShapes.medium)
+                                ) {
+                                    val id = albumId
+                                    AsyncImage(
+                                        model = initialArtworkUri,
+                                        contentDescription = initialTitle,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .then(
+                                                if (id != null) {
+                                                    Modifier.sharedElement(
+                                                        sharedTransitionScope.rememberSharedContentState(
+                                                            key = "cover_$id"
+                                                        ),
+                                                        animatedVisibilityScope = animatedContentScope,
+                                                        boundsTransform = JetMeloBoundsTransform,
+                                                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                                        clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                                    )
+                                                } else {
+                                                    Modifier
+                                                }
+                                            )
+                                    )
+                                }
+                            }
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .padding(top = 180.dp)
+                            )
                         }
                     }
                     result == null || detail == null -> {

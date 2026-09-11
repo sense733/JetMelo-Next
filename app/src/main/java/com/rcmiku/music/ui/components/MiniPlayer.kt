@@ -195,14 +195,20 @@ fun MiniMediaInfo(
                 }
         ) {
             if (showArtwork) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(mediaMetadata.artworkUri)
+                val context = LocalContext.current
+                val artworkUri = mediaMetadata.artworkUri
+                val imageRequest = remember(context, artworkUri) {
+                    val key = artworkUri?.toString()
+                    ImageRequest.Builder(context)
+                        .data(artworkUri)
                         .size(Size(176, 176))
-                        .memoryCacheKey(mediaMetadata.artworkUri?.toString())
-                        .diskCacheKey(mediaMetadata.artworkUri?.toString())
+                        .memoryCacheKey(key)
+                        .diskCacheKey(key)
                         .crossfade(true)
-                        .build(),
+                        .build()
+                }
+                AsyncImage(
+                    model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = imageModifier

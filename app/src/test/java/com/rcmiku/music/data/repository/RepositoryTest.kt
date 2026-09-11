@@ -27,7 +27,8 @@ class RepositoryTest {
         cache.put(3, "three")
 
         assertEquals(3, cache.size())
-
+        assertEquals("one", cache.get(1))
+        cache.put(4, "four")
 
         assertNotNull(cache.get(1))
         assertNull(cache.get(2))

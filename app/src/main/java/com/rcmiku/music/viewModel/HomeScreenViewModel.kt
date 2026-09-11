@@ -63,9 +63,6 @@ class HomeScreenViewModel @Inject constructor(
         }
     }
 
-    fun hasPlaylistCache(playlistId: Long): Boolean =
-        playlistRepository.hasCachedPlaylist(playlistId)
-
     fun fetchRecommendPlaylist() {
         viewModelScope.launch {
             val res = RecommendApi.recommendPlaylist()

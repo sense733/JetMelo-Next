@@ -1,7 +1,6 @@
 package com.rcmiku.music.ui.components
 
 import android.os.Bundle
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -105,6 +104,7 @@ fun PlayerQueue(
     artistModifier: Modifier = Modifier,
     mediaMetadata: MediaMetadata,
     onBackPressed: () -> Unit = {},
+    showBackground: Boolean = true,
 ) {
     val context = LocalContext.current
     val playerState = LocalPlayerState.current
@@ -139,14 +139,7 @@ fun PlayerQueue(
         else -> Repeat
     }
 
-    BackHandler {
-        onBackPressed()
-    }
-
-    ImmersiveBackground(
-        modifier = modifier.fillMaxSize(),
-        artworkUri = mediaMetadata.artworkUri
-    ) {
+    val queueContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -535,14 +528,20 @@ fun PlayerQueue(
                                                 .size(44.dp)
                                                 .clip(AdaptiveArtworkShape)
                                         ) {
-                                            AsyncImage(
-                                                model = ImageRequest.Builder(LocalContext.current)
-                                                    .data(mediaItem.mediaMetadata.artworkUri)
+                                            val context = LocalContext.current
+                                            val artworkUri = mediaItem.mediaMetadata.artworkUri
+                                            val imageRequest = remember(context, artworkUri) {
+                                                val key = artworkUri?.toString()
+                                                ImageRequest.Builder(context)
+                                                    .data(artworkUri)
                                                     .size(Size(176, 176))
-                                                    .memoryCacheKey(mediaItem.mediaMetadata.artworkUri?.toString())
-                                                    .diskCacheKey(mediaItem.mediaMetadata.artworkUri?.toString())
+                                                    .memoryCacheKey(key)
+                                                    .diskCacheKey(key)
                                                     .crossfade(true)
-                                                    .build(),
+                                                    .build()
+                                            }
+                                            AsyncImage(
+                                                model = imageRequest,
                                                 contentDescription = null,
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier.fillMaxSize()
@@ -620,6 +619,19 @@ fun PlayerQueue(
                     }
                 }
             }
+        }
+    }
+
+    if (showBackground) {
+        ImmersiveBackground(
+            modifier = modifier.fillMaxSize(),
+            artworkUri = mediaMetadata.artworkUri
+        ) {
+            queueContent()
+        }
+    } else {
+        Box(modifier = modifier.fillMaxSize()) {
+            queueContent()
         }
     }
 }

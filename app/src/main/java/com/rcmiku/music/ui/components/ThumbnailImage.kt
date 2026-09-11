@@ -4,12 +4,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.rcmiku.music.constants.GridThumbnailHeight
 import com.rcmiku.music.constants.ListThumbnailSize
 import com.rcmiku.music.constants.PlaylistThumbnailSize
@@ -18,11 +20,15 @@ import com.rcmiku.music.constants.ThumbnailCornerRadius
 @Composable
 fun ListThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    AsyncImage(
-        model = ImageRequest.Builder(context)
+    val imageRequest = remember(context, url) {
+        ImageRequest.Builder(context)
             .data(url)
             .size(144, 144)
-            .build(),
+            .crossfade(true)
+            .build()
+    }
+    AsyncImage(
+        model = imageRequest,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier
@@ -34,11 +40,15 @@ fun ListThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
 @Composable
 fun GridThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    AsyncImage(
-        model = ImageRequest.Builder(context)
+    val imageRequest = remember(context, url) {
+        ImageRequest.Builder(context)
             .data(url)
             .size(384, 384)
-            .build(),
+            .crossfade(true)
+            .build()
+    }
+    AsyncImage(
+        model = imageRequest,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier
@@ -50,11 +60,15 @@ fun GridThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
 @Composable
 fun PlaylistThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    AsyncImage(
-        model = ImageRequest.Builder(context)
+    val imageRequest = remember(context, url) {
+        ImageRequest.Builder(context)
             .data(url)
             .size(600, 600)
-            .build(),
+            .crossfade(true)
+            .build()
+    }
+    AsyncImage(
+        model = imageRequest,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier
@@ -66,11 +80,15 @@ fun PlaylistThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
 @Composable
 fun RadioThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    AsyncImage(
-        model = ImageRequest.Builder(context)
+    val imageRequest = remember(context, url) {
+        ImageRequest.Builder(context)
             .data(url)
             .size(600, 600)
-            .build(),
+            .crossfade(true)
+            .build()
+    }
+    AsyncImage(
+        model = imageRequest,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier

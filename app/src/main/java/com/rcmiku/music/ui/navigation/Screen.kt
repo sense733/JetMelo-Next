@@ -22,7 +22,7 @@ data class PlaylistNav(
     val noCache: Boolean = false,
     val coverImgUrl: String? = null,
     val title: String? = null,
-    val enableSharedTransition: Boolean = false
+    val enableSharedTransition: Boolean = true
 )
 
 @Serializable

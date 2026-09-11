@@ -3,6 +3,7 @@ package com.rcmiku.music.ui.screen
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.SharedTransitionScope.OverlayClip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -159,15 +160,23 @@ fun ExploreScreen(
                                         title = chart.name,
                                         subtitle = chart.description ?: stringResource(R.string.song_size, chart.trackCount ?: 0),
                                         aspectRatio = 1.7f,
+                                        imageModifier = Modifier.sharedElement(
+                                            sharedTransitionScope.rememberSharedContentState(
+                                                key = "cover_${chart.id}"
+                                            ),
+                                            animatedVisibilityScope = animatedContentScope,
+                                            boundsTransform = JetMeloBoundsTransform,
+                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                        ),
                                         onClick = {
-                                            val hasCache = exploreScreenViewModel.hasPlaylistCache(chart.id)
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = chart.id,
                                                     limit = chart.trackCount?.takeIf { it > 0 } ?: 999,
                                                     coverImgUrl = chart.cover,
                                                     title = chart.name,
-                                                    enableSharedTransition = hasCache
+                                                    enableSharedTransition = true
                                                 )
                                             )
                                         }

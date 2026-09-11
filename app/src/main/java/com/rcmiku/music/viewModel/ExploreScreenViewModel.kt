@@ -35,9 +35,6 @@ class ExploreScreenViewModel @Inject constructor(
     val allNewAlbum: StateFlow<Result<NewAlbumResponse>?> =
         _allNewAlbum.asStateFlow()
 
-    fun hasPlaylistCache(playlistId: Long): Boolean =
-        playlistRepository.hasCachedPlaylist(playlistId)
-
     fun fetchTopList() {
         viewModelScope.launch {
             val res = PlaylistApi.topList()

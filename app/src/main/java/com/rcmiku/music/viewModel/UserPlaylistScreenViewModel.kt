@@ -48,9 +48,6 @@ class UserPlaylistScreenViewModel @Inject constructor(
         load()
     }
 
-    fun hasPlaylistCache(playlistId: Long): Boolean =
-        playlistRepository.hasCachedPlaylist(playlistId)
-
     fun retry() = load(forceRefresh = true)
 
     fun load(forceRefresh: Boolean = false) {

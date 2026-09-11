@@ -1,6 +1,5 @@
 package com.rcmiku.music.ui.components
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -8,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -66,6 +66,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.MediaMetadata
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import coil3.size.Size
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
@@ -85,6 +86,7 @@ fun Lyric(
     artistModifier: Modifier = Modifier,
     mediaMetadata: MediaMetadata,
     onBackPressed: () -> Unit = {},
+    showBackground: Boolean = true,
     lyricViewModel: LyricViewModel = hiltViewModel()
 ) {
     val mediaController = LocalPlayerController.current.controller
@@ -103,22 +105,23 @@ fun Lyric(
     var autoScrollEnabled by remember { mutableStateOf(true) }
     val artworkColors = LocalArtworkColors.current
 
-    var position by rememberSaveable(playerState) {
-        mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
-    }
-    val currentPositionState = rememberUpdatedState(position)
-
-    LaunchedEffect(playbackState, isPlaying) {
+    LaunchedEffect(playbackState, isPlaying, lrcLines) {
+        val lines = lrcLines ?: return@LaunchedEffect
+        if (lines.isEmpty()) return@LaunchedEffect
         if (playbackState == STATE_READY) {
             while (isActive) {
-                position = playerState?.player?.currentPosition ?: 0L
-                delay(if (isPlaying) 100L else 200L)
+                val pos = playerState?.player?.currentPosition ?: 0L
+                val search = lines.binarySearchBy(pos) { it.time }
+                val index = if (search >= 0) search else -search - 2
+                if (index != currentIndex) {
+                    currentIndex = index
+                }
+                delay(if (isPlaying) 100L else 250L)
             }
         }
     }
 
     LaunchedEffect(currentMediaId) {
-        position = 0L
         currentIndex = 0
         val musicId = currentMediaId?.toLongOrNull()
         if (musicId != null) {
@@ -130,16 +133,9 @@ fun Lyric(
         autoScrollEnabled = true
     }
 
-    BackHandler {
-        onBackPressed()
-    }
-
     KeepScreenOn()
 
-    ImmersiveBackground(
-        modifier = modifier.fillMaxSize(),
-        artworkUri = mediaMetadata.artworkUri
-    ) {
+    val lyricContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -167,11 +163,17 @@ fun Lyric(
                         .clickable(onClick = onBackPressed)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(mediaMetadata.artworkUri)
+                    val context = LocalContext.current
+                    val artworkUri = mediaMetadata.artworkUri
+                    val imageRequest = remember(context, artworkUri) {
+                        ImageRequest.Builder(context)
+                            .data(artworkUri)
                             .size(Size(132, 132))
-                            .build(),
+                            .crossfade(true)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = imageModifier
@@ -213,43 +215,52 @@ fun Lyric(
                 LaunchedEffect(listState) {
                     snapshotFlow { listState.isScrollInProgress }
                         .collect { inProgress ->
-                            if (!programmaticScroll) {
-                                autoScrollEnabled = !inProgress
+                            if (!programmaticScroll && inProgress) {
+                                autoScrollEnabled = false
                             }
                         }
                 }
 
-                LaunchedEffect(lines) {
-                    snapshotFlow { currentPositionState.value }
-                        .collect { pos ->
-                            val search = lines.binarySearchBy(pos) { it.time }
-                            val index = if (search >= 0) search else -search - 2
-                            if (index != currentIndex) {
-                                currentIndex = index
-                                if (autoScrollEnabled && index >= 0) {
-                                    val targetIndex = maxOf(currentIndex - 2, 0) + 1
-                                    val visibleItem =
-                                        listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-                                    programmaticScroll = true
-                                    try {
-                                        if (visibleItem == null) {
-                                            listState.scrollToItem(targetIndex)
-                                        } else {
-                                            val itemOffset = visibleItem.offset
-                                            listState.animateScrollBy(
-                                                itemOffset.toFloat(),
-                                                animationSpec = tween(
-                                                    durationMillis = 500,
-                                                    easing = EaseInOutCubic
-                                                )
-                                            )
-                                        }
-                                    } finally {
-                                        programmaticScroll = false
-                                    }
-                                }
+                val density = LocalDensity.current
+                val viewportHeightPx = listState.layoutInfo.viewportSize.height
+                val viewportHeightDp = with(density) { viewportHeightPx.toDp() }
+                val halfCenterPadding = if (viewportHeightDp > 0.dp) {
+                    (viewportHeightDp / 2f - 30.dp).coerceAtLeast(32.dp)
+                } else {
+                    180.dp
+                }
+
+                LaunchedEffect(currentIndex, autoScrollEnabled) {
+                    if (!autoScrollEnabled || currentIndex < 0) return@LaunchedEffect
+                    if (lines.isEmpty()) return@LaunchedEffect
+
+                    val targetItemIndex = currentIndex + 1
+                    if (viewportHeightPx <= 0) return@LaunchedEffect
+
+                    val viewportCenter = viewportHeightPx / 2f
+                    programmaticScroll = true
+                    try {
+                        var itemInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetItemIndex }
+                        if (itemInfo == null) {
+                            listState.scrollToItem(targetItemIndex)
+                            itemInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetItemIndex }
+                        }
+                        if (itemInfo != null) {
+                            val itemCenter = itemInfo.offset + itemInfo.size / 2f
+                            val delta = itemCenter - viewportCenter
+                            if (kotlin.math.abs(delta) > 1f) {
+                                listState.animateScrollBy(
+                                    delta,
+                                    animationSpec = tween(
+                                        durationMillis = 550,
+                                        easing = EaseInOutCubic
+                                    )
+                                )
                             }
                         }
+                    } finally {
+                        programmaticScroll = false
+                    }
                 }
 
                 LazyColumn(
@@ -261,7 +272,7 @@ fun Lyric(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        Spacer(Modifier.height(32.dp))
+                        Spacer(Modifier.height(halfCenterPadding))
                     }
 
                     items(
@@ -284,6 +295,7 @@ fun Lyric(
                                         line.time.let {
                                             mediaController?.seekTo(it)
                                             currentIndex = index
+                                            autoScrollEnabled = true
                                         }
                                     }
                                     .padding(vertical = 8.dp, horizontal = 4.dp)
@@ -329,10 +341,23 @@ fun Lyric(
                     }
 
                     item {
-                        Spacer(Modifier.height(120.dp))
+                        Spacer(Modifier.height(halfCenterPadding))
                     }
                 }
             }
+        }
+    }
+
+    if (showBackground) {
+        ImmersiveBackground(
+            modifier = modifier.fillMaxSize(),
+            artworkUri = mediaMetadata.artworkUri
+        ) {
+            lyricContent()
+        }
+    } else {
+        Box(modifier = modifier.fillMaxSize()) {
+            lyricContent()
         }
     }
 }

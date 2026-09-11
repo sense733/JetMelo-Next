@@ -1,16 +1,15 @@
 package com.rcmiku.music.ui.screen
 
 import android.os.Build
-import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
@@ -52,7 +52,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import kotlin.math.roundToInt
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -72,7 +71,6 @@ import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.music.utils.rememberPreference
 import android.util.Log
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.utils.CookieProvider
 import com.rcmiku.ncmapi.utils.json
@@ -150,26 +148,10 @@ fun MainScreen() {
 
     var showPlayer by rememberSaveable { mutableStateOf(false) }
 
-    var animatorScale by remember { mutableFloatStateOf(1f) }
-    LaunchedEffect(context) {
-        try {
-            animatorScale = Settings.Global.getFloat(
-                context.contentResolver,
-                Settings.Global.ANIMATOR_DURATION_SCALE,
-                1f
-            )
-        } catch (_: Exception) {
-            animatorScale = 1f
-        }
-    }
-
-    val enterDuration = (BASE_ENTER_DURATION * animatorScale).roundToInt().coerceAtLeast(0)
-    val exitDuration = (BASE_EXIT_DURATION * animatorScale).roundToInt().coerceAtLeast(0)
-
     val transitionProgress by animateFloatAsState(
         targetValue = if (showPlayer) 1f else 0f,
         animationSpec = tween(
-            durationMillis = if (showPlayer) enterDuration else exitDuration,
+            durationMillis = if (showPlayer) BASE_ENTER_DURATION else BASE_EXIT_DURATION,
             easing = StandardDecelerateEasing
         ),
         label = "player_transition_progress"
@@ -232,14 +214,12 @@ fun MainScreen() {
         }
     }
 
-    val bottomContentPadding by remember(isSearchScreen, navBarInset, dockedBottomPadding, showMiniPlayer) {
-        derivedStateOf {
-            if (isSearchScreen) {
-                navBarInset
-            } else {
-                dockedBottomPadding + if (showMiniPlayer) MiniPlayerHeight + 8.dp else 0.dp
-            }
-        }
+    val tabBottomContentPadding = remember(navBarInset, showMiniPlayer) {
+        navBarBaseHeight + navBarInset + (if (showMiniPlayer) MiniPlayerHeight + 8.dp else 0.dp)
+    }
+
+    val subpageBottomContentPadding = remember(navBarInset, showMiniPlayer) {
+        navBarInset + (if (showMiniPlayer) MiniPlayerHeight + 8.dp else 0.dp)
     }
 
     CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
@@ -254,7 +234,7 @@ fun MainScreen() {
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
-                        if (p > 0.05f && Build.VERSION.SDK_INT >= 31) {
+                        if (p > 0.05f && p < 1f && Build.VERSION.SDK_INT >= 31) {
                             Modifier.blur(
                                 radius = (p * 12).dp,
                                 edgeTreatment = BlurredEdgeTreatment.Unbounded
@@ -264,14 +244,48 @@ fun MainScreen() {
                         }
                     ),
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                bottomBar = {
-                    Column {
+                content = { padding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .consumeWindowInsets(padding)
+                            .graphicsLayer {
+                                val scale = 1f - 0.05f * p
+                                scaleX = scale
+                                scaleY = scale
+                                transformOrigin = TransformOrigin(0.5f, 0.5f)
+                            }
+                    ) {
+                        NavGraph(
+                            navController = navController,
+                            tabBottomContentPadding = tabBottomContentPadding,
+                            subpageBottomContentPadding = subpageBottomContentPadding
+                        )
+
+                        if (showMiniPlayer) {
+                            BottomFogOverlay(
+                                bottomPadding = fogBottomPadding,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .graphicsLayer {
+                                        alpha = (1f - p).coerceIn(0f, 1f)
+                                    }
+                            )
+                        }
+
                         AnimatedVisibility(
                             visible = showNavigationBar,
-                            enter = expandVertically(
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                            enter = slideInVertically(
+                                initialOffsetY = { it },
+                                animationSpec = tween(DOCKED_PADDING_ANIM_DURATION, easing = StandardDecelerateEasing)
+                            ) + fadeIn(
                                 animationSpec = tween(DOCKED_PADDING_ANIM_DURATION, easing = StandardDecelerateEasing)
                             ),
-                            exit = shrinkVertically(
+                            exit = slideOutVertically(
+                                targetOffsetY = { it },
+                                animationSpec = tween(DOCKED_PADDING_ANIM_DURATION, easing = StandardDecelerateEasing)
+                            ) + fadeOut(
                                 animationSpec = tween(DOCKED_PADDING_ANIM_DURATION, easing = StandardDecelerateEasing)
                             )
                         ) {
@@ -284,7 +298,7 @@ fun MainScreen() {
                                     Spacer(modifier = Modifier.height(MiniPlayerHeight / 2))
                                 }
                                 NavigationBar(
-                                    modifier = Modifier.height(64.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+                                    modifier = Modifier.height(navBarBaseHeight + navBarInset),
                                     containerColor = MaterialTheme.colorScheme.background
                                 ) {
                                     tabs.forEach { item ->
@@ -310,29 +324,6 @@ fun MainScreen() {
                                     }
                                 }
                             }
-                        }
-                    }
-                },
-                content = { padding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .consumeWindowInsets(padding)
-                    ) {
-                        NavGraph(
-                            navController = navController,
-                            bottomContentPadding = bottomContentPadding
-                        )
-
-                        if (showMiniPlayer) {
-                            BottomFogOverlay(
-                                bottomPadding = fogBottomPadding,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .graphicsLayer {
-                                        alpha = (1f - p).coerceIn(0f, 1f)
-                                    }
-                            )
                         }
                     }
                 }

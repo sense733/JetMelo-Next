@@ -1,6 +1,5 @@
 package com.rcmiku.music.ui.navigation
 
-import android.provider.Settings
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
@@ -11,16 +10,9 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -53,24 +45,12 @@ private const val SCALE_EXIT_POP = 0.97f
 fun NavGraph(
     navController: NavHostController,
     startDestination: String = Screen.Home.route,
+    tabBottomContentPadding: Dp = 0.dp,
+    subpageBottomContentPadding: Dp = 0.dp,
     bottomContentPadding: Dp = 0.dp
 ) {
-    val context = LocalContext.current
-    var animatorScale by remember { mutableFloatStateOf(1f) }
-    LaunchedEffect(context) {
-        try {
-            animatorScale = Settings.Global.getFloat(
-                context.contentResolver,
-                Settings.Global.ANIMATOR_DURATION_SCALE,
-                1f
-            )
-        } catch (_: Exception) {
-            animatorScale = 1f
-        }
-    }
-
-    val forwardDuration = (NAV_DURATION_FORWARD * animatorScale).roundToInt().coerceAtLeast(0)
-    val popDuration = (NAV_DURATION_POP * animatorScale).roundToInt().coerceAtLeast(0)
+    val tabPadding = if (tabBottomContentPadding != 0.dp) tabBottomContentPadding else bottomContentPadding
+    val subpagePadding = if (subpageBottomContentPadding != 0.dp) subpageBottomContentPadding else bottomContentPadding
 
     SharedTransitionLayout {
         NavHost(
@@ -79,48 +59,48 @@ fun NavGraph(
             enterTransition = {
                 slideInHorizontally(
                     initialOffsetX = { it },
-                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(NAV_DURATION_FORWARD, easing = EmphasizedDecelerateEasing)
                 ) + fadeIn(
-                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(NAV_DURATION_FORWARD, easing = EmphasizedDecelerateEasing),
                     initialAlpha = 0.4f
                 )
             },
             exitTransition = {
                 slideOutHorizontally(
                     targetOffsetX = { (-it * NAV_PARALLAX_FACTOR).toInt() },
-                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(NAV_DURATION_FORWARD, easing = EmphasizedDecelerateEasing)
                 ) + scaleOut(
                     targetScale = SCALE_BG,
                     transformOrigin = TransformOrigin.Center,
-                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(NAV_DURATION_FORWARD, easing = EmphasizedDecelerateEasing)
                 ) + fadeOut(
-                    animationSpec = tween(forwardDuration, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(NAV_DURATION_FORWARD, easing = EmphasizedDecelerateEasing),
                     targetAlpha = 0.6f
                 )
             },
             popEnterTransition = {
                 slideInHorizontally(
                     initialOffsetX = { (-it * NAV_PARALLAX_FACTOR).toInt() },
-                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(NAV_DURATION_POP, easing = EmphasizedDecelerateEasing)
                 ) + scaleIn(
                     initialScale = SCALE_BG,
                     transformOrigin = TransformOrigin.Center,
-                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(NAV_DURATION_POP, easing = EmphasizedDecelerateEasing)
                 ) + fadeIn(
-                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(NAV_DURATION_POP, easing = EmphasizedDecelerateEasing),
                     initialAlpha = 0.6f
                 )
             },
             popExitTransition = {
                 slideOutHorizontally(
                     targetOffsetX = { it },
-                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(NAV_DURATION_POP, easing = EmphasizedDecelerateEasing)
                 ) + scaleOut(
                     targetScale = SCALE_EXIT_POP,
                     transformOrigin = TransformOrigin.Center,
-                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing)
+                    animationSpec = tween(NAV_DURATION_POP, easing = EmphasizedDecelerateEasing)
                 ) + fadeOut(
-                    animationSpec = tween(popDuration, easing = EmphasizedDecelerateEasing),
+                    animationSpec = tween(NAV_DURATION_POP, easing = EmphasizedDecelerateEasing),
                     targetAlpha = 0f
                 )
             }
@@ -130,7 +110,7 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = tabPadding
                 )
             }
             composable(Screen.Explore.route) {
@@ -138,26 +118,26 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = tabPadding
                 )
             }
             composable(Screen.Library.route) {
                 LibraryScreen(
                     navController = navController,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = tabPadding
                 )
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     navController = navController,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable(Screen.Login.route) { LoginScreen(navController = navController) }
             composable(Screen.Search.route) {
                 SearchScreen(
                     navController = navController,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable<PlaylistNav> { backStackEntry ->
@@ -166,7 +146,8 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding,
+                    bottomContentPadding = subpagePadding,
+                    playlistId = nav.playlistId,
                     initialArtworkUri = nav.coverImgUrl,
                     initialTitle = nav.title,
                     enableSharedTransition = nav.enableSharedTransition
@@ -178,7 +159,8 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding,
+                    bottomContentPadding = subpagePadding,
+                    albumId = nav.albumId,
                     initialArtworkUri = nav.coverImgUrl,
                     initialTitle = nav.title
                 )
@@ -188,7 +170,7 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable(Screen.AlbumSublist.route) {
@@ -196,7 +178,7 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable<UserPlayListNav> {
@@ -204,25 +186,25 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable<RecordNav> {
                 RecordScreen(
                     navController = navController,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable<CloudSongNav> {
                 CloudSongScreen(
                     navController = navController,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable<ArtistNav> {
                 ArtistScreen(
                     navController = navController,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
             composable<RadioNav> {
@@ -230,7 +212,7 @@ fun NavGraph(
                     navController = navController,
                     sharedTransitionScope = this@SharedTransitionLayout,
                     animatedContentScope = this@composable,
-                    bottomContentPadding = bottomContentPadding
+                    bottomContentPadding = subpagePadding
                 )
             }
         }

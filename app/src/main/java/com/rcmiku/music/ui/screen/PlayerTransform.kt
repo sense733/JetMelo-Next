@@ -2,7 +2,7 @@ package com.rcmiku.music.ui.screen
 
 import android.app.Activity
 import android.os.SystemClock
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -56,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -110,6 +111,7 @@ import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
 const val FULL_PLAYER = 0
@@ -163,17 +165,37 @@ fun PlayerTransform(
         }
     }
 
+    var isSheetOpen by remember { mutableStateOf(false) }
+    var dismissSheetsRequested by remember { mutableStateOf(false) }
+    var predictiveScale by remember { mutableFloatStateOf(1f) }
+    var predictiveCornerRadius by remember { mutableStateOf(0.dp) }
+
     LaunchedEffect(isExpanded) {
         if (!isExpanded) {
             currentView = FULL_PLAYER
         }
     }
 
-    BackHandler(enabled = isExpanded || !isCollapsed) {
-        if (currentView != FULL_PLAYER) {
-            currentView = FULL_PLAYER
-        } else {
-            onBackPressed()
+    PredictiveBackHandler(enabled = isExpanded || !isCollapsed) { progressFlow ->
+        try {
+            progressFlow.collect { backEvent ->
+                if (currentView == FULL_PLAYER && !isSheetOpen) {
+                    predictiveScale = 1f - (backEvent.progress * 0.08f)
+                    predictiveCornerRadius = 16.dp * backEvent.progress
+                }
+            }
+            predictiveScale = 1f
+            predictiveCornerRadius = 0.dp
+            if (isSheetOpen) {
+                dismissSheetsRequested = true
+            } else if (currentView != FULL_PLAYER) {
+                safeSwitchView(FULL_PLAYER)
+            } else {
+                onBackPressed()
+            }
+        } catch (e: CancellationException) {
+            predictiveScale = 1f
+            predictiveCornerRadius = 0.dp
         }
     }
 
@@ -236,10 +258,18 @@ fun PlayerTransform(
             val horizontalPaddingPx = with(density) { 40.dp.toPx() }
             val availableWidthPx = screenWidthPx - horizontalPaddingPx
             val fullWidthPx = availableWidthPx * 0.88f
-            val fullLeftPx = (screenWidthPx - fullWidthPx) / 2f
-            val availableHeight = (screenHeightPx - statusBarInsetPx - navBarInsetPx - with(density) { (56.dp + 296.dp).toPx() }).coerceAtLeast(0f)
-            val artSizePx = if (availableHeight in 1f..<fullWidthPx) availableHeight else fullWidthPx
-            val fullTopPx = statusBarInsetPx + with(density) { 56.dp.toPx() } + ((availableHeight - artSizePx) / 2f).coerceAtLeast(0f)
+            val topBarHeightPx = with(density) { 56.dp.toPx() }
+            val bottomControlsHeightPx = with(density) { 286.dp.toPx() }
+            val boxVerticalPaddingPx = with(density) { 24.dp.toPx() }
+
+            val parentHeightPx = (screenHeightPx - statusBarInsetPx - navBarInsetPx).coerceAtLeast(0f)
+            val maxContentHeightPx = (parentHeightPx - topBarHeightPx - bottomControlsHeightPx - boxVerticalPaddingPx).coerceAtLeast(0f)
+            val artSizePx = if (maxContentHeightPx in 1f..<fullWidthPx) maxContentHeightPx else fullWidthPx
+
+            val fullLeftPx = (screenWidthPx - artSizePx) / 2f
+            val leftoverPx = (parentHeightPx - (topBarHeightPx + bottomControlsHeightPx + boxVerticalPaddingPx + artSizePx)).coerceAtLeast(0f)
+            val gapPx = leftoverPx / 2f
+            val fullTopPx = statusBarInsetPx + topBarHeightPx + with(density) { 12.dp.toPx() } + gapPx
             Rect(fullLeftPx, fullTopPx, fullLeftPx + artSizePx, fullTopPx + artSizePx)
         }
         val miniArtworkRect = remember(miniLeftPx, miniTopPx) {
@@ -251,7 +281,8 @@ fun PlayerTransform(
 
         val containerRect = lerpRect(miniRect, fullRect, progress)
         val deviceCornerRadius = rememberDeviceCornerRadius()
-        val containerCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, progress)
+        val baseCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, progress)
+        val containerCornerRadius = (baseCornerRadius + predictiveCornerRadius).coerceAtMost(36.dp)
         val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, progress)
 
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
@@ -261,7 +292,7 @@ fun PlayerTransform(
         val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, artworkProgress)
 
         if (!isFull) {
-            val borderAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
+            val borderAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
             val containerShape = RoundedCornerShape(containerCornerRadius)
             val shadowModifier = if (containerElevation > 0.dp) {
                 Modifier.shadow(containerElevation, shape = containerShape)
@@ -310,10 +341,12 @@ fun PlayerTransform(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    clip = !isFull
-                    if (!isFull) {
+                    clip = !isFull || predictiveCornerRadius > 0.dp
+                    if (!isFull || predictiveCornerRadius > 0.dp) {
                         shape = clipShape
                     }
+                    scaleX = predictiveScale
+                    scaleY = predictiveScale
                 }
         ) {
             if (!isCollapsed) {
@@ -323,8 +356,8 @@ fun PlayerTransform(
                 ) {}
             }
 
-            if (progress < 0.25f) {
-                val surfaceAlpha = if (isCollapsed) 1f else (1f - progress / 0.25f).coerceIn(0f, 1f)
+            if (progress < 0.32f) {
+                val surfaceAlpha = if (isCollapsed) 1f else ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -332,8 +365,9 @@ fun PlayerTransform(
                 )
             }
 
-            val miniAlpha = (1f - progress / 0.15f).coerceIn(0f, 1f)
+            val miniAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
             if (miniAlpha > 0f) {
+                val miniTranslationY = (-10.dp * (1f - miniAlpha))
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
@@ -341,7 +375,10 @@ fun PlayerTransform(
                             width = with(density) { containerRect.width.toDp() },
                             height = with(density) { miniHeightPx.toDp() }
                         )
-                        .graphicsLayer { alpha = miniAlpha }
+                        .graphicsLayer {
+                            alpha = miniAlpha
+                            translationY = with(density) { miniTranslationY.toPx() }
+                        }
                         .clickable(
                             role = Role.Button,
                             onClickLabel = "展开播放器",
@@ -422,8 +459,8 @@ fun PlayerTransform(
                 }
             }
 
-            val fullControlsAlpha = ((progress - 0.78f) / 0.22f).coerceIn(0f, 1f)
-            val fullControlsOffsetY = 8.dp * (1f - fullControlsAlpha)
+            val fullControlsAlpha = ((progress - 0.28f) / 0.52f).coerceIn(0f, 1f)
+            val fullControlsOffsetY = 16.dp * (1f - fullControlsAlpha)
 
             val coverKey = "player_active_cover"
             val titleKey = "player_active_title"
@@ -508,10 +545,14 @@ fun PlayerTransform(
                                         showArtwork = isFull,
                                         showBackground = false,
                                         onArtworkPositioned = { rect ->
-                                            if (fullArtworkRect == null || fullArtworkRect != rect) {
+                                            val current = fullArtworkRect
+                                            if (current == null || kotlin.math.abs(current.top - rect.top) > 0.5f || kotlin.math.abs(current.left - rect.left) > 0.5f) {
                                                 fullArtworkRect = rect
                                             }
-                                        }
+                                        },
+                                        onSheetOpenChange = { isSheetOpen = it },
+                                        dismissSheets = dismissSheetsRequested,
+                                        onSheetsDismissed = { dismissSheetsRequested = false }
                                     )
                                 }
                                 PLAY_QUEUE -> {
@@ -521,6 +562,7 @@ fun PlayerTransform(
                                         titleModifier = sharedTitleModifier,
                                         artistModifier = sharedArtistModifier,
                                         onBackPressed = { safeSwitchView(FULL_PLAYER) },
+                                        showBackground = false,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -531,6 +573,7 @@ fun PlayerTransform(
                                         titleModifier = sharedTitleModifier,
                                         artistModifier = sharedArtistModifier,
                                         onBackPressed = { safeSwitchView(FULL_PLAYER) },
+                                        showBackground = false,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -575,14 +618,19 @@ fun PlayerTransform(
                         onClick = onClick
                     )
             ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
+                val context = LocalContext.current
+                val imageRequest = remember(context, effectiveArtworkUri) {
+                    val key = effectiveArtworkUri?.toString()
+                    ImageRequest.Builder(context)
                         .data(effectiveArtworkUri)
                         .size(CoilSize(1080, 1080))
-                        .memoryCacheKey(effectiveArtworkUri?.toString())
-                        .diskCacheKey(effectiveArtworkUri?.toString())
+                        .memoryCacheKey(key)
+                        .diskCacheKey(key)
                         .crossfade(true)
-                        .build(),
+                        .build()
+                }
+                AsyncImage(
+                    model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
