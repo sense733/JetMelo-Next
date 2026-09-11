@@ -93,7 +93,10 @@ import com.rcmiku.music.extensions.setPlaylist
 import com.rcmiku.music.ui.components.SongListItem
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.components.StickyPlayAllBar
+import com.rcmiku.music.ui.design.DetailPlayBarSkeleton
+import com.rcmiku.music.ui.design.DetailTrackItemSkeleton
 import com.rcmiku.music.ui.design.rememberArtworkColors
+import com.rcmiku.music.ui.design.rememberShimmerBrush
 import com.rcmiku.music.ui.icons.LibraryAdd
 import com.rcmiku.music.ui.icons.LibraryAddCheck
 import com.rcmiku.music.ui.navigation.ArtistNav
@@ -120,11 +123,14 @@ fun AlbumScreen(
     val isLoading by albumScreenViewModel.isLoading.collectAsStateWithLifecycle()
     val loadError by albumScreenViewModel.loadError.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    var headerHeightPx by remember { mutableFloatStateOf(1f) }
+    val density = LocalDensity.current
+    var headerHeightPx by remember(density) { mutableFloatStateOf(with(density) { 320.dp.toPx() }) }
     val collapseFraction by remember {
         derivedStateOf {
             if (listState.firstVisibleItemIndex > 0) {
                 1f
+            } else if (listState.firstVisibleItemScrollOffset == 0) {
+                0f
             } else if (headerHeightPx > 0f) {
                 (listState.firstVisibleItemScrollOffset.toFloat() / headerHeightPx).coerceIn(0f, 1f)
             } else {
@@ -247,6 +253,9 @@ fun AlbumScreen(
         ) { padding ->
             val result = albumDetailState
             val detail = result?.getOrNull()
+            val artworkUri = detail?.album?.picUrl ?: initialArtworkUri
+            val hasArtwork = !artworkUri.isNullOrEmpty()
+            val shimmerBrush = rememberShimmerBrush()
 
             Box(
                 modifier = Modifier
@@ -270,193 +279,166 @@ fun AlbumScreen(
                         )
                 )
 
-                when {
-                    result == null && isLoading -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = padding.calculateTopPadding()),
+                    contentPadding = PaddingValues(
+                        bottom = bottomContentPadding
+                    ),
+                    state = listState
+                ) {
+                    item(key = "hero_header") {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding())
+                                .fillMaxWidth()
+                                .onSizeChanged { size ->
+                                    if (size.height > 0) {
+                                        headerHeightPx = size.height.toFloat()
+                                    }
+                                }
+                                .padding(horizontal = 20.dp, vertical = 16.dp)
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(220.dp)
+                                        .graphicsLayer {
+                                            val offset = if (listState.firstVisibleItemIndex == 0) {
+                                                listState.firstVisibleItemScrollOffset.toFloat()
+                                            } else {
+                                                0f
+                                            }
+                                            translationY = offset * 0.85f
+                                            val fraction = collapseFraction
+                                            scaleX = (1f - fraction * 0.25f).coerceIn(0.75f, 1f)
+                                            scaleY = scaleX
+                                            alpha = (1f - (fraction / 0.70f)).coerceIn(0f, 1f)
+                                        }
                                         .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
                                         .clip(JetMeloShapes.medium)
                                 ) {
-                                    val id = albumId
-                                    AsyncImage(
-                                        model = initialArtworkUri,
-                                        contentDescription = initialTitle,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .then(
-                                                if (id != null) {
-                                                    Modifier.sharedElement(
-                                                        sharedTransitionScope.rememberSharedContentState(
-                                                            key = "cover_$id"
-                                                        ),
-                                                        animatedVisibilityScope = animatedContentScope,
-                                                        boundsTransform = JetMeloBoundsTransform,
-                                                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                        clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
-                                                    )
-                                                } else {
-                                                    Modifier
-                                                }
-                                            )
-                                    )
+                                    if (hasArtwork) {
+                                        val id = detail?.album?.id ?: albumId
+                                        AsyncImage(
+                                            model = artworkUri,
+                                            contentDescription = detail?.album?.name ?: initialTitle,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .then(
+                                                    if (id != null) {
+                                                        Modifier.sharedElement(
+                                                            sharedTransitionScope.rememberSharedContentState(
+                                                                key = "cover_$id"
+                                                            ),
+                                                            animatedVisibilityScope = animatedContentScope,
+                                                            boundsTransform = JetMeloBoundsTransform,
+                                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                                        )
+                                                    } else {
+                                                        Modifier
+                                                    }
+                                                )
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(shimmerBrush)
+                                        )
+                                    }
                                 }
-                            }
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .padding(top = 180.dp)
-                            )
-                        }
-                    }
-                    result == null || detail == null -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding())
-                            .clickable(role = Role.Button) {
-                                albumScreenViewModel.retry()
-                            },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.operation_failed),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding()),
-                            contentPadding = PaddingValues(
-                                bottom = bottomContentPadding
-                            ),
-                            state = listState
-                        ) {
-                            item(key = "hero_header") {
+
+                                Spacer(Modifier.height(16.dp))
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onSizeChanged { size ->
-                                            if (size.height > 0) {
-                                                headerHeightPx = size.height.toFloat()
-                                            }
-                                        }
-                                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                                        .padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
+                                    Text(
+                                        text = detail?.album?.name ?: initialTitle ?: "",
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 28.sp
+                                        ),
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.alpha(0f)
+                                    )
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+
+                                if (detail != null) {
                                     Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.graphicsLayer {
+                                            alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                                        }
                                     ) {
-                                        Box(
+                                        Text(
+                                            text = detail.album.artist.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            textAlign = TextAlign.Center,
                                             modifier = Modifier
-                                                .size(220.dp)
-                                                .graphicsLayer {
-                                                    val offset = if (listState.firstVisibleItemIndex == 0) {
-                                                        listState.firstVisibleItemScrollOffset.toFloat()
-                                                    } else {
-                                                        0f
-                                                    }
-                                                    translationY = offset * 0.85f
-                                                    val fraction = collapseFraction
-                                                    scaleX = (1f - fraction * 0.25f).coerceIn(0.75f, 1f)
-                                                    scaleY = scaleX
-                                                    alpha = (1f - (fraction / 0.70f)).coerceIn(0f, 1f)
+                                                .clip(JetMeloShapes.small)
+                                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                .clickable(role = Role.Button) {
+                                                    navController.navigate(ArtistNav(artistId = detail.album.artist.id))
                                                 }
-                                                .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
-                                                .clip(JetMeloShapes.medium)
-                                        ) {
-                                            AsyncImage(
-                                                model = detail.album.picUrl,
-                                                contentDescription = detail.album.name,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .sharedElement(
-                                                        sharedTransitionScope.rememberSharedContentState(
-                                                            key = "cover_${detail.album.id}"
-                                                        ),
-                                                        animatedVisibilityScope = animatedContentScope,
-                                                        boundsTransform = JetMeloBoundsTransform,
-                                                        placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                        clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
-                                                    )
-                                            )
-                                        }
-
-                                        Spacer(Modifier.height(16.dp))
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = detail.album.name,
-                                                style = MaterialTheme.typography.titleLarge.copy(
-                                                    fontSize = 22.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    lineHeight = 28.sp
-                                                ),
-                                                textAlign = TextAlign.Center,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.alpha(0f)
-                                            )
-                                        }
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
 
                                         Spacer(Modifier.height(4.dp))
 
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.graphicsLayer {
-                                                alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                            }
-                                        ) {
-                                            Text(
-                                                text = detail.album.artist.name,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.SemiBold,
-                                                textAlign = TextAlign.Center,
-                                                modifier = Modifier
-                                                    .clip(JetMeloShapes.small)
-                                                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                                    .clickable(role = Role.Button) {
-                                                        navController.navigate(ArtistNav(artistId = detail.album.artist.id))
-                                                    }
-                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                                            )
-
-                                            Spacer(Modifier.height(4.dp))
-
-                                            Text(
-                                                text = formatTimestamp(detail.album.publishTime),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                textAlign = TextAlign.Center
-                                            )
+                                        Text(
+                                            text = formatTimestamp(detail.album.publishTime),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                } else if (isLoading) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.graphicsLayer {
+                                            alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                                         }
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(100.dp)
+                                                .height(18.dp)
+                                                .clip(JetMeloShapes.small)
+                                                .background(shimmerBrush)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .width(70.dp)
+                                                .height(14.dp)
+                                                .clip(JetMeloShapes.extraSmall)
+                                                .background(shimmerBrush)
+                                        )
                                     }
                                 }
                             }
+                        }
+                    }
 
+                    when {
+                        detail != null -> {
                             stickyHeader(key = "sticky_play_all") {
                                 StickyPlayAllBar(
                                     trackCount = detail.songs.size,
@@ -522,6 +504,34 @@ fun AlbumScreen(
                                         }
                                     }
                                 )
+                            }
+                        }
+                        isLoading -> {
+                            item(key = "skeleton_play_bar") {
+                                DetailPlayBarSkeleton(brush = shimmerBrush)
+                            }
+
+                            items(count = 8, key = { index -> "skeleton_track_$index" }) {
+                                DetailTrackItemSkeleton(brush = shimmerBrush)
+                            }
+                        }
+                        else -> {
+                            item(key = "error_retry") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 48.dp)
+                                        .clickable(role = Role.Button) {
+                                            albumScreenViewModel.retry()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.operation_failed),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }

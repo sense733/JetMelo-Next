@@ -101,8 +101,10 @@ import com.rcmiku.music.extensions.setPlaylist
 import com.rcmiku.music.ui.components.ActiveBoxAlpha
 import com.rcmiku.music.ui.components.PlayingIndicatorBox
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
-import com.rcmiku.music.ui.design.PlaylistDetailSkeleton
+import com.rcmiku.music.ui.design.DetailPlayBarSkeleton
+import com.rcmiku.music.ui.design.DetailTrackItemSkeleton
 import com.rcmiku.music.ui.design.rememberArtworkColors
+import com.rcmiku.music.ui.design.rememberShimmerBrush
 import com.rcmiku.music.ui.icons.FavoriteFill
 import com.rcmiku.music.ui.icons.LibraryAdd
 import com.rcmiku.music.ui.icons.LibraryAddCheck
@@ -137,11 +139,14 @@ fun PlaylistScreen(
     val isLoading by playlistScreenViewModel.isLoading.collectAsStateWithLifecycle()
     val loadError by playlistScreenViewModel.loadError.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    var headerHeightPx by remember { mutableFloatStateOf(1f) }
+    val density = LocalDensity.current
+    var headerHeightPx by remember(density) { mutableFloatStateOf(with(density) { 320.dp.toPx() }) }
     val collapseFraction by remember {
         derivedStateOf {
             if (listState.firstVisibleItemIndex > 0) {
                 1f
+            } else if (listState.firstVisibleItemScrollOffset == 0) {
+                0f
             } else if (headerHeightPx > 0f) {
                 (listState.firstVisibleItemScrollOffset.toFloat() / headerHeightPx).coerceIn(0f, 1f)
             } else {
@@ -267,6 +272,9 @@ fun PlaylistScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { padding ->
             val detail = playlistDetailState
+            val artworkUri = detail?.playlist?.coverImgUrl ?: initialArtworkUri
+            val hasArtwork = !artworkUri.isNullOrEmpty()
+            val shimmerBrush = rememberShimmerBrush()
 
             Box(
                 modifier = Modifier
@@ -290,48 +298,58 @@ fun PlaylistScreen(
                         )
                 )
 
-                when {
-                    detail == null && isLoading -> {
-                        if (!enableSharedTransition) {
-                            PlaylistDetailSkeleton(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = padding.calculateTopPadding()),
-                                showCoverSkeleton = true,
-                                bottomContentPadding = bottomContentPadding
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = padding.calculateTopPadding())
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = padding.calculateTopPadding()),
+                    contentPadding = PaddingValues(
+                        bottom = bottomContentPadding
+                    ),
+                    state = listState
+                ) {
+                    item(key = "hero_header") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onSizeChanged { size ->
+                                    if (size.height > 0) {
+                                        headerHeightPx = size.height.toFloat()
+                                    }
+                                }
+                                .padding(horizontal = 20.dp, vertical = 16.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                PlaylistDetailSkeleton(
-                                    modifier = Modifier.fillMaxSize(),
-                                    showCoverSkeleton = false,
-                                    bottomContentPadding = bottomContentPadding
-                                )
-                                Column(
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                        .size(220.dp)
+                                        .graphicsLayer {
+                                            val offset = if (listState.firstVisibleItemIndex == 0) {
+                                                listState.firstVisibleItemScrollOffset.toFloat()
+                                            } else {
+                                                0f
+                                            }
+                                            translationY = offset * 0.85f
+                                            val fraction = collapseFraction
+                                            scaleX = (1f - fraction * 0.25f).coerceIn(0.75f, 1f)
+                                            scaleY = scaleX
+                                            alpha = (1f - (fraction / 0.70f)).coerceIn(0f, 1f)
+                                        }
+                                        .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                        .clip(JetMeloShapes.medium)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(220.dp)
-                                            .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
-                                            .clip(JetMeloShapes.medium)
-                                    ) {
-                                        val id = playlistId
+                                    if (hasArtwork) {
+                                        val id = detail?.playlist?.id ?: playlistId
                                         AsyncImage(
-                                            model = initialArtworkUri,
-                                            contentDescription = initialTitle,
+                                            model = artworkUri,
+                                            contentDescription = detail?.playlist?.name ?: initialTitle,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .then(
-                                                    if (id != null) {
+                                                    if (enableSharedTransition && id != null) {
                                                         Modifier.sharedElement(
                                                             sharedTransitionScope.rememberSharedContentState(
                                                                 key = "cover_$id"
@@ -346,171 +364,116 @@ fun PlaylistScreen(
                                                     }
                                                 )
                                         )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(shimmerBrush)
+                                        )
                                     }
                                 }
-                            }
-                        }
-                    }
-                    detail == null -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding())
-                                .clickable(role = Role.Button) {
-                                    playlistScreenViewModel.retry()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(R.string.operation_failed),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    else -> {
-                        val isOwner = detail.playlist.userId == currentUserId && currentUserId != 0L
 
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = padding.calculateTopPadding()),
-                            contentPadding = PaddingValues(
-                                bottom = bottomContentPadding
-                            ),
-                            state = listState
-                        ) {
-                            item(key = "hero_header") {
+                                Spacer(Modifier.height(16.dp))
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onSizeChanged { size ->
-                                            if (size.height > 0) {
-                                                headerHeightPx = size.height.toFloat()
-                                            }
-                                        }
-                                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                                        .padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    Text(
+                                        text = detail?.playlist?.name ?: initialTitle ?: "",
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 28.sp
+                                        ),
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.alpha(0f)
+                                    )
+                                }
+
+                                if (detail != null) {
+                                    Spacer(Modifier.height(6.dp))
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .graphicsLayer {
+                                                alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                                            },
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(220.dp)
-                                                .graphicsLayer {
-                                                    val offset = if (listState.firstVisibleItemIndex == 0) {
-                                                        listState.firstVisibleItemScrollOffset.toFloat()
-                                                    } else {
-                                                        0f
-                                                    }
-                                                    translationY = offset * 0.85f
-                                                    val fraction = collapseFraction
-                                                    scaleX = (1f - fraction * 0.25f).coerceIn(0.75f, 1f)
-                                                    scaleY = scaleX
-                                                    alpha = (1f - (fraction / 0.70f)).coerceIn(0f, 1f)
-                                                }
-                                                .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
-                                                .clip(JetMeloShapes.medium)
-                                        ) {
-                                            AsyncImage(
-                                                model = detail.playlist.coverImgUrl,
-                                                contentDescription = detail.playlist.name,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .then(
-                                                        if (enableSharedTransition) {
-                                                            Modifier.sharedElement(
-                                                                sharedTransitionScope.rememberSharedContentState(
-                                                                    key = "cover_${detail.playlist.id}"
-                                                                ),
-                                                                animatedVisibilityScope = animatedContentScope,
-                                                                boundsTransform = JetMeloBoundsTransform,
-                                                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                                clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
-                                                            )
-                                                        } else {
-                                                            Modifier
-                                                        }
-                                                    )
-                                            )
-                                        }
+                                        Text(
+                                            text = stringResource(
+                                                R.string.total_play_count,
+                                                formatPlayCount(detail.playlist.playCount)
+                                            ),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = " • ",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = formatTimestamp(detail.playlist.trackUpdateTime),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
 
-                                        Spacer(Modifier.height(16.dp))
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = detail.playlist.name,
-                                                style = MaterialTheme.typography.titleLarge.copy(
-                                                    fontSize = 22.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    lineHeight = 28.sp
-                                                ),
-                                                textAlign = TextAlign.Center,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.alpha(0f)
-                                            )
-                                        }
-
+                                    val description = detail.playlist.description
+                                    if (!description.isNullOrEmpty()) {
                                         Spacer(Modifier.height(6.dp))
-
-                                        Row(
+                                        Text(
+                                            text = description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis,
                                             modifier = Modifier
-                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp)
                                                 .graphicsLayer {
                                                     alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                                },
-                                            horizontalArrangement = Arrangement.Center,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = stringResource(
-                                                    R.string.total_play_count,
-                                                    formatPlayCount(detail.playlist.playCount)
-                                                ),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = " • ",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = formatTimestamp(detail.playlist.trackUpdateTime),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        val description = detail.playlist.description
-                                        if (!description.isNullOrEmpty()) {
-                                            Spacer(Modifier.height(6.dp))
-                                            Text(
-                                                text = description,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                                                textAlign = TextAlign.Center,
-                                                maxLines = 3,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier
-                                                    .padding(horizontal = 12.dp)
-                                                    .graphicsLayer {
-                                                        alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                                    }
-                                            )
-                                        }
+                                                }
+                                        )
                                     }
+                                } else if (isLoading) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .width(130.dp)
+                                            .height(14.dp)
+                                            .clip(JetMeloShapes.extraSmall)
+                                            .background(shimmerBrush)
+                                            .graphicsLayer {
+                                                alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                                            }
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .width(200.dp)
+                                            .height(12.dp)
+                                            .clip(JetMeloShapes.extraSmall)
+                                            .background(shimmerBrush)
+                                            .graphicsLayer {
+                                                alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                                            }
+                                    )
                                 }
                             }
+                        }
+                    }
 
+                    when {
+                        detail != null -> {
                             stickyHeader(key = "sticky_play_all") {
                                 StickyPlayAllBar(
                                     trackCount = tracks.size,
@@ -690,9 +653,37 @@ fun PlaylistScreen(
                                 }
                             }
                         }
+                        }
+                        isLoading -> {
+                            item(key = "skeleton_play_bar") {
+                                DetailPlayBarSkeleton(brush = shimmerBrush)
+                            }
+
+                            items(count = 8, key = { index -> "skeleton_track_$index" }) {
+                                DetailTrackItemSkeleton(brush = shimmerBrush)
+                            }
+                        }
+                        else -> {
+                            item(key = "error_retry") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 48.dp)
+                                        .clickable(role = Role.Button) {
+                                            playlistScreenViewModel.retry()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.operation_failed),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
             }
         }
     }

@@ -350,13 +350,7 @@ fun PlaylistDetailSkeleton(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (showCoverSkeleton) {
-                    Box(
-                        modifier = Modifier
-                            .size(220.dp)
-                            .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
-                            .clip(JetMeloShapes.medium)
-                            .background(brush)
-                    )
+                    DetailCoverSkeleton(brush = brush)
                 } else {
                     Spacer(Modifier.size(220.dp))
                 }
@@ -396,74 +390,104 @@ fun PlaylistDetailSkeleton(
         }
 
         item(key = "skeleton_play_bar") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(140.dp)
-                        .height(44.dp)
-                        .clip(JetMeloShapes.large)
-                        .background(brush)
-                )
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(JetMeloShapes.full)
-                        .background(brush)
-                )
-            }
+            DetailPlayBarSkeleton(brush = brush)
         }
 
         items(count = 8, key = { index -> "skeleton_track_$index" }) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(AdaptiveArtworkShape)
-                        .background(brush)
-                )
-
-                Spacer(Modifier.width(14.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.65f)
-                            .height(16.dp)
-                            .clip(JetMeloShapes.extraSmall)
-                            .background(brush)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.4f)
-                            .height(12.dp)
-                            .clip(JetMeloShapes.extraSmall)
-                            .background(brush)
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(JetMeloShapes.full)
-                        .background(brush)
-                )
-            }
+            DetailTrackItemSkeleton(brush = brush)
         }
+    }
+}
+
+@Composable
+fun DetailCoverSkeleton(
+    modifier: Modifier = Modifier,
+    brush: Brush = rememberShimmerBrush()
+) {
+    Box(
+        modifier = modifier
+            .size(220.dp)
+            .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+            .clip(JetMeloShapes.medium)
+            .background(brush)
+    )
+}
+
+@Composable
+fun DetailPlayBarSkeleton(
+    modifier: Modifier = Modifier,
+    brush: Brush = rememberShimmerBrush()
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Box(
+            modifier = Modifier
+                .width(140.dp)
+                .height(44.dp)
+                .clip(JetMeloShapes.large)
+                .background(brush)
+        )
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(JetMeloShapes.full)
+                .background(brush)
+        )
+    }
+}
+
+@Composable
+fun DetailTrackItemSkeleton(
+    modifier: Modifier = Modifier,
+    brush: Brush = rememberShimmerBrush()
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(AdaptiveArtworkShape)
+                .background(brush)
+        )
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.65f)
+                    .height(16.dp)
+                    .clip(JetMeloShapes.extraSmall)
+                    .background(brush)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.4f)
+                    .height(12.dp)
+                    .clip(JetMeloShapes.extraSmall)
+                    .background(brush)
+            )
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(JetMeloShapes.full)
+                .background(brush)
+        )
     }
 }
