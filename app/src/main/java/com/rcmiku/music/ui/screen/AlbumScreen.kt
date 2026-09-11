@@ -318,8 +318,6 @@ fun AlbumScreen(
                                             scaleY = scaleX
                                             alpha = (1f - (fraction / 0.70f)).coerceIn(0f, 1f)
                                         }
-                                        .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
-                                        .clip(JetMeloShapes.medium)
                                 ) {
                                     if (hasArtwork) {
                                         val id = detail?.album?.id ?: albumId
@@ -344,11 +342,15 @@ fun AlbumScreen(
                                                         Modifier
                                                     }
                                                 )
+                                                .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                                .clip(JetMeloShapes.medium)
                                         )
                                     } else {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
+                                                .shadow(elevation = 12.dp, shape = JetMeloShapes.medium)
+                                                .clip(JetMeloShapes.medium)
                                                 .background(shimmerBrush)
                                         )
                                     }
@@ -356,24 +358,38 @@ fun AlbumScreen(
 
                                 Spacer(Modifier.height(16.dp))
 
+                                val titleText = detail?.album?.name ?: initialTitle
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = detail?.album?.name ?: initialTitle ?: "",
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            lineHeight = 28.sp
-                                        ),
-                                        textAlign = TextAlign.Center,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.alpha(0f)
-                                    )
+                                    if (titleText.isNullOrEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(180.dp)
+                                                .height(24.dp)
+                                                .clip(JetMeloShapes.small)
+                                                .background(shimmerBrush)
+                                                .graphicsLayer {
+                                                    alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
+                                                }
+                                        )
+                                    } else {
+                                        Text(
+                                            text = titleText,
+                                            style = MaterialTheme.typography.titleLarge.copy(
+                                                fontSize = 22.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 28.sp
+                                            ),
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.alpha(0f)
+                                        )
+                                    }
                                 }
 
                                 Spacer(Modifier.height(4.dp))

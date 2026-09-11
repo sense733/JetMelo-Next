@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.rcmiku.music.constants.EmphasizedDecelerateEasing
+import com.rcmiku.music.constants.NAV_TRANSITION_DURATION
 import com.rcmiku.music.ui.screen.AlbumScreen
 import com.rcmiku.music.ui.screen.AlbumSublistScreen
 import com.rcmiku.music.ui.screen.ArtistScreen
@@ -34,8 +35,8 @@ import com.rcmiku.music.ui.screen.SearchScreen
 import com.rcmiku.music.ui.screen.SettingsScreen
 import com.rcmiku.music.ui.screen.UserPlaylistScreen
 
-private const val NAV_DURATION_FORWARD = 350
-private const val NAV_DURATION_POP = 350
+private const val NAV_DURATION_FORWARD = NAV_TRANSITION_DURATION
+private const val NAV_DURATION_POP = NAV_TRANSITION_DURATION
 private const val NAV_PARALLAX_FACTOR = 0.25f
 private const val SCALE_BG = 0.93f
 private const val SCALE_EXIT_POP = 0.97f
