@@ -12,13 +12,9 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# AGP 9 的 proguard-android-optimize.txt 默认丢弃 SourceFile 与 LineNumberTable，
+# 混淆后的用户堆栈将失去文件名与行号；sideload 分发没有 Play Console 自动还原，必须保留。
+-keepattributes SourceFile,LineNumberTable
 
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
 -dontwarn org.slf4j.**

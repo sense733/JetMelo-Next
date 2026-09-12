@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,16 +10,30 @@ plugins {
     alias(libs.plugins.protobuf)
 }
 
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+val gitOutput: (List<String>) -> String? = { arguments ->
+    runCatching {
+        providers.exec { commandLine("git", *arguments.toTypedArray()) }.standardOutput.asText.get().trim()
+    }.getOrNull()?.takeIf { it.isNotEmpty() }
+}
+
+val appVersionName = gitOutput(listOf("describe", "--tags", "--dirty"))?.removePrefix("v") ?: "0.0.0-dev"
+val appVersionCode = gitOutput(listOf("rev-list", "--count", "HEAD"))?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+
 android {
     namespace = "com.rcmiku.music"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.bear.jetmelonext"
+        applicationId = "com.jetmelo.next"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,16 +45,23 @@ android {
             enableV3Signing = true
             enableV4Signing = true
 
-            val storeFilePath = System.getenv("RELEASE_STORE_FILE") ?: (project.findProperty("release.storeFile") as? String)
-            val storePasswordVal = System.getenv("RELEASE_STORE_PASSWORD") ?: (project.findProperty("release.storePassword") as? String)
-            val keyAliasVal = System.getenv("RELEASE_KEY_ALIAS") ?: (project.findProperty("release.keyAlias") as? String)
-            val keyPasswordVal = System.getenv("RELEASE_KEY_PASSWORD") ?: (project.findProperty("release.keyPassword") as? String)
+            fun credential(envName: String, propertyName: String): String? =
+                System.getenv(envName)
+                    ?: (project.findProperty(propertyName) as? String)
+                    ?: localProperties.getProperty(propertyName)
+
+            val storeFilePath = credential("RELEASE_STORE_FILE", "release.storeFile")
+            val storePasswordVal = credential("RELEASE_STORE_PASSWORD", "release.storePassword")
+            val keyAliasVal = credential("RELEASE_KEY_ALIAS", "release.keyAlias")
+            val keyPasswordVal = credential("RELEASE_KEY_PASSWORD", "release.keyPassword")
 
             if (!storeFilePath.isNullOrBlank() && !storePasswordVal.isNullOrBlank() && !keyAliasVal.isNullOrBlank() && !keyPasswordVal.isNullOrBlank()) {
                 storeFile = file(storeFilePath)
                 storePassword = storePasswordVal
                 keyAlias = keyAliasVal
                 keyPassword = keyPasswordVal
+            } else {
+                logger.warn("未配置 release 签名密钥，release 产物将回落到 debug 签名，不可用于发布")
             }
         }
     }
