@@ -1,0 +1,88 @@
+name: 缺陷报告
+description: 报告崩溃、异常或功能不符合预期
+title: '[Bug] '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。当前是预发布版本，且项目没有内置的崩溃上报与日志导出通道，下面的信息就是定位问题的唯一线索，请尽量填完整。
+
+        - 应用版本可在「系统设置 → 应用 → JetMelo-Next」中查看，或直接看下载到的 APK 文件名。
+        - 需要日志时可用 `adb logcat` 抓取崩溃前后的片段，或粘贴系统弹出的错误提示原文。
+
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本
+      description: 例如 0.1.0-beta.1
+      placeholder: 0.1.0-beta.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: 安装来源
+      options:
+        - GitHub Release 下载的 APK
+        - 自行编译
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 设备型号
+      placeholder: 小米 14 / Pixel 8
+    validations:
+      required: true
+
+  - type: input
+    id: android
+    attributes:
+      label: Android 版本与 ROM
+      description: 非原生系统请注明定制 ROM，如 HyperOS 2 / ColorOS 15
+      placeholder: Android 15 / HyperOS 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从启动应用到问题出现，逐步写清楚
+      placeholder: |
+        1. 打开应用并登录
+        2. 进入「我的」并打开任意歌单
+        3. 点击第一首歌曲
+        4. 播放器展开过程中崩溃
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 期望表现与实际表现
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或崩溃堆栈
+      description: 没有可以留空；有堆栈时请保留完整原文，不要只截一行
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 已在最新版本（含预发布版）上确认问题仍然存在
+          required: true
+        - label: 已搜索现有 issue，未找到相同问题
+          required: true
