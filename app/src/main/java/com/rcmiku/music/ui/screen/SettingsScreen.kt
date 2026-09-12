@@ -1,5 +1,7 @@
 package com.rcmiku.music.ui.screen
 
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -21,6 +23,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -203,7 +206,14 @@ fun SettingsScreen(
         )
     )
 
+    val appVersion = remember(context) { context.appVersionName() }
+
     val settingsItems = listOf(
+        SettingItemData(
+            title = stringResource(R.string.version),
+            subtitle = appVersion,
+            imageVector = Icons.Outlined.Info,
+        ),
         SettingItemData(
             title = stringResource(R.string.original_author),
             subtitle = "rcmiku",
@@ -506,3 +516,12 @@ data class SettingItemData(
     val trailingContent: @Composable () -> Unit = {},
     val onClick: () -> Unit = {},
 )
+
+private fun Context.appVersionName(): String = runCatching {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0)).versionName
+    } else {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(packageName, 0).versionName
+    }
+}.getOrNull().orEmpty()
