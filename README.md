@@ -1,7 +1,8 @@
 # JetMelo-Next
-<img src="app\src\main\res\mipmap-xxxhdpi\ic_launcher_round.webp" height="72">
 
-A Material 3 Netease Cloud Music client for Android
+<img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp" height="72">
+
+A Material 3 NetEase Cloud Music client for Android.
 
 [![Latest release](https://img.shields.io/github/v/release/sense733/JetMelo-Next?include_prereleases)](https://github.com/sense733/JetMelo-Next/releases)
 [![GitHub License](https://img.shields.io/github/license/sense733/JetMelo-Next)](https://www.gnu.org/licenses/gpl-3.0)
@@ -15,12 +16,14 @@ A Material 3 Netease Cloud Music client for Android
 
 ## Features
 
-- Play songs from Netease Cloud Music
-- Background playback
-- Search songs, albums, and playlists from Cloud Netease Music
-- Login support
-- Synchronized lyrics
-- Personalized quick picks
+- **Material 3 Design**：支持深浅主题与 Android 12+ 动态壁纸取色
+- **流体交互与动效**：播放器全物理容器展开、共享元素导航与连续手势打断
+- **沉浸播放体验**：封面自适应动态背景、双语滚动歌词与多音质切换
+- **后台播放**：基于 AndroidX Media3，支持系统媒体通知与耳机线控
+- **曲库与探索**：首页推荐、每日推荐、探索榜单与新碟速递
+- **个人媒体库**：支持账号登录、歌单收藏与云盘音乐浏览
+- **智能队列与手势**：播放队列自由拖拽重排，支持侧滑删除与斜滑防误触
+- **实用辅助**：睡眠定时器、歌曲加载失败自动跳过
 
 ## Screenshot
 
@@ -29,16 +32,13 @@ A Material 3 Netease Cloud Music client for Android
     <td><img src="screenshot/01.jpg" width="200" /></td>
     <td><img src="screenshot/02.jpg" width="200" /></td>
     <td><img src="screenshot/03.jpg" width="200" /></td>
+    <td><img src="screenshot/04.jpg" width="200" /></td>
   </tr>
   <tr>
-    <td><img src="screenshot/04.jpg" width="200" /></td>
     <td><img src="screenshot/05.jpg" width="200" /></td>
     <td><img src="screenshot/06.jpg" width="200" /></td>
-  </tr>
-  <tr>
     <td><img src="screenshot/07.jpg" width="200" /></td>
     <td><img src="screenshot/08.jpg" width="200" /></td>
-    <td><img src="screenshot/09.jpg" width="200" /></td>
   </tr>
 </table>
 
@@ -46,11 +46,11 @@ A Material 3 Netease Cloud Music client for Android
 
 - [JetMelo](https://github.com/rcmiku/JetMelo) —— 本项目的上游
 - [InnerTune](https://github.com/z-huang/InnerTune)
-- [Protobuf](https://github.com/protocolbuffers/protobuf)
-- [Reorderable](https://github.com/Calvin-LL/Reorderable)
+- [AndroidX Media3](https://github.com/androidx/media)
 - [Ktor](https://github.com/ktorio/ktor)
 - [Coil](https://github.com/coil-kt/coil)
-- [Ksp](https://github.com/google/ksp)
+- [Reorderable](https://github.com/Calvin-LL/Reorderable)
+- [Protobuf](https://github.com/protocolbuffers/protobuf)
 
 ## Disclaimer
 
