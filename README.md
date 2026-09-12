@@ -1,11 +1,17 @@
-# JetMelo
+# JetMelo-Next
 <img src="app\src\main\res\mipmap-xxxhdpi\ic_launcher_round.webp" height="72">
 
 A Material 3 Netease Cloud Music client for Android
 
-[![Latest release](https://img.shields.io/github/v/release/rcmiku/JetMelo?include_prereleases)](https://github.com/rcmiku/JetMelo/releases)
-[![GitHub License](https://img.shields.io/github/license/rcmiku/JetMelo)](https://www.gnu.org/licenses/gpl-3.0)
-[![Downloads](https://img.shields.io/github/downloads/rcmiku/JetMelo/total)](https://github.com/rcmiku/JetMelo/releases)
+[![Latest release](https://img.shields.io/github/v/release/sense733/JetMelo-Next?include_prereleases)](https://github.com/sense733/JetMelo-Next/releases)
+[![GitHub License](https://img.shields.io/github/license/sense733/JetMelo-Next)](https://www.gnu.org/licenses/gpl-3.0)
+[![Downloads](https://img.shields.io/github/downloads/sense733/JetMelo-Next/total)](https://github.com/sense733/JetMelo-Next/releases)
+
+> **本仓库是 [rcmiku/JetMelo](https://github.com/rcmiku/JetMelo) 的修改版（fork），不是原项目的官方发布。**
+>
+> 自 2026 年 8 月起，由 [sense733](https://github.com/sense733) 在原项目基础上继续开发，主要改动包括：重构播放器、迷你播放栏与列表之间的转场动效，引入共享元素导航，调整歌单加载与首页数据流程，并将应用名改为 `JetMelo-Next`、包名改为 `com.jetmelo.next`（与原项目可同时安装，互不覆盖）。
+>
+> 原项目版权归其作者所有，本项目沿用 GPL-3.0 授权。
 
 ## Features
 
@@ -38,6 +44,7 @@ A Material 3 Netease Cloud Music client for Android
 
 ## Credit
 
+- [JetMelo](https://github.com/rcmiku/JetMelo) —— 本项目的上游
 - [InnerTune](https://github.com/z-huang/InnerTune)
 - [Protobuf](https://github.com/protocolbuffers/protobuf)
 - [Reorderable](https://github.com/Calvin-LL/Reorderable)
