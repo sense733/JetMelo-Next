@@ -8,22 +8,19 @@ A Material 3 NetEase Cloud Music client for Android.
 [![GitHub License](https://img.shields.io/github/license/sense733/JetMelo-Next)](https://www.gnu.org/licenses/gpl-3.0)
 [![Downloads](https://img.shields.io/github/downloads/sense733/JetMelo-Next/total)](https://github.com/sense733/JetMelo-Next/releases)
 
-> **本仓库是 [rcmiku/JetMelo](https://github.com/rcmiku/JetMelo) 的修改版（fork），不是原项目的官方发布。**
+> **This repository is a fork of [rcmiku/JetMelo](https://github.com/rcmiku/JetMelo) and is not an official release of the original project.**
 >
-> 自 2026 年 8 月起，由 [sense733](https://github.com/sense733) 在原项目基础上继续开发，主要改动包括：重构播放器、迷你播放栏与列表之间的转场动效，引入共享元素导航，调整歌单加载与首页数据流程，并将应用名改为 `JetMelo-Next`、包名改为 `com.jetmelo.next`（与原项目可同时安装，互不覆盖）。
+> Since August 2026, [sense733](https://github.com/sense733) has continued development based on the original project. Major changes include: refactoring transition animations between the player, mini-player, and lists, introducing shared-element navigation, adjusting playlist loading and home data workflows, and renaming the application to `JetMelo-Next` with package name `com.jetmelo.next` (can be installed alongside the original project without conflict).
 >
-> 原项目版权归其作者所有，本项目沿用 GPL-3.0 授权。
+> All rights to the original project belong to its author. This project continues to be licensed under GPL-3.0.
 
 ## Features
 
-- **Material 3 Design**：支持深浅主题与 Android 12+ 动态壁纸取色
-- **流体交互与动效**：播放器全物理容器展开、共享元素导航与连续手势打断
-- **沉浸播放体验**：封面自适应动态背景、双语滚动歌词与多音质切换
-- **后台播放**：基于 AndroidX Media3，支持系统媒体通知与耳机线控
-- **曲库与探索**：首页推荐、每日推荐、探索榜单与新碟速递
-- **个人媒体库**：支持账号登录、歌单收藏与云盘音乐浏览
-- **智能队列与手势**：播放队列自由拖拽重排，支持侧滑删除与斜滑防误触
-- **实用辅助**：睡眠定时器、歌曲加载失败自动跳过
+- **Material 3 Design**: Light/Dark theme support and Android 12+ dynamic color (Material You)
+- **Fluid Interactions & Motion**: Physical container transform for the player, shared-element navigation, and interruptible gestures
+- **Immersive Playback Experience**: Dynamic background adaptive to album art and synchronized bilingual lyrics
+- **Discovery & Library**: Personalized recommendations, daily picks, charts, and new releases
+- **User Library**: Account login, playlist/album collection, and cloud drive music
 
 ## Screenshot
 
@@ -44,7 +41,7 @@ A Material 3 NetEase Cloud Music client for Android.
 
 ## Credit
 
-- [JetMelo](https://github.com/rcmiku/JetMelo) —— 本项目的上游
+- [JetMelo](https://github.com/rcmiku/JetMelo) — upstream repository of this project
 - [InnerTune](https://github.com/z-huang/InnerTune)
 - [AndroidX Media3](https://github.com/androidx/media)
 - [Ktor](https://github.com/ktorio/ktor)
