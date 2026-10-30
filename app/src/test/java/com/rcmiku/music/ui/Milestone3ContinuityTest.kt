@@ -9,6 +9,8 @@ import com.rcmiku.music.ui.screen.PLAY_QUEUE
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.OnBackPressedDispatcher
 import org.junit.Test
 import kotlin.math.abs
 
@@ -326,5 +328,49 @@ class Milestone3ContinuityTest {
         assertEquals(0f, targetAmplitude(isPlaying = false, isDragging = false, enabled = true), 1e-4f)
         assertEquals(0f, targetAmplitude(isPlaying = true, isDragging = true, enabled = true), 1e-4f)
         assertEquals(0f, targetAmplitude(isPlaying = true, isDragging = false, enabled = false), 1e-4f)
+    }
+
+    @Test
+    fun testFullscreenPlayerDynamicBackHandlerPriorityOverSubPages() {
+        val dispatcher = OnBackPressedDispatcher()
+
+        var isSearchExpanded = false
+        var searchBackTriggered = false
+        val searchScreenCallback = object : OnBackPressedCallback(!isSearchExpanded) {
+            override fun handleOnBackPressed() {
+                searchBackTriggered = true
+                isSearchExpanded = true
+                isEnabled = false
+            }
+        }
+        dispatcher.addCallback(searchScreenCallback)
+
+        var isPlayerExpanded = true
+        var isCollapsed = false
+        var playerCollapseTriggered = false
+
+        var playerCallback: OnBackPressedCallback? = null
+        if (isPlayerExpanded || !isCollapsed) {
+            playerCallback = object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    playerCollapseTriggered = true
+                    isPlayerExpanded = false
+                }
+            }
+            dispatcher.addCallback(playerCallback)
+        }
+
+        dispatcher.onBackPressed()
+
+        assertTrue(playerCollapseTriggered)
+        assertFalse(searchBackTriggered)
+        assertFalse(isPlayerExpanded)
+
+        isCollapsed = true
+        playerCallback?.remove()
+
+        dispatcher.onBackPressed()
+        assertTrue(searchBackTriggered)
+        assertTrue(isSearchExpanded)
     }
 }

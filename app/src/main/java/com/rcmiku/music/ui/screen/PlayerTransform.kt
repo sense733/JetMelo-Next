@@ -173,13 +173,15 @@ fun PlayerTransform(
         }
     }
 
-    BackHandler(enabled = isExpanded || !isCollapsed) {
-        if (isSheetOpen) {
-            dismissSheetsRequested = true
-        } else if (currentView != FULL_PLAYER) {
-            safeSwitchView(FULL_PLAYER)
-        } else {
-            onBackPressed()
+    if (isExpanded || !isCollapsed) {
+        BackHandler {
+            if (isSheetOpen) {
+                dismissSheetsRequested = true
+            } else if (currentView != FULL_PLAYER) {
+                safeSwitchView(FULL_PLAYER)
+            } else {
+                onBackPressed()
+            }
         }
     }
 

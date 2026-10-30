@@ -782,6 +782,15 @@ private fun PlayerProgressSlider(
         val safeDuration = if (duration > 0 && duration != C.TIME_UNSET) duration else 0L
         val seekEnabled = safeDuration > 0 && playbackState != STATE_IDLE
 
+        val sliderColors = SliderDefaults.colors(
+            thumbColor = accentColor,
+            activeTrackColor = accentColor,
+            inactiveTrackColor = Color.White.copy(alpha = 0.25f),
+            disabledThumbColor = accentColor.copy(alpha = 0.38f),
+            disabledActiveTrackColor = accentColor.copy(alpha = 0.38f),
+            disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f)
+        )
+
         Slider(
             enabled = seekEnabled,
             value = currentPos.toFloat().coerceIn(0f, maxOf(1f, safeDuration.toFloat())),
@@ -798,14 +807,7 @@ private fun PlayerProgressSlider(
                 }
                 sliderPosition = null
             },
-            colors = SliderDefaults.colors(
-                thumbColor = accentColor,
-                activeTrackColor = accentColor,
-                inactiveTrackColor = Color.White.copy(alpha = 0.25f),
-                disabledThumbColor = accentColor.copy(alpha = 0.38f),
-                disabledActiveTrackColor = accentColor.copy(alpha = 0.38f),
-                disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f)
-            ),
+            colors = sliderColors,
             track = { sliderState ->
                 WavySliderTrack(
                     sliderState = sliderState,
@@ -822,6 +824,7 @@ private fun PlayerProgressSlider(
             thumb = {
                 SliderDefaults.Thumb(
                     interactionSource = interactionSource,
+                    colors = sliderColors,
                     enabled = seekEnabled,
                     thumbSize = DpSize(6.dp, 18.dp)
                 )
