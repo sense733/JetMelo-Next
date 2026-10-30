@@ -51,8 +51,11 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import com.rcmiku.music.ui.design.PaletteExtractor
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
@@ -85,6 +89,7 @@ import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.formatPlayCount
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.music.viewModel.HomeScreenViewModel
@@ -115,6 +120,7 @@ fun HomeScreen(
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var selectSong by remember { mutableStateOf<Song?>(null) }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val state = rememberPullToRefreshState()
     val isRefreshing by homeScreenViewModel.isRefreshing.collectAsStateWithLifecycle()
     val songIds by remember(context) {
@@ -179,6 +185,30 @@ fun HomeScreen(
                 val recommendData = recommendPlaylistState?.getOrNull()
                 val personalizedData = personalizedPlaylistState?.getOrNull()
 
+                LaunchedEffect(dailyData) {
+                    dailyData?.data?.dailySongs?.let { songs ->
+                        if (songs.isNotEmpty()) {
+                            ImagePreloadUtil.preloadSongThumbnails(context, songs)
+                        }
+                    }
+                }
+
+                LaunchedEffect(recommendData) {
+                    recommendData?.recommend?.let { playlists ->
+                        if (playlists.isNotEmpty()) {
+                            ImagePreloadUtil.preloadPlaylistCovers(context, playlists)
+                        }
+                    }
+                }
+
+                LaunchedEffect(personalizedData) {
+                    personalizedData?.result?.let { playlists ->
+                        if (playlists.isNotEmpty()) {
+                            ImagePreloadUtil.preloadPlaylistCovers(context, playlists)
+                        }
+                    }
+                }
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 8.dp, bottom = bottomContentPadding),
@@ -186,6 +216,18 @@ fun HomeScreen(
                 ) {
                     item {
                         val playlistTarget = recommendData?.recommend ?: personalizedData?.result
+                        val fallbackDominant = MaterialTheme.colorScheme.surfaceContainer
+                        val fallbackAccent = MaterialTheme.colorScheme.primary
+
+                        LaunchedEffect(playlistTarget, fallbackDominant, fallbackAccent) {
+                            val playlists = playlistTarget ?: return@LaunchedEffect
+                            PaletteExtractor.preloadBatch(
+                                context = context,
+                                items = playlists.take(10).map { it.cover to it.id.toString() },
+                                fallbackDominant = fallbackDominant,
+                                fallbackAccent = fallbackAccent
+                            )
+                        }
 
                         AnimatedContent(
                             targetState = playlistTarget,
@@ -206,6 +248,15 @@ fun HomeScreen(
                                                 .width(160.dp)
                                                 .clip(JetMeloShapes.medium)
                                                 .clickable(role = Role.Button) {
+                                                    coroutineScope.launch {
+                                                        PaletteExtractor.preload(
+                                                            context = context,
+                                                            artworkUri = playlist.cover,
+                                                            songId = playlist.id.toString(),
+                                                            fallbackDominant = fallbackDominant,
+                                                            fallbackAccent = fallbackAccent
+                                                        )
+                                                    }
                                                     navController.navigate(
                                                         PlaylistNav(
                                                             playlistId = playlist.id,
@@ -224,8 +275,17 @@ fun HomeScreen(
                                                     .clip(JetMeloShapes.large)
                                                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                                             ) {
+                                                val context = LocalContext.current
+                                                val coverKey = remember(playlist.id) { "cover_${playlist.id}" }
+                                                val imageRequest = remember(context, playlist.cover, coverKey) {
+                                                    ImageRequest.Builder(context)
+                                                        .data(playlist.cover.takeIf { it.isNotEmpty() })
+                                                        .memoryCacheKey(coverKey)
+                                                        .placeholderMemoryCacheKey(coverKey)
+                                                        .build()
+                                                }
                                                 AsyncImage(
-                                                    model = playlist.cover,
+                                                    model = imageRequest,
                                                     contentDescription = playlist.name,
                                                     contentScale = ContentScale.Crop,
                                                     modifier = Modifier
@@ -233,7 +293,7 @@ fun HomeScreen(
                                                         .clip(JetMeloShapes.large)
                                                         .sharedElement(
                                                             sharedTransitionScope.rememberSharedContentState(
-                                                                key = "cover_${playlist.id}"
+                                                                key = coverKey
                                                             ),
                                                             animatedVisibilityScope = animatedContentScope,
                                                             boundsTransform = JetMeloBoundsTransform,

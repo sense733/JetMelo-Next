@@ -83,6 +83,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
@@ -102,6 +103,7 @@ import com.rcmiku.music.ui.icons.LibraryAddCheck
 import com.rcmiku.music.ui.navigation.ArtistNav
 import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.formatTimestamp
 import com.rcmiku.music.viewModel.AlbumScreenViewModel
 import kotlinx.coroutines.flow.map
@@ -163,9 +165,26 @@ fun AlbumScreen(
         }
     }
 
+    val pageArtworkUri = albumDetailState?.getOrNull()?.album?.picUrl ?: initialArtworkUri
+    val currentAlbumId = albumDetailState?.getOrNull()?.album?.id ?: albumId
+
+    LaunchedEffect(pageArtworkUri, currentAlbumId) {
+        if (!pageArtworkUri.isNullOrEmpty()) {
+            ImagePreloadUtil.preloadCover(context, currentAlbumId, pageArtworkUri)
+        }
+    }
+
+    LaunchedEffect(albumDetailState) {
+        albumDetailState?.getOrNull()?.songs?.let { songs ->
+            if (songs.isNotEmpty()) {
+                ImagePreloadUtil.preloadSongThumbnails(context, songs)
+            }
+        }
+    }
+
     val pageArtworkColors = rememberArtworkColors(
-        artworkUri = albumDetailState?.getOrNull()?.album?.picUrl ?: initialArtworkUri,
-        songId = (albumDetailState?.getOrNull()?.album?.id ?: albumId)?.toString()
+        artworkUri = pageArtworkUri,
+        songId = currentAlbumId?.toString()
     )
     val baseColor = MaterialTheme.colorScheme.background
     val animatedDominantColor by animateColorAsState(
@@ -321,8 +340,20 @@ fun AlbumScreen(
                                 ) {
                                     if (hasArtwork) {
                                         val id = detail?.album?.id ?: albumId
+                                        val coverKey = remember(id) { id?.let { "cover_$it" } }
+                                        val imageRequest = remember(context, artworkUri, coverKey) {
+                                            ImageRequest.Builder(context)
+                                                .data(artworkUri?.takeIf { it.isNotEmpty() })
+                                                .apply {
+                                                    if (coverKey != null) {
+                                                        memoryCacheKey(coverKey)
+                                                        placeholderMemoryCacheKey(coverKey)
+                                                    }
+                                                }
+                                                .build()
+                                        }
                                         AsyncImage(
-                                            model = artworkUri,
+                                            model = imageRequest,
                                             contentDescription = detail?.album?.name ?: initialTitle,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier

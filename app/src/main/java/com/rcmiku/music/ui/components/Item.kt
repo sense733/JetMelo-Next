@@ -51,6 +51,7 @@ import com.rcmiku.music.constants.ThumbnailCornerRadius
 import com.rcmiku.music.ui.icons.FavoriteFill
 import com.rcmiku.music.ui.icons.Payment
 import com.rcmiku.music.ui.icons.Vip
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.formatPlayCount
 import com.rcmiku.music.utils.formatTimestamp
 import com.rcmiku.ncmapi.model.Album
@@ -241,13 +242,10 @@ fun ArtistListItem(
 ) = ListItem(
     title = artist.name,
     thumbnailContent = {
-        AsyncImage(
-            model = artist.picUrl,
-            contentDescription = artist.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .clip(CircleShape)
-                .size(ListThumbnailSize)
+        ListThumbnailImage(
+            url = artist.picUrl,
+            shape = CircleShape,
+            contentDescription = artist.name
         )
     },
     trailingContent = trailingContent,
@@ -266,13 +264,10 @@ fun AlbumListItem(
         album.size
     ) + " " + album.artists.joinToString("/") { it.name },
     thumbnailContent = {
-        AsyncImage(
-            model = album.picUrl,
-            contentDescription = album.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .clip(ListItemThumbnailShape)
-                .size(ListThumbnailSize)
+        ListThumbnailImage(
+            url = album.picUrl,
+            shape = ListItemThumbnailShape,
+            contentDescription = album.name
         )
     },
     trailingContent = trailingContent,
@@ -305,13 +300,10 @@ fun VoiceListItem(
     title = voice.name,
     subtitle = stringResource(R.string.voice_count, voice.programCount),
     thumbnailContent = {
-        AsyncImage(
-            model = voice.picUrl,
-            contentDescription = voice.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .clip(ListItemThumbnailShape)
-                .size(ListThumbnailSize)
+        ListThumbnailImage(
+            url = voice.picUrl,
+            shape = ListItemThumbnailShape,
+            contentDescription = voice.name
         )
     },
     trailingContent = trailingContent,
@@ -332,13 +324,10 @@ fun PlaylistListItem(
         )
     },
     thumbnailContent = {
-        AsyncImage(
-            model = playlist.cover,
-            contentDescription = playlist.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .clip(ListItemThumbnailShape)
-                .size(ListThumbnailSize)
+        ListThumbnailImage(
+            url = playlist.cover,
+            shape = ListItemThumbnailShape,
+            contentDescription = playlist.name
         )
     },
     trailingContent = trailingContent,
@@ -358,13 +347,10 @@ fun PlaylistV1ListItem(
         playlist.trackCount
     ),
     thumbnailContent = {
-        AsyncImage(
-            model = playlist.coverImgUrl,
-            contentDescription = playlist.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .clip(ListItemThumbnailShape)
-                .size(ListThumbnailSize)
+        ListThumbnailImage(
+            url = playlist.coverImgUrl,
+            shape = ListItemThumbnailShape,
+            contentDescription = playlist.name
         )
     },
     trailingContent = trailingContent,
@@ -572,8 +558,8 @@ fun ItemThumbnail(
             val imageRequest = remember(context, thumbnailUrl, cacheKey) {
                 ImageRequest.Builder(context)
                     .data(thumbnailUrl)
-                    .crossfade(true)
-                    .placeholderMemoryCacheKey(cacheKey)
+                    .size(ImagePreloadUtil.ThumbnailRequestSizePx)
+                    .crossfade(false)
                     .memoryCacheKey(cacheKey)
                     .diskCacheKey(cacheKey)
                     .build()
@@ -582,7 +568,9 @@ fun ItemThumbnail(
                 model = imageRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.clip(shape)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(shape)
             )
         }
 

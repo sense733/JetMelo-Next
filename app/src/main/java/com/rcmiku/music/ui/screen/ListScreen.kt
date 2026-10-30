@@ -29,8 +29,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
@@ -43,14 +45,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.rcmiku.music.R
+import com.rcmiku.music.ui.design.PaletteExtractor
 import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.viewModel.ExploreScreenViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -67,6 +73,8 @@ fun ListScreen(
     bottomContentPadding: Dp = 0.dp
 ) {
     val topListState by exploreScreenViewModel.topList.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -93,6 +101,22 @@ fun ListScreen(
             }
         ) { padding ->
             val topList = topListState?.getOrNull()
+            val fallbackDominant = MaterialTheme.colorScheme.surfaceContainer
+            val fallbackAccent = MaterialTheme.colorScheme.primary
+
+            LaunchedEffect(topList, fallbackDominant, fallbackAccent) {
+                val charts = topList?.list ?: return@LaunchedEffect
+                val items = charts.take(15).map { it.cover to it.id.toString() }
+                if (items.isNotEmpty()) {
+                    PaletteExtractor.preloadBatch(
+                        context = context,
+                        items = items,
+                        fallbackDominant = fallbackDominant,
+                        fallbackAccent = fallbackAccent
+                    )
+                }
+            }
+
             if (topList != null) {
                 LazyVerticalGrid(
                     modifier = Modifier
@@ -109,6 +133,15 @@ fun ListScreen(
                                 .fillMaxWidth()
                                 .clip(JetMeloShapes.medium)
                                 .clickable(role = Role.Button) {
+                                    coroutineScope.launch {
+                                        PaletteExtractor.preload(
+                                            context = context,
+                                            artworkUri = chart.cover,
+                                            songId = chart.id.toString(),
+                                            fallbackDominant = fallbackDominant,
+                                            fallbackAccent = fallbackAccent
+                                        )
+                                    }
                                     navController.navigate(
                                         PlaylistNav(
                                             playlistId = chart.id,
@@ -126,8 +159,17 @@ fun ListScreen(
                                     .aspectRatio(1f)
                                     .clip(JetMeloShapes.medium)
                             ) {
+                                val context = LocalContext.current
+                                val coverKey = remember(chart.id) { "cover_${chart.id}" }
+                                val imageRequest = remember(context, chart.cover, coverKey) {
+                                    ImageRequest.Builder(context)
+                                        .data(chart.cover.takeIf { it.isNotEmpty() })
+                                        .memoryCacheKey(coverKey)
+                                        .placeholderMemoryCacheKey(coverKey)
+                                        .build()
+                                }
                                 AsyncImage(
-                                    model = chart.cover,
+                                    model = imageRequest,
                                     contentDescription = chart.name,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
@@ -135,7 +177,7 @@ fun ListScreen(
                                         .clip(JetMeloShapes.medium)
                                         .sharedElement(
                                             sharedTransitionScope.rememberSharedContentState(
-                                                key = "cover_${chart.id}"
+                                                key = coverKey
                                             ),
                                             animatedVisibilityScope = animatedContentScope,
                                             boundsTransform = JetMeloBoundsTransform,

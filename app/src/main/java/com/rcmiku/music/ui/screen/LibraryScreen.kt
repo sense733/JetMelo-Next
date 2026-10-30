@@ -63,6 +63,7 @@ import com.rcmiku.music.ui.navigation.RecordNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.navigation.UserPlayListNav
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.clearDeviceId
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.music.viewModel.LibraryScreenViewModel
@@ -97,6 +98,12 @@ fun LibraryScreen(
     LaunchedEffect(ncmCookie) {
         if (isLoggedIn) {
             libraryScreenViewModel.fetchUserInfo()
+        }
+    }
+
+    LaunchedEffect(favoriteSongState) {
+        favoriteSongState?.data?.let { fav ->
+            ImagePreloadUtil.preloadCover(context, fav.id, fav.coverImgUrl)
         }
     }
 

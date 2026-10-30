@@ -17,6 +17,8 @@ import com.google.common.util.concurrent.ListenableFuture
 @UnstableApi
 object PlayerController {
     private lateinit var appContext: Context
+    val context: Context?
+        get() = if (::appContext.isInitialized) appContext else null
     private var controllerFuture: ListenableFuture<MediaController>? = null
     var controller by mutableStateOf<MediaController?>(null)
         private set

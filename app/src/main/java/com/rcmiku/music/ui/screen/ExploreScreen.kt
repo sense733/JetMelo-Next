@@ -32,8 +32,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import com.rcmiku.music.ui.design.PaletteExtractor
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,8 +50,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.rcmiku.music.R
 import com.rcmiku.music.ui.design.HeroBannerCard
 import com.rcmiku.music.ui.design.SectionHeader
@@ -56,6 +62,7 @@ import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.viewModel.ExploreScreenViewModel
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
@@ -70,6 +77,7 @@ fun ExploreScreen(
     val topListState by exploreScreenViewModel.topList.collectAsStateWithLifecycle()
     val newAlbumState by exploreScreenViewModel.newAlbum.collectAsStateWithLifecycle()
     val allNewAlbumState by exploreScreenViewModel.allNewAlbum.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -96,6 +104,46 @@ fun ExploreScreen(
             val topList = topListState?.getOrNull()
             val newAlbum = newAlbumState?.getOrNull()
             val allNewAlbum = allNewAlbumState?.getOrNull()
+
+            val context = LocalContext.current
+            val fallbackDominant = MaterialTheme.colorScheme.surfaceContainer
+            val fallbackAccent = MaterialTheme.colorScheme.primary
+
+            LaunchedEffect(topList, newAlbum, allNewAlbum, fallbackDominant, fallbackAccent) {
+                val items = mutableListOf<Pair<Any?, String?>>()
+                topList?.list?.take(5)?.forEach { items.add(it.cover to it.id.toString()) }
+                newAlbum?.albums?.take(6)?.forEach { items.add(it.picUrl to it.id.toString()) }
+                allNewAlbum?.albums?.take(6)?.forEach { items.add(it.picUrl to it.id.toString()) }
+                if (items.isNotEmpty()) {
+                    PaletteExtractor.preloadBatch(
+                        context = context,
+                        items = items,
+                        fallbackDominant = fallbackDominant,
+                        fallbackAccent = fallbackAccent
+                    )
+                }
+            }
+
+            LaunchedEffect(topList) {
+                topList?.list?.let { charts ->
+                    if (charts.isNotEmpty()) {
+                        ImagePreloadUtil.preloadPlaylistCovers(context, charts)
+                    }
+                }
+            }
+
+            LaunchedEffect(newAlbum, allNewAlbum) {
+                newAlbum?.albums?.let { albums ->
+                    if (albums.isNotEmpty()) {
+                        ImagePreloadUtil.preloadAlbumCovers(context, albums)
+                    }
+                }
+                allNewAlbum?.albums?.let { albums ->
+                    if (albums.isNotEmpty()) {
+                        ImagePreloadUtil.preloadAlbumCovers(context, albums)
+                    }
+                }
+            }
 
             val weekData = newAlbum?.albums
             val weekIds = remember(weekData) { weekData?.map { it.id }?.toSet().orEmpty() }
@@ -154,15 +202,17 @@ fun ExploreScreen(
                                 Box(
                                     modifier = Modifier.width(280.dp)
                                 ) {
+                                    val coverKey = remember(chart.id) { "cover_${chart.id}" }
                                     HeroBannerCard(
                                         imageUrl = chart.cover,
+                                        cacheKey = coverKey,
                                         badgeText = stringResource(R.string.top_list),
                                         title = chart.name,
                                         subtitle = chart.description ?: stringResource(R.string.song_size, chart.trackCount),
                                         aspectRatio = 1.7f,
                                         imageModifier = Modifier.sharedElement(
                                             sharedTransitionScope.rememberSharedContentState(
-                                                key = "cover_${chart.id}"
+                                                key = coverKey
                                             ),
                                             animatedVisibilityScope = animatedContentScope,
                                             boundsTransform = JetMeloBoundsTransform,
@@ -170,6 +220,15 @@ fun ExploreScreen(
                                             clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
                                         ),
                                         onClick = {
+                                            coroutineScope.launch {
+                                                PaletteExtractor.preload(
+                                                    context = context,
+                                                    artworkUri = chart.cover,
+                                                    songId = chart.id.toString(),
+                                                    fallbackDominant = fallbackDominant,
+                                                    fallbackAccent = fallbackAccent
+                                                )
+                                            }
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = chart.id,
@@ -204,6 +263,15 @@ fun ExploreScreen(
                                         .width(150.dp)
                                         .clip(JetMeloShapes.medium)
                                         .clickable(role = Role.Button) {
+                                            coroutineScope.launch {
+                                                PaletteExtractor.preload(
+                                                    context = context,
+                                                    artworkUri = album.picUrl,
+                                                    songId = album.id.toString(),
+                                                    fallbackDominant = fallbackDominant,
+                                                    fallbackAccent = fallbackAccent
+                                                )
+                                            }
                                             navController.navigate(
                                                 AlbumNav(
                                                     albumId = album.id,
@@ -219,8 +287,17 @@ fun ExploreScreen(
                                             .height(150.dp)
                                             .clip(JetMeloShapes.medium)
                                     ) {
+                                        val context = LocalContext.current
+                                        val coverKey = remember(album.id) { "cover_${album.id}" }
+                                        val imageRequest = remember(context, album.picUrl, coverKey) {
+                                            ImageRequest.Builder(context)
+                                                .data(album.picUrl.takeIf { it.isNotEmpty() })
+                                                .memoryCacheKey(coverKey)
+                                                .placeholderMemoryCacheKey(coverKey)
+                                                .build()
+                                        }
                                         AsyncImage(
-                                            model = album.picUrl,
+                                            model = imageRequest,
                                             contentDescription = album.name,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
@@ -228,7 +305,7 @@ fun ExploreScreen(
                                                 .clip(JetMeloShapes.medium)
                                                 .sharedElement(
                                                     sharedTransitionScope.rememberSharedContentState(
-                                                        key = "cover_${album.id}"
+                                                        key = coverKey
                                                     ),
                                                     animatedVisibilityScope = animatedContentScope,
                                                     boundsTransform = JetMeloBoundsTransform,
@@ -279,6 +356,15 @@ fun ExploreScreen(
                                         .width(150.dp)
                                         .clip(JetMeloShapes.medium)
                                         .clickable(role = Role.Button) {
+                                            coroutineScope.launch {
+                                                PaletteExtractor.preload(
+                                                    context = context,
+                                                    artworkUri = album.picUrl,
+                                                    songId = album.id.toString(),
+                                                    fallbackDominant = fallbackDominant,
+                                                    fallbackAccent = fallbackAccent
+                                                )
+                                            }
                                             navController.navigate(
                                                 AlbumNav(
                                                     albumId = album.id,
@@ -294,8 +380,17 @@ fun ExploreScreen(
                                             .height(150.dp)
                                             .clip(JetMeloShapes.medium)
                                     ) {
+                                        val context = LocalContext.current
+                                        val coverKey = remember(album.id) { "cover_${album.id}" }
+                                        val imageRequest = remember(context, album.picUrl, coverKey) {
+                                            ImageRequest.Builder(context)
+                                                .data(album.picUrl.takeIf { it.isNotEmpty() })
+                                                .memoryCacheKey(coverKey)
+                                                .placeholderMemoryCacheKey(coverKey)
+                                                .build()
+                                        }
                                         AsyncImage(
-                                            model = album.picUrl,
+                                            model = imageRequest,
                                             contentDescription = album.name,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
@@ -303,7 +398,7 @@ fun ExploreScreen(
                                                 .clip(JetMeloShapes.medium)
                                                 .sharedElement(
                                                     sharedTransitionScope.rememberSharedContentState(
-                                                        key = "cover_${album.id}"
+                                                        key = coverKey
                                                     ),
                                                     animatedVisibilityScope = animatedContentScope,
                                                     boundsTransform = JetMeloBoundsTransform,

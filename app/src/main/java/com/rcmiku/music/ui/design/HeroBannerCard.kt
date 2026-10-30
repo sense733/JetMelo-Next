@@ -59,6 +59,7 @@ fun HeroBannerCard(
     height: Dp = 132.dp,
     shape: CornerBasedShape = JetMeloShapes.extraLarge,
     elevation: Dp = 4.dp,
+    cacheKey: String? = null,
     onClick: () -> Unit = {},
     onPlayClick: (() -> Unit)? = null
 ) {
@@ -110,10 +111,16 @@ fun HeroBannerCard(
                         .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 ) {
                     val context = LocalContext.current
-                    val imageRequest = remember(context, imageUrl) {
+                    val imageRequest = remember(context, imageUrl, cacheKey) {
                         ImageRequest.Builder(context)
                             .data(imageUrl)
                             .size(Size.ORIGINAL)
+                            .apply {
+                                if (cacheKey != null) {
+                                    memoryCacheKey(cacheKey)
+                                    placeholderMemoryCacheKey(cacheKey)
+                                }
+                            }
                             .crossfade(true)
                             .build()
                     }

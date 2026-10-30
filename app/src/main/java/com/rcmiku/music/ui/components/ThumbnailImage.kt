@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
@@ -17,22 +18,29 @@ import com.rcmiku.music.constants.ListThumbnailSize
 import com.rcmiku.music.constants.PlaylistThumbnailSize
 import com.rcmiku.music.constants.ThumbnailCornerRadius
 
+import com.rcmiku.music.utils.ImagePreloadUtil
+
 @Composable
-fun ListThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
+fun ListThumbnailImage(
+    url: Any?,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
+    contentDescription: String? = null
+) {
     val context = LocalContext.current
     val imageRequest = remember(context, url) {
         ImageRequest.Builder(context)
             .data(url)
-            .size(144, 144)
-            .crossfade(true)
+            .size(ImagePreloadUtil.ThumbnailRequestSizePx)
+            .crossfade(false)
             .build()
     }
     AsyncImage(
         model = imageRequest,
-        contentDescription = null,
+        contentDescription = contentDescription,
         contentScale = ContentScale.Crop,
         modifier = modifier
-            .clip(RoundedCornerShape(ThumbnailCornerRadius))
+            .clip(shape)
             .size(ListThumbnailSize)
     )
 }

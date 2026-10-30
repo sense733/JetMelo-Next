@@ -80,6 +80,7 @@ import com.rcmiku.music.constants.MediaSessionConstants
 import com.rcmiku.music.extensions.playMediaAt
 import com.rcmiku.music.extensions.playMediaAtMediaId
 import com.rcmiku.music.extensions.removeSong
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.ChevronDown
@@ -275,6 +276,9 @@ fun PlayerQueue(
             LaunchedEffect(timelineItems) {
                 if (!reorderableLazyListState.isAnyItemDragging) {
                     cacheMediaItems = timelineItems
+                }
+                if (timelineItems.isNotEmpty()) {
+                    ImagePreloadUtil.preloadMediaItems(context, timelineItems)
                 }
             }
 
@@ -534,10 +538,10 @@ fun PlayerQueue(
                                                 val key = artworkUri?.toString()
                                                 ImageRequest.Builder(context)
                                                     .data(artworkUri)
-                                                    .size(Size(176, 176))
+                                                    .size(ImagePreloadUtil.ThumbnailRequestSizePx)
                                                     .memoryCacheKey(key)
                                                     .diskCacheKey(key)
-                                                    .crossfade(true)
+                                                    .crossfade(false)
                                                     .build()
                                             }
                                             AsyncImage(

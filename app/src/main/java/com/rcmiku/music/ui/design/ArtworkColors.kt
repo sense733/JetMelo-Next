@@ -29,6 +29,7 @@ import coil3.request.allowHardware
 import coil3.request.bitmapConfig
 import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
@@ -89,6 +90,21 @@ object PaletteExtractor {
         extract(context, artworkUri, songId, fallbackDominant, fallbackAccent)
     }
 
+    suspend fun preloadBatch(
+        context: Context,
+        items: List<Pair<Any?, String?>>,
+        fallbackDominant: Color,
+        fallbackAccent: Color
+    ) = withContext(Dispatchers.IO) {
+        items.forEach { (artworkUri, songId) ->
+            if (artworkUri != null) {
+                launch {
+                    preload(context, artworkUri, songId, fallbackDominant, fallbackAccent)
+                }
+            }
+        }
+    }
+
     suspend fun extract(
         context: Context,
         artworkUri: Any?,
@@ -111,9 +127,15 @@ object PaletteExtractor {
 
         try {
             val imageLoader = SingletonImageLoader.get(context)
+            val coverKey = songId?.let { "cover_$it" }
             val request = ImageRequest.Builder(context)
                 .data(artworkUri)
                 .size(SAMPLE_SIZE, SAMPLE_SIZE)
+                .apply {
+                    if (coverKey != null) {
+                        placeholderMemoryCacheKey(coverKey)
+                    }
+                }
                 .allowHardware(false)
                 .bitmapConfig(Bitmap.Config.ARGB_8888)
                 .memoryCachePolicy(CachePolicy.ENABLED)
@@ -524,13 +546,15 @@ fun rememberArtworkColors(
     }
 
     LaunchedEffect(songId, artworkUri, fallbackDominant, fallbackAccent) {
-        colors = PaletteExtractor.extract(
-            context = context,
-            artworkUri = artworkUri,
-            songId = songId,
-            fallbackDominant = fallbackDominant,
-            fallbackAccent = fallbackAccent
-        )
+        if (PaletteExtractor.getCached(artworkUri, songId, fallbackDominant, fallbackAccent) == null) {
+            colors = PaletteExtractor.extract(
+                context = context,
+                artworkUri = artworkUri,
+                songId = songId,
+                fallbackDominant = fallbackDominant,
+                fallbackAccent = fallbackAccent
+            )
+        }
     }
 
     return colors

@@ -28,7 +28,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,14 +44,19 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.rcmiku.music.R
+import com.rcmiku.music.ui.design.PaletteExtractor
 import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.viewModel.UserPlaylistScreenViewModel
 import com.rcmiku.ncmapi.api.account.UserPlaylistType
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -63,6 +71,8 @@ fun UserPlaylistScreen(
     val playlistState by userPlaylistScreenViewModel.playlist.collectAsStateWithLifecycle()
     val isLoading by userPlaylistScreenViewModel.isLoading.collectAsStateWithLifecycle()
     val loadError by userPlaylistScreenViewModel.loadError.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -93,6 +103,29 @@ fun UserPlaylistScreen(
             }
         ) { padding ->
             val playlistResponse = playlistState
+            val fallbackDominant = MaterialTheme.colorScheme.surfaceContainer
+            val fallbackAccent = MaterialTheme.colorScheme.primary
+
+            LaunchedEffect(playlistResponse, fallbackDominant, fallbackAccent) {
+                val playlists = playlistResponse?.data?.playlist ?: return@LaunchedEffect
+                val items = playlists.take(15).map { it.cover to it.id.toString() }
+                if (items.isNotEmpty()) {
+                    PaletteExtractor.preloadBatch(
+                        context = context,
+                        items = items,
+                        fallbackDominant = fallbackDominant,
+                        fallbackAccent = fallbackAccent
+                    )
+                }
+            }
+
+            LaunchedEffect(playlistResponse) {
+                playlistResponse?.data?.playlist?.let { playlists ->
+                    if (playlists.isNotEmpty()) {
+                        ImagePreloadUtil.preloadPlaylistCovers(context, playlists)
+                    }
+                }
+            }
 
             when {
                 playlistResponse == null && isLoading -> {
@@ -143,6 +176,15 @@ fun UserPlaylistScreen(
                                     .fillMaxWidth()
                                     .clip(JetMeloShapes.medium)
                                     .clickable(role = Role.Button) {
+                                        coroutineScope.launch {
+                                            PaletteExtractor.preload(
+                                                context = context,
+                                                artworkUri = playlist.cover,
+                                                songId = playlist.id.toString(),
+                                                fallbackDominant = fallbackDominant,
+                                                fallbackAccent = fallbackAccent
+                                            )
+                                        }
                                         navController.navigate(
                                             PlaylistNav(
                                                 playlistId = playlist.id,
@@ -160,8 +202,17 @@ fun UserPlaylistScreen(
                                         .aspectRatio(1f)
                                         .clip(JetMeloShapes.medium)
                                 ) {
+                                    val context = LocalContext.current
+                                    val coverKey = remember(playlist.id) { "cover_${playlist.id}" }
+                                    val imageRequest = remember(context, playlist.cover, coverKey) {
+                                        ImageRequest.Builder(context)
+                                            .data(playlist.cover.takeIf { it.isNotEmpty() })
+                                            .memoryCacheKey(coverKey)
+                                            .placeholderMemoryCacheKey(coverKey)
+                                            .build()
+                                    }
                                     AsyncImage(
-                                        model = playlist.cover,
+                                        model = imageRequest,
                                         contentDescription = playlist.name,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
@@ -169,7 +220,7 @@ fun UserPlaylistScreen(
                                             .clip(JetMeloShapes.medium)
                                             .sharedElement(
                                                 sharedTransitionScope.rememberSharedContentState(
-                                                    key = "cover_${playlist.id}"
+                                                    key = coverKey
                                                 ),
                                                 animatedVisibilityScope = animatedContentScope,
                                                 boundsTransform = JetMeloBoundsTransform,

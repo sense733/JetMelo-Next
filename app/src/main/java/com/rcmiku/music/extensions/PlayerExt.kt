@@ -5,6 +5,8 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.rcmiku.music.constants.currentPlayMediaIdKey
+import com.rcmiku.music.playback.PlayerController
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.PlaylistItem
 import com.rcmiku.music.utils.PlaylistItemType
 import com.rcmiku.music.utils.SongListUtil
@@ -39,6 +41,7 @@ suspend fun Player.init(context: Context) {
     withContext(Dispatchers.Main.immediate) {
         if (playlist != null && currentMediaItems.isEmpty()) {
             setMediaItems(playlist)
+            ImagePreloadUtil.preloadMediaItems(context, playlist)
             if (index != -1) {
                 seekToDefaultPosition(index)
             }
@@ -53,6 +56,9 @@ fun Player.setPlaylist(songs: List<Song>) {
     cacheSongs.value = songs
     setMediaItems(songs.toMediaItemList())
     SongListUtil.saveSongList(songs)
+    PlayerController.context?.let { ctx ->
+        ImagePreloadUtil.preloadSongThumbnails(ctx, songs)
+    }
 }
 fun Player.setCloudSongPlaylist(uid: Long, cloudSongs: List<CloudSong>) {
     cacheSongs.value = null
@@ -67,6 +73,7 @@ fun Player.setRadioPlaylist(radio: List<Radio>) {
 }
 
 fun Player.addSong(song: Song) {
+    PlayerController.context?.let { ctx -> ImagePreloadUtil.preloadSongThumbnail(ctx, song) }
     val songMediaId = song.id.toString()
     if (nextMediaItemIndex != C.INDEX_UNSET) {
         val songIndex = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == songMediaId } ?: -1
@@ -85,6 +92,7 @@ fun Player.addSong(song: Song) {
 }
 
 fun Player.addToPlaylist(song: Song) {
+    PlayerController.context?.let { ctx -> ImagePreloadUtil.preloadSongThumbnail(ctx, song) }
     val songMediaId = song.id.toString()
     if (mediaItemCount > 0) {
         val songIndex = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == songMediaId } ?: -1
@@ -101,6 +109,7 @@ fun Player.addToPlaylist(song: Song) {
 }
 
 fun Player.insertToPlaylist(song: Song) {
+    PlayerController.context?.let { ctx -> ImagePreloadUtil.preloadSongThumbnail(ctx, song) }
     val songMediaId = song.id.toString()
     if (nextMediaItemIndex != C.INDEX_UNSET) {
         val songIndex = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == songMediaId } ?: -1

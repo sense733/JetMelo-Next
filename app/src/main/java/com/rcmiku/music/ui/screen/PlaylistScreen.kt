@@ -112,6 +112,7 @@ import com.rcmiku.music.ui.icons.PlayArrowFill
 import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.formatPlayCount
 import com.rcmiku.music.utils.formatTimestamp
 import com.rcmiku.music.utils.rememberPreference
@@ -182,9 +183,24 @@ fun PlaylistScreen(
         }
     }
 
+    val pageArtworkUri = playlistDetailState?.playlist?.coverImgUrl ?: initialArtworkUri
+    val currentPlaylistId = playlistDetailState?.playlist?.id ?: playlistId
+
+    LaunchedEffect(tracks) {
+        if (tracks.isNotEmpty()) {
+            ImagePreloadUtil.preloadSongThumbnails(context, tracks)
+        }
+    }
+
+    LaunchedEffect(pageArtworkUri, currentPlaylistId) {
+        if (!pageArtworkUri.isNullOrEmpty()) {
+            ImagePreloadUtil.preloadCover(context, currentPlaylistId, pageArtworkUri)
+        }
+    }
+
     val pageArtworkColors = rememberArtworkColors(
-        artworkUri = playlistDetailState?.playlist?.coverImgUrl ?: initialArtworkUri,
-        songId = (playlistDetailState?.playlist?.id ?: playlistId)?.toString()
+        artworkUri = pageArtworkUri,
+        songId = currentPlaylistId?.toString()
     )
     val baseColor = MaterialTheme.colorScheme.background
     val animatedDominantColor by animateColorAsState(
@@ -340,8 +356,20 @@ fun PlaylistScreen(
                                 ) {
                                     if (hasArtwork) {
                                         val id = detail?.playlist?.id ?: playlistId
+                                        val coverKey = remember(id) { id?.let { "cover_$it" } }
+                                        val imageRequest = remember(context, artworkUri, coverKey) {
+                                            ImageRequest.Builder(context)
+                                                .data(artworkUri?.takeIf { it.isNotEmpty() })
+                                                .apply {
+                                                    if (coverKey != null) {
+                                                        memoryCacheKey(coverKey)
+                                                        placeholderMemoryCacheKey(coverKey)
+                                                    }
+                                                }
+                                                .build()
+                                        }
                                         AsyncImage(
-                                            model = artworkUri,
+                                            model = imageRequest,
                                             contentDescription = detail?.playlist?.name ?: initialTitle,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
@@ -601,10 +629,10 @@ fun PlaylistScreen(
                                         val imageRequest = remember(context, artworkUrl, imageKey) {
                                             ImageRequest.Builder(context)
                                                 .data(artworkUrl)
-                                                .size(Size(176, 176))
+                                                .size(ImagePreloadUtil.ThumbnailRequestSizePx)
                                                 .memoryCacheKey(imageKey)
                                                 .diskCacheKey(imageKey)
-                                                .crossfade(true)
+                                                .crossfade(false)
                                                 .build()
                                         }
                                         AsyncImage(
