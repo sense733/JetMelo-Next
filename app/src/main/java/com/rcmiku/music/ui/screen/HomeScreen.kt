@@ -209,7 +209,7 @@ fun HomeScreen(
                                                     navController.navigate(
                                                         PlaylistNav(
                                                             playlistId = playlist.id,
-                                                            limit = playlist.trackCount?.takeIf { it > 0 } ?: 999,
+                                                            limit = playlist.trackCount.takeIf { it > 0 } ?: 999,
                                                             coverImgUrl = playlist.cover,
                                                             title = playlist.name,
                                                             enableSharedTransition = true
@@ -254,9 +254,9 @@ fun HomeScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
 
-                                            val countText = if (playlist.playCount != null && playlist.playCount > 0) {
+                                            val countText = if (playlist.playCount > 0) {
                                                 formatPlayCount(playlist.playCount)
-                                            } else if (playlist.trackCount != null && playlist.trackCount > 0) {
+                                            } else if (playlist.trackCount > 0) {
                                                 stringResource(R.string.song_size, playlist.trackCount)
                                             } else {
                                                 ""

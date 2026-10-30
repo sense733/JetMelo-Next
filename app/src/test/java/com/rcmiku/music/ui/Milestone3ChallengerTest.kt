@@ -287,7 +287,7 @@ class Milestone3ChallengerTest {
     fun testTimeStringDerivedStateProducesZeroChangesWithinSecond() {
         val positionState = mutableLongStateOf(1000L)
         val currentSecond by derivedStateOf {
-            (positionState.longValue / 1000L).coerceAtLeast(0L)
+            positionState.longValue / 1000L
         }
 
         // Verify initial reading

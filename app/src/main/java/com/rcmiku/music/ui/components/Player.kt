@@ -66,7 +66,6 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -621,8 +620,6 @@ fun ArtistBottomSheet(
                                     onDismiss()
                                     try {
                                         onClick(artist)
-                                    } catch (e: CancellationException) {
-                                        throw e
                                     } catch (e: Exception) {
                                         Toast.makeText(
                                             context,
@@ -658,8 +655,6 @@ fun ArtistBottomSheet(
                                     onDismiss()
                                     try {
                                         onAlbumClick(currentSong.al)
-                                    } catch (e: CancellationException) {
-                                        throw e
                                     } catch (e: Exception) {
                                         Toast.makeText(
                                             context,

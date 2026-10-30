@@ -118,12 +118,10 @@ fun Player.insertToPlaylist(song: Song) {
 }
 
 fun Player.removeSong(mediaId: String) {
-    if (currentMediaItems.isNotEmpty()) {
-        val songIndex = currentMediaItems.indexOfFirst { it.mediaId == mediaId }
-        if (songIndex != -1) {
-            removeMediaItem(songIndex)
-            SongListUtil.removePlaylistItem(mediaId)
-        }
+    val songIndex = currentMediaItems.indexOfFirst { it.mediaId == mediaId }
+    if (songIndex != -1) {
+        removeMediaItem(songIndex)
+        SongListUtil.removePlaylistItem(mediaId)
     }
 }
 
@@ -140,7 +138,6 @@ fun Player.playMediaAtId(id: Long? = null) {
     if (id == null) return
     val targetId = id.toString()
     val index = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == targetId } ?: return
-    if (index !in 0 until mediaItemCount) return
     seekToDefaultPosition(index)
     prepare()
     play()
@@ -148,7 +145,6 @@ fun Player.playMediaAtId(id: Long? = null) {
 
 fun Player.playMediaAtMediaId(mediaId: String) {
     val index = (0 until mediaItemCount).firstOrNull { getMediaItemAt(it).mediaId == mediaId } ?: return
-    if (index !in 0 until mediaItemCount) return
     seekToDefaultPosition(index)
     prepare()
     play()

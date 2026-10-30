@@ -43,9 +43,7 @@ class LibraryScreenViewModel @Inject constructor(
         val response = AccountApi.favoriteSong(userId).getOrNull()
         _favoriteSong.value = response
         response?.ids?.let { ids ->
-            if (ids.isNotEmpty()) {
-                FavoriteSongIdsUtil.mergeSongIds(context, ids)
-            }
+            FavoriteSongIdsUtil.mergeSongIds(context, ids)
         }
     }
 

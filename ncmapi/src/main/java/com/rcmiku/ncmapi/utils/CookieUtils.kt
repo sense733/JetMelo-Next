@@ -21,8 +21,8 @@ fun parseCookieString(cookie: String): Map<String, String> {
     val parts = cookie.split(';')
     for (part in parts) {
         val trimmed = part.trim()
-        if (trimmed.isEmpty() || !trimmed.contains('=')) continue
         val idx = trimmed.indexOf('=')
+        if (idx == -1) continue
         val key = trimmed.substring(0, idx).trim()
         val value = trimmed.substring(idx + 1).trim()
         if (key.lowercase() in IGNORED_COOKIE_ATTRIBUTES) continue

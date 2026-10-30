@@ -718,7 +718,7 @@ fun SearchScreen(
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = playlist.id,
-                                                    limit = playlist.trackCount?.takeIf { it > 0 } ?: 999,
+                                                    limit = playlist.trackCount.takeIf { it > 0 } ?: 999,
                                                     coverImgUrl = playlist.cover,
                                                     title = playlist.name
                                                 )

@@ -43,7 +43,7 @@ fun CloudSong.toMediaItem(uid: Long): MediaItem =
             MediaMetadata.Builder()
                 .setArtist(this.artist)
                 .setTitle(this.simpleSong.name)
-                .setArtworkUri(this.simpleSong.al?.picUrl?.toUri())
+                .setArtworkUri(this.simpleSong.al.picUrl.toUri())
                 .setExtras(Bundle().apply {
                     putLong("uid", uid)
                 })

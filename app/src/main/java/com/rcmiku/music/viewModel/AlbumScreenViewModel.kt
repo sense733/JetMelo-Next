@@ -99,8 +99,7 @@ class AlbumScreenViewModel @Inject constructor(
         }
     }
 
-    private fun fetchAlbumInfo() {
-        val id = albumId ?: return
+    private fun fetchAlbumInfo(id: Long) {
         viewModelScope.launch {
             albumRepository.getAlbumInfo(id, forceRefresh = true).fold(
                 onSuccess = { _albumInfo.value = it },
@@ -120,7 +119,7 @@ class AlbumScreenViewModel @Inject constructor(
             AlbumApi.albumSub(id = id, targetState = targetState).fold(
                 onSuccess = {
                     albumRepository.updateSubscribed(id, targetState)
-                    fetchAlbumInfo()
+                    fetchAlbumInfo(id)
                 },
                 onFailure = {
                     _actionError.tryEmit(Unit)

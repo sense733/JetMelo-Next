@@ -95,12 +95,11 @@ fun LoginScreen(
                                 view: WebView?,
                                 url: String?,
                             ) {
-                                val uri = url?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
+                                val uri = url?.let { android.net.Uri.parse(it) }
                                 val isWhitelistedHost = uri != null && uri.scheme == "https" &&
                                     (uri.host == "music.163.com" || uri.host == "y.music.163.com")
                                 if (isWhitelistedHost && uri?.path?.startsWith("/m") == true) {
                                     val cookie = CookieManager.getInstance().getCookie(url) ?: return
-                                    if (cookie.isBlank()) return
                                     val parsedCookie = parseCookieString(cookie)
                                     val hasSession = parsedCookie.containsKey("MUSIC_U") || parsedCookie.containsKey("MUSIC_A")
                                     if (!hasSession) return

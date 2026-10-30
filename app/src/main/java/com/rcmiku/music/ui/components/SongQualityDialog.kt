@@ -50,10 +50,8 @@ fun SongQualityDialog(
                                 selected = isSelected,
                                 enabled = isAvailable,
                                 onClick = {
-                                    if (isAvailable) {
-                                        onQualitySelected(level)
-                                        onDismiss()
-                                    }
+                                    onQualitySelected(level)
+                                    onDismiss()
                                 },
                                 role = Role.RadioButton,
                             )

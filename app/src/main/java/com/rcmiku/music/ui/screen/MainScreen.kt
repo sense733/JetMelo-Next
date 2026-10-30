@@ -165,9 +165,7 @@ fun MainScreen() {
                     AccountApi.account().getOrNull()?.profile?.userId?.let {
                         userId = it
                         AccountApi.getLikelist(it).getOrNull()?.ids?.let { songIds ->
-                            if (songIds.isNotEmpty()) {
-                                FavoriteSongIdsUtil.mergeSongIds(context, songIds)
-                            }
+                            FavoriteSongIdsUtil.mergeSongIds(context, songIds)
                         }
                     }
                 } else {

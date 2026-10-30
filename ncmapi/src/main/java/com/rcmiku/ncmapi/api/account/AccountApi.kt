@@ -59,12 +59,11 @@ object AccountApi {
             val allPlaylists = mutableListOf<com.rcmiku.ncmapi.model.Playlist>()
             var offset = 0
             val pageSize = DEFAULT_USER_PLAYLIST_LIMIT
-            var lastCode = 200
+            var lastCode: Int
             while (true) {
                 val raw = getUserPlaylist(uid = userId, offset = offset, limit = pageSize).getOrThrow()
                 lastCode = raw.code
                 val currentBatch = raw.playlist
-                if (currentBatch.isEmpty()) break
                 allPlaylists.addAll(currentBatch)
                 if (currentBatch.size < pageSize) break
                 offset += currentBatch.size

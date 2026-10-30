@@ -55,23 +55,21 @@ object HttpManager {
         get() = defaultDebugEnabled
 
     private val isDebugHost: Boolean by lazy {
-        runCatching {
-            val candidates = listOf(
-                "$hostPackageName.BuildConfig",
-                "$hostPackageName.debug.BuildConfig",
-                "com.rcmiku.music.BuildConfig",
-                "com.rcmiku.music.debug.BuildConfig"
-            )
-            for (className in candidates) {
-                runCatching {
-                    val clazz = Class.forName(className)
-                    val field = clazz.getDeclaredField("DEBUG")
-                    field.isAccessible = true
-                    return@runCatching field.getBoolean(null)
-                }.getOrNull()?.let { return@runCatching it }
-            }
-            false
-        }.getOrDefault(false)
+        val candidates = listOf(
+            "$hostPackageName.BuildConfig",
+            "$hostPackageName.debug.BuildConfig",
+            "com.rcmiku.music.BuildConfig",
+            "com.rcmiku.music.debug.BuildConfig"
+        )
+        for (className in candidates) {
+            runCatching {
+                val clazz = Class.forName(className)
+                val field = clazz.getDeclaredField("DEBUG")
+                field.isAccessible = true
+                return@runCatching field.getBoolean(null)
+            }.getOrNull()?.let { return@lazy it }
+        }
+        false
     }
 
     private val defaultDebugEnabled: Boolean by lazy {
@@ -185,15 +183,15 @@ object HttpManager {
 
         currentCookies.getOrPut("_ntes_nuid") { randomHex(32) }
         currentCookies.getOrPut("_ntes_nnid") {
-            val nuid = currentCookies["_ntes_nuid"] ?: randomHex(32)
+            val nuid = currentCookies.getValue("_ntes_nuid")
             "$nuid,${System.currentTimeMillis()}"
         }
         if (crypto == CryptoType.EAPI) {
             currentCookies.getOrPut("WNMCID") { "${randomLower(6)}.${System.currentTimeMillis()}.01.4" }
-            currentCookies.getOrPut("NMCID") { currentCookies["WNMCID"] ?: "${randomLower(6)}.${System.currentTimeMillis()}.01.4" }
+            currentCookies.getOrPut("NMCID") { currentCookies.getValue("WNMCID") }
         } else {
             currentCookies.getOrPut("WNMCID") { "${randomHex(6)}.${System.currentTimeMillis()}.01.0" }
-            currentCookies.getOrPut("NMCID") { currentCookies["WNMCID"] ?: "${randomHex(6)}.${System.currentTimeMillis()}.01.0" }
+            currentCookies.getOrPut("NMCID") { currentCookies.getValue("WNMCID") }
         }
         currentCookies.getOrPut("WEVNSM") { "1.0.0" }
         currentCookies.getOrPut("__remember_me") { "true" }

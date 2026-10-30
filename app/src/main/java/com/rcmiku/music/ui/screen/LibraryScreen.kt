@@ -87,7 +87,7 @@ fun LibraryScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val isLoggedIn = remember(ncmCookie) {
-        ncmCookie.isNotEmpty() && CookieProvider.hasValidSession(ncmCookie)
+        CookieProvider.hasValidSession(ncmCookie)
     }
 
     val userInfoBatchState by libraryScreenViewModel.userInfo.collectAsStateWithLifecycle()

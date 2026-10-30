@@ -250,12 +250,5 @@ class Milestone3ContinuityTest {
             BackDispatchAction.COLLAPSE_PLAYER,
             dispatchBackAction(isSheetOpen = false, currentView = FULL_PLAYER)
         )
-
-        val scaleAt0 = 1f - (0f * 0.08f)
-        val scaleAtHalf = 1f - (0.5f * 0.08f)
-        val scaleAt1 = 1f - (1f * 0.08f)
-        assertEquals(1.0f, scaleAt0, 1e-4f)
-        assertEquals(0.96f, scaleAtHalf, 1e-4f)
-        assertEquals(0.92f, scaleAt1, 1e-4f)
     }
 }

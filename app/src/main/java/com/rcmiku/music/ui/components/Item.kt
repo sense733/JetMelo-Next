@@ -325,7 +325,7 @@ fun PlaylistListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) = ListItem(
     title = playlist.name,
-    subtitle = playlist.playCount?.let { formatPlayCount(it) }?.let {
+    subtitle = formatPlayCount(playlist.playCount).let {
         stringResource(
             R.string.total_play_count,
             it
@@ -499,9 +499,8 @@ fun CloudSongListItem(
     badges = badges,
     thumbnailContent = {
         ItemThumbnail(
-            thumbnailUrl = cloudSong.simpleSong.al?.picUrl,
-            cacheKey = cloudSong.simpleSong.al?.picUrl?.ifEmpty { cloudSong.simpleSong.id.toString() }
-                ?: cloudSong.simpleSong.id.toString(),
+            thumbnailUrl = cloudSong.simpleSong.al.picUrl,
+            cacheKey = cloudSong.simpleSong.al.picUrl.ifEmpty { cloudSong.simpleSong.id.toString() },
             albumIndex = albumIndex,
             isActive = isActive,
             isPlaying = isPlaying,
@@ -552,11 +551,12 @@ fun ItemThumbnail(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
 ) {
+    val hasAlbumIndex = albumIndex != null
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
     ) {
-        if (albumIndex != null) {
+        if (hasAlbumIndex) {
             AnimatedVisibility(
                 visible = !isActive,
                 enter = fadeIn() + expandIn(expandFrom = Alignment.Center),
@@ -589,11 +589,11 @@ fun ItemThumbnail(
         PlayingIndicatorBox(
             isActive = isActive,
             playWhenReady = isPlaying,
-            color = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White,
+            color = if (hasAlbumIndex) MaterialTheme.colorScheme.onBackground else Color.White,
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    color = if (albumIndex != null) Color.Transparent else Color.Black.copy(alpha = ActiveBoxAlpha),
+                    color = if (hasAlbumIndex) Color.Transparent else Color.Black.copy(alpha = ActiveBoxAlpha),
                     shape = shape
                 )
         )

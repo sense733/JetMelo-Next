@@ -43,8 +43,7 @@ class JetMeloApp : Application(), SingletonImageLoader.Factory {
             .onFailure { Log.e("JetMeloApp", "FileProvider init failed", it) }
         runCatching { SongListUtil.init(filesDir.resolve("playlist")) }
             .onFailure { Log.e("JetMeloApp", "SongListUtil init failed", it) }
-        runCatching { UserAgentProvider.init(UserAgentUtil.DEFAULT_USER_AGENT) }
-            .onFailure { Log.e("JetMeloApp", "UserAgentProvider init failed", it) }
+        UserAgentProvider.init(UserAgentUtil.DEFAULT_USER_AGENT)
 
         applicationScope.launch {
             var hadCookie = false

@@ -92,8 +92,6 @@ object CryptoUtils {
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec)
             val decrypted = cipher.doFinal(bytes)
             decrypted.toString(Charsets.UTF_8)
-        } catch (e: IllegalArgumentException) {
-            throw e
         } catch (e: Exception) {
             throw IllegalArgumentException("Invalid EAPI params hex: decryption failed", e)
         }

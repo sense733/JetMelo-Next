@@ -158,7 +158,7 @@ fun ExploreScreen(
                                         imageUrl = chart.cover,
                                         badgeText = stringResource(R.string.top_list),
                                         title = chart.name,
-                                        subtitle = chart.description ?: stringResource(R.string.song_size, chart.trackCount ?: 0),
+                                        subtitle = chart.description ?: stringResource(R.string.song_size, chart.trackCount),
                                         aspectRatio = 1.7f,
                                         imageModifier = Modifier.sharedElement(
                                             sharedTransitionScope.rememberSharedContentState(
@@ -173,7 +173,7 @@ fun ExploreScreen(
                                             navController.navigate(
                                                 PlaylistNav(
                                                     playlistId = chart.id,
-                                                    limit = chart.trackCount?.takeIf { it > 0 } ?: 999,
+                                                    limit = chart.trackCount.takeIf { it > 0 } ?: 999,
                                                     coverImgUrl = chart.cover,
                                                     title = chart.name,
                                                     enableSharedTransition = true

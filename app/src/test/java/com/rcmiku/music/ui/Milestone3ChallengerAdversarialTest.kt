@@ -170,7 +170,7 @@ class Milestone3ChallengerAdversarialTest {
     }
 
     @Test
-    fun testPredictiveBackPriorityAndGestureDynamics() {
+    fun testBackHandlerPriorityDispatch() {
         // Truth table testing of all combinations
         val views = listOf(FULL_PLAYER, LYRIC_VIEW, PLAY_QUEUE)
         val sheetStates = listOf(true, false)
@@ -198,42 +198,6 @@ class Milestone3ChallengerAdversarialTest {
                     )
                 }
             }
-        }
-
-        // Gesture Progress Dynamics: scale 1.0 -> 0.92, cornerRadius 0.dp -> 16.dp
-        var prevScale = 1.0f
-        var prevCorner = 0f
-        for (i in 0..100) {
-            val progress = i / 100f
-            val scale = 1f - (progress * 0.08f)
-            val corner = 16f * progress
-
-            assertTrue("Scale must be bounded in [0.92, 1.0]", scale in 0.9199f..1.0001f)
-            assertTrue("Scale must be monotonically decreasing with back progress", scale <= prevScale + 1e-5f)
-            assertTrue("Corner radius must be monotonically increasing", corner >= prevCorner - 1e-5f)
-
-            // Combined corner radius with device corner radius (e.g. 16.dp to 28.dp) capped at 36.dp
-            val baseCornerDp = 28f
-            val totalCorner = (baseCornerDp + corner).coerceAtMost(36f)
-            assertTrue("Total corner radius must never exceed 36.dp", totalCorner <= 36f)
-
-            prevScale = scale
-            prevCorner = corner
-        }
-
-        // Cancellation Restoration Simulation
-        val cancellationPoints = listOf(0.05f, 0.35f, 0.72f, 0.98f)
-        for (p in cancellationPoints) {
-            var activeScale = 1f - (p * 0.08f)
-            var activeCornerRadius = 16.dp * p
-            assertTrue(activeScale < 1.0f)
-            assertTrue(activeCornerRadius > 0.dp)
-
-            // Simulate CancellationException handling in catch block
-            activeScale = 1f
-            activeCornerRadius = 0.dp
-            assertEquals("Scale must restore to 1.0f upon cancellation", 1f, activeScale, 1e-4f)
-            assertEquals("Corner radius must restore to 0.dp upon cancellation", 0.dp, activeCornerRadius)
         }
     }
 

@@ -71,7 +71,7 @@ class PlaylistScreenViewModel @Inject constructor(
     init {
         playlistId?.let { id ->
             playlistRepository.getCachedPlaylist(id)?.let { cached ->
-                applyDetail(cached.detail, isFromCache = true)
+                applyDetail(cached.detail, id, isFromCache = true)
                 cached.info?.let { _playlistInfo.value = it }
             }
         }
@@ -91,9 +91,9 @@ class PlaylistScreenViewModel @Inject constructor(
         if (noCache) {
             if (!observerStarted) {
                 observerStarted = true
-                fetchWithObserver()
+                fetchWithObserver(id)
             }
-            fetchPlaylistInfo(forceRefresh = forceRefresh)
+            fetchPlaylistInfo(id, forceRefresh = forceRefresh)
             return
         }
 
@@ -111,7 +111,7 @@ class PlaylistScreenViewModel @Inject constructor(
                 forceRefresh = shouldForce
             )
             result.onSuccess { detail ->
-                applyDetail(detail)
+                applyDetail(detail, id)
             }.onFailure {
                 if (_playlistDetail.value == null) {
                     _loadError.value = true
@@ -120,17 +120,16 @@ class PlaylistScreenViewModel @Inject constructor(
                 }
             }
             _isLoading.value = false
-            fetchPlaylistInfo(forceRefresh = shouldForce)
+            fetchPlaylistInfo(id, forceRefresh = shouldForce)
         }
     }
 
-    private fun applyDetail(detail: PlaylistDetailResponse, isFromCache: Boolean = false) {
+    private fun applyDetail(detail: PlaylistDetailResponse, id: Long, isFromCache: Boolean = false) {
         _playlistDetail.value = detail
         val songList = detail.playlist.tracks
         _tracks.value = songList
         originalOrder = songList.mapIndexed { index, song -> song.id to index }.toMap()
         if (!isFromCache) {
-            val id = playlistId ?: detail.playlist.id
             if (id != 0L) {
                 playlistRepository.putCachedDetail(id, detail)
             }
@@ -155,8 +154,7 @@ class PlaylistScreenViewModel @Inject constructor(
     }
 
     @OptIn(FlowPreview::class)
-    private fun fetchWithObserver() {
-        val id = playlistId ?: return
+    private fun fetchWithObserver(id: Long) {
         val effectiveLimit = limit?.takeIf { it > 0 } ?: DEFAULT_LIMIT
         viewModelScope.launch {
             if (_playlistDetail.value == null) {
@@ -168,7 +166,7 @@ class PlaylistScreenViewModel @Inject constructor(
                 .collectLatest {
                     playlistRepository.getPlaylistV6DetailEapi(id = id, limit = effectiveLimit).fold(
                         onSuccess = { detail ->
-                            applyDetail(detail)
+                            applyDetail(detail, id)
                             _isLoading.value = false
                         },
                         onFailure = {
@@ -182,12 +180,10 @@ class PlaylistScreenViewModel @Inject constructor(
         }
     }
 
-    private fun fetchPlaylistInfo(forceRefresh: Boolean = false) {
+    private fun fetchPlaylistInfo(id: Long, forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            playlistId?.let { id ->
-                playlistRepository.getPlaylistInfo(id, forceRefresh = forceRefresh).onSuccess { info ->
-                    _playlistInfo.value = info
-                }
+            playlistRepository.getPlaylistInfo(id, forceRefresh = forceRefresh).onSuccess { info ->
+                _playlistInfo.value = info
             }
         }
     }
@@ -203,7 +199,7 @@ class PlaylistScreenViewModel @Inject constructor(
             PlaylistApi.playlistSub(id = id, targetState = targetState).fold(
                 onSuccess = {
                     playlistRepository.updateSubscribed(id, targetState)
-                    fetchPlaylistInfo(forceRefresh = true)
+                    fetchPlaylistInfo(id, forceRefresh = true)
                 },
                 onFailure = {
                     _actionError.tryEmit(Unit)

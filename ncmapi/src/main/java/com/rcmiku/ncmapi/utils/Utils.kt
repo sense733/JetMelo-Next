@@ -21,9 +21,7 @@ object FileProvider {
     private var cacheDir: File? = null
 
     fun init(dir: File) {
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
+        dir.mkdirs()
         cacheDir = dir
     }
 
@@ -58,8 +56,8 @@ object CookieProvider {
             mutable["deviceId"] = URLEncoder.encode(raw, Charsets.UTF_8.name())
         }
 
-        val osVer = runCatching { Build.VERSION.RELEASE }.getOrNull()?.takeIf { it.isNotBlank() } ?: "13"
-        val mobileName = runCatching { Build.MODEL }.getOrNull()?.takeIf { it.isNotBlank() } ?: "Android"
+        val osVer = Build.VERSION.RELEASE?.takeIf { it.isNotBlank() } ?: "13"
+        val mobileName = Build.MODEL?.takeIf { it.isNotBlank() } ?: "Android"
 
         mutable.putIfAbsent("osver", osVer)
         mutable.putIfAbsent(CookieKeys.OS_VER, osVer)
@@ -78,7 +76,6 @@ object CookieProvider {
     }
 
     fun hasValidSession(cookieJson: String): Boolean {
-        if (cookieJson.isBlank()) return false
         return try {
             val map = json.decodeFromString<Map<String, String>>(cookieJson)
             val sessionCookie = map["MUSIC_U"] ?: map["MUSIC_A"]

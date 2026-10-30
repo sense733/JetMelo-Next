@@ -2,7 +2,7 @@ package com.rcmiku.music.ui.screen
 
 import android.app.Activity
 import android.os.SystemClock
-import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -56,7 +56,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -111,7 +110,6 @@ import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
-import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
 const val FULL_PLAYER = 0
@@ -167,8 +165,6 @@ fun PlayerTransform(
 
     var isSheetOpen by remember { mutableStateOf(false) }
     var dismissSheetsRequested by remember { mutableStateOf(false) }
-    var predictiveScale by remember { mutableFloatStateOf(1f) }
-    var predictiveCornerRadius by remember { mutableStateOf(0.dp) }
 
     LaunchedEffect(isExpanded) {
         if (!isExpanded) {
@@ -176,26 +172,13 @@ fun PlayerTransform(
         }
     }
 
-    PredictiveBackHandler(enabled = isExpanded || !isCollapsed) { progressFlow ->
-        try {
-            progressFlow.collect { backEvent ->
-                if (currentView == FULL_PLAYER && !isSheetOpen) {
-                    predictiveScale = 1f - (backEvent.progress * 0.08f)
-                    predictiveCornerRadius = 16.dp * backEvent.progress
-                }
-            }
-            predictiveScale = 1f
-            predictiveCornerRadius = 0.dp
-            if (isSheetOpen) {
-                dismissSheetsRequested = true
-            } else if (currentView != FULL_PLAYER) {
-                safeSwitchView(FULL_PLAYER)
-            } else {
-                onBackPressed()
-            }
-        } catch (e: CancellationException) {
-            predictiveScale = 1f
-            predictiveCornerRadius = 0.dp
+    BackHandler(enabled = isExpanded || !isCollapsed) {
+        if (isSheetOpen) {
+            dismissSheetsRequested = true
+        } else if (currentView != FULL_PLAYER) {
+            safeSwitchView(FULL_PLAYER)
+        } else {
+            onBackPressed()
         }
     }
 
@@ -282,7 +265,7 @@ fun PlayerTransform(
         val containerRect = lerpRect(miniRect, fullRect, progress)
         val deviceCornerRadius = rememberDeviceCornerRadius()
         val baseCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, progress)
-        val containerCornerRadius = (baseCornerRadius + predictiveCornerRadius).coerceAtMost(36.dp)
+        val containerCornerRadius = baseCornerRadius.coerceAtMost(36.dp)
         val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, progress)
 
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
@@ -341,12 +324,11 @@ fun PlayerTransform(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    clip = !isFull || predictiveCornerRadius > 0.dp
-                    if (!isFull || predictiveCornerRadius > 0.dp) {
+                    val shouldClip = !isFull
+                    clip = shouldClip
+                    if (shouldClip) {
                         shape = clipShape
                     }
-                    scaleX = predictiveScale
-                    scaleY = predictiveScale
                 }
         ) {
             if (!isCollapsed) {

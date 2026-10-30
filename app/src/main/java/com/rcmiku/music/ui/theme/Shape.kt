@@ -51,11 +51,7 @@ val AdaptiveArtworkShape: Shape = object : Shape {
     ): Outline {
         val minPx = with(density) { 44.dp.toPx() }
         val maxPx = with(density) { 280.dp.toPx() }
-        val fraction = if (maxPx > minPx) {
-            ((size.width - minPx) / (maxPx - minPx)).coerceIn(0f, 1f)
-        } else {
-            1f
-        }
+        val fraction = ((size.width - minPx) / (maxPx - minPx)).coerceIn(0f, 1f)
         val cornerRadiusPx = with(density) {
             (8.dp.toPx() + (24.dp.toPx() - 8.dp.toPx()) * fraction)
         }

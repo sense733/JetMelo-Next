@@ -36,7 +36,7 @@ class CachedPreference<T>(
 
     init {
         scope.launch(Dispatchers.IO) {
-            val targetContext = runCatching { context.applicationContext }.getOrNull() ?: context
+            val targetContext = context.applicationContext ?: context
             targetContext.dataStore.data
                 .catch { e ->
                     Log.e("DataStoreUtils", "Failed to read preference ${key.name}", e)
@@ -63,7 +63,7 @@ class CachedEnumPreference<T : Enum<T>>(
 
     init {
         scope.launch(Dispatchers.IO) {
-            val targetContext = runCatching { context.applicationContext }.getOrNull() ?: context
+            val targetContext = context.applicationContext ?: context
             targetContext.dataStore.data
                 .catch { e ->
                     Log.e("DataStoreUtils", "Failed to read enum preference ${key.name}", e)

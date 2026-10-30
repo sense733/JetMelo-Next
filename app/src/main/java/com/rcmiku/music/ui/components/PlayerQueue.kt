@@ -287,7 +287,7 @@ fun PlayerQueue(
                 val seenCounts = mutableMapOf<String, Int>()
                 cacheMediaItems.mapIndexed { index, item ->
                     val id = item.mediaId
-                    val count = totalCounts[id] ?: 1
+                    val count = totalCounts.getValue(id)
                     if (count == 1) {
                         id
                     } else {
@@ -324,9 +324,9 @@ fun PlayerQueue(
                 ) {
                     itemsIndexed(
                         cacheMediaItems,
-                        key = { index, _ -> queueKeys.getOrElse(index) { "$index" } }
+                        key = { index, _ -> queueKeys[index] }
                     ) { index, mediaItem ->
-                        val itemKey = queueKeys.getOrElse(index) { "$index" }
+                        val itemKey = queueKeys[index]
                         val isCurrent = currentMediaId == mediaItem.mediaId
                         val density = LocalDensity.current
                         val minDeleteDistanceDp = 140.dp

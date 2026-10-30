@@ -112,7 +112,7 @@ fun ListScreen(
                                     navController.navigate(
                                         PlaylistNav(
                                             playlistId = chart.id,
-                                            limit = chart.trackCount?.takeIf { it > 0 } ?: 999,
+                                            limit = chart.trackCount.takeIf { it > 0 } ?: 999,
                                             coverImgUrl = chart.cover,
                                             title = chart.name,
                                             enableSharedTransition = true
@@ -157,7 +157,7 @@ fun ListScreen(
                             )
 
                             Text(
-                                text = chart.description ?: stringResource(R.string.song_size, chart.trackCount ?: 0),
+                                text = chart.description ?: stringResource(R.string.song_size, chart.trackCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

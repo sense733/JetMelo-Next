@@ -136,7 +136,7 @@ internal class PlayerStateImpl(
         isSleepTimerSet = true
         remainingTime = time
         val safeTimeMs = time.coerceAtMost(Long.MAX_VALUE / 1000L) * 1000L
-        countDownTimer = object : CountDownTimer(safeTimeMs, 1000) {
+        val timer = object : CountDownTimer(safeTimeMs, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 remainingTime = millisUntilFinished / 1000
             }
@@ -148,7 +148,8 @@ internal class PlayerStateImpl(
                 player.pause()
             }
         }
-        countDownTimer?.start()
+        countDownTimer = timer
+        timer.start()
     }
 
     override fun cancelTimer() {
