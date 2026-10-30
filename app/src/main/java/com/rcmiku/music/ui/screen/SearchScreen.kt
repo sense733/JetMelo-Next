@@ -122,6 +122,7 @@ fun SearchScreen(
     var searchValue by rememberSaveable { mutableStateOf("") }
     var expanded by rememberSaveable { mutableStateOf(true) }
     val currentSubmittedKeyword by searchViewModel.searchValue.collectAsStateWithLifecycle()
+
     val searchType by searchViewModel.searchType.collectAsStateWithLifecycle()
     val searchResults = searchViewModel.searchResults.collectAsLazyPagingItems()
     val mediaController = LocalPlayerController.current.controller

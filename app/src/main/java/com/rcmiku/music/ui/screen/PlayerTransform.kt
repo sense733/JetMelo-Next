@@ -278,8 +278,15 @@ fun PlayerTransform(
         if (!isFull) {
             val borderAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
             val containerShape = RoundedCornerShape(containerCornerRadius)
-            val shadowModifier = if (containerElevation > 0.dp) {
-                Modifier.shadow(containerElevation, shape = containerShape)
+            val shadowElevation = containerElevation.coerceAtLeast(0.dp)
+            val shadowModifier = if (shadowElevation > 0.dp && borderAlpha > 0f) {
+                Modifier.shadow(
+                    elevation = shadowElevation,
+                    shape = containerShape,
+                    clip = false,
+                    ambientColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f * borderAlpha),
+                    spotColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f * borderAlpha)
+                )
             } else Modifier
 
             val borderModifier = if (borderAlpha > 0f) {
@@ -300,6 +307,10 @@ fun PlayerTransform(
                         height = with(density) { containerRect.height.toDp() }
                     )
                     .then(shadowModifier)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = borderAlpha),
+                        shape = containerShape
+                    )
                     .then(borderModifier)
             )
         }

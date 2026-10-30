@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -57,6 +58,8 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rcmiku.music.LocalPlayerState
+import com.rcmiku.music.constants.EmphasizedAccelerateEasing
+import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.constants.MiniPlayerHeight
 import com.rcmiku.music.constants.currentPlayMediaIdKey
 import com.rcmiku.music.constants.ncmCookieKey
@@ -66,7 +69,6 @@ import com.rcmiku.music.ui.design.BottomFogOverlay
 import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.navigation.NavGraph
-import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.music.utils.rememberPreference
 import android.util.Log
@@ -89,13 +91,11 @@ fun MainScreen() {
     val currentDestination = navBackStackEntry?.destination
     val showNavigationBar =
         currentDestination?.hierarchy?.any { tabs.any { tab -> it.route == tab.route } } == true
-    val isSearchScreen =
-        currentDestination?.hierarchy?.any { it.route == Screen.Search.route } == true
+
     val ncmCookie by rememberPreference(ncmCookieKey, "")
     var userId by rememberPreference(userIdKey, 0L)
     val playerState = LocalPlayerState.current
-    val showMiniPlayer =
-        (playerState?.timeline?.windowCount ?: 0) != 0 && !isSearchScreen
+    val showMiniPlayer = (playerState?.timeline?.windowCount ?: 0) != 0
     val currentMediaItem = playerState?.currentMediaItem
     val currentMediaId = currentMediaItem?.mediaId
     var currentPlayMediaId by rememberPreference(currentPlayMediaIdKey, 0)
@@ -260,14 +260,21 @@ fun MainScreen() {
                             subpageBottomContentPadding = subpageBottomContentPadding
                         )
 
-                        if (showMiniPlayer) {
+                        AnimatedVisibility(
+                            visible = showNavigationBar && showMiniPlayer,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                            enter = fadeIn(
+                                animationSpec = tween(400, easing = EmphasizedDecelerateEasing)
+                            ),
+                            exit = fadeOut(
+                                animationSpec = tween(300, easing = EmphasizedAccelerateEasing)
+                            )
+                        ) {
                             BottomFogOverlay(
                                 bottomPadding = fogBottomPadding,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .graphicsLayer {
-                                        alpha = (1f - p).coerceIn(0f, 1f)
-                                    }
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = (1f - p).coerceIn(0f, 1f)
+                                }
                             )
                         }
 
@@ -346,11 +353,31 @@ fun MainScreen() {
                 )
             }
 
-            if (showMiniPlayer || transitionProgress > 0f) {
+            val density = LocalDensity.current
+            val miniPlayerSlideOffsetPx = remember(density, navBarInset) {
+                with(density) { (navBarBaseHeight + navBarInset + MiniPlayerHeight + 32.dp).roundToPx() }
+            }
+
+            AnimatedVisibility(
+                visible = showMiniPlayer || transitionProgress > 0f,
+                modifier = Modifier
+                    .zIndex(1f)
+                    .fillMaxSize(),
+                enter = slideInVertically(
+                    initialOffsetY = { miniPlayerSlideOffsetPx },
+                    animationSpec = tween(400, easing = EmphasizedDecelerateEasing)
+                ) + fadeIn(
+                    animationSpec = tween(400, easing = EmphasizedDecelerateEasing)
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { miniPlayerSlideOffsetPx },
+                    animationSpec = tween(300, easing = EmphasizedAccelerateEasing)
+                ) + fadeOut(
+                    animationSpec = tween(300, easing = EmphasizedAccelerateEasing)
+                )
+            ) {
                 Box(
-                    modifier = Modifier
-                        .zIndex(1f)
-                        .fillMaxSize()
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     playerState?.mediaMetadata?.let {
                         PlayerTransform(
