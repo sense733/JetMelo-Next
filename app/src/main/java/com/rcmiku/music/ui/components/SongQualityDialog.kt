@@ -74,7 +74,11 @@ fun SongQualityDialog(
                                 SongLevel.SKY -> stringResource(R.string.sky)
                             }
                             val subtitle = if (!isAvailable) {
-                                "当前音源或账号暂不可用"
+                                when (level) {
+                                    SongLevel.SKY -> "需要 SVIP 会员"
+                                    SongLevel.LOSSLESS, SongLevel.HIRES -> "需要 VIP 会员"
+                                    else -> "当前音源或账号暂不可用"
+                                }
                             } else {
                                 when (level) {
                                     SongLevel.STANDARD -> "128kbps"

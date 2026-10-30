@@ -541,20 +541,83 @@ data class UserInfoBatch(
     val level: UserLevel = UserLevel()
 ) {
     val profile: UserProfile get() = account.profile
+    val vipTier: AccountVipTier get() = account.effectiveVipTier
+}
+
+enum class AccountVipTier {
+    NONE,
+    VIP,
+    SVIP
 }
 
 @Serializable
-data class UserAccount(
-    val profile: UserProfile = UserProfile()
+data class VipRights(
+    val associator: VipAssociator? = null,
+    val musicPackage: VipMusicPackage? = null,
+    val redplus: VipRedplus? = null,
+    val redVipAnnualCount: Int = 0,
+    val redVipLevel: Int = 0
 )
+
+@Serializable
+data class VipAssociator(
+    val vipCode: Int = 0,
+    val rights: Boolean = false,
+    val iconUrl: String? = null
+)
+
+@Serializable
+data class VipMusicPackage(
+    val vipCode: Int = 0,
+    val rights: Boolean = false,
+    val iconUrl: String? = null
+)
+
+@Serializable
+data class VipRedplus(
+    val vipCode: Int = 0,
+    val rights: Boolean = false,
+    val iconUrl: String? = null,
+    val userVipStatus: Int = 0
+)
+
+@Serializable
+data class UserAccount(
+    val profile: UserProfile = UserProfile(),
+    val vipRights: VipRights? = null
+) {
+    val effectiveVipTier: AccountVipTier
+        get() {
+            val rights = profile.vipRights ?: vipRights
+            if (rights?.redplus?.rights == true || (rights?.redplus?.userVipStatus ?: 0) > 0) {
+                return AccountVipTier.SVIP
+            }
+            if (rights?.associator?.rights == true || rights?.musicPackage?.rights == true || profile.vipType != 0) {
+                return AccountVipTier.VIP
+            }
+            return AccountVipTier.NONE
+        }
+}
 
 @Serializable
 data class UserProfile(
     val userId: Long = 0,
     val nickname: String = "",
     val avatarUrl: String = "",
-    val vipType: Int = 0
-)
+    val vipType: Int = 0,
+    val vipRights: VipRights? = null
+) {
+    val vipTier: AccountVipTier
+        get() {
+            if (vipRights?.redplus?.rights == true || (vipRights?.redplus?.userVipStatus ?: 0) > 0) {
+                return AccountVipTier.SVIP
+            }
+            if (vipRights?.associator?.rights == true || vipRights?.musicPackage?.rights == true || vipType != 0) {
+                return AccountVipTier.VIP
+            }
+            return AccountVipTier.NONE
+        }
+}
 
 @Serializable
 data class UserLevelData(
@@ -596,7 +659,8 @@ data class Profile(
     val signature: String? = null,
     val userName: String? = null,
     val vipType: Int = 0,
-    val backgroundUrl: String? = null
+    val backgroundUrl: String? = null,
+    val vipRights: VipRights? = null
 )
 
 @Serializable

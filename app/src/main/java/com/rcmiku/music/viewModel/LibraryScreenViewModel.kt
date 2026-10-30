@@ -3,7 +3,9 @@ package com.rcmiku.music.viewModel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rcmiku.music.constants.accountVipTierKey
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
+import com.rcmiku.music.utils.setPreference
 import com.rcmiku.ncmapi.api.account.AccountApi
 import com.rcmiku.ncmapi.model.FavoriteSongResponse
 import com.rcmiku.ncmapi.model.UserInfoBatch
@@ -35,7 +37,12 @@ class LibraryScreenViewModel @Inject constructor(
 
     fun fetchUserInfo() {
         viewModelScope.launch {
-            _userInfo.value = AccountApi.accountInfo().getOrNull()
+            val response = AccountApi.accountInfo().getOrNull()
+            _userInfo.value = response
+            response?.let {
+                val tier = it.account.effectiveVipTier
+                context.setPreference(accountVipTierKey, tier.name)
+            }
         }
     }
 

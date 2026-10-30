@@ -61,6 +61,7 @@ import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.constants.EmphasizedAccelerateEasing
 import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.constants.MiniPlayerHeight
+import com.rcmiku.music.constants.accountVipTierKey
 import com.rcmiku.music.constants.currentPlayMediaIdKey
 import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.constants.userIdKey
@@ -71,6 +72,8 @@ import com.rcmiku.music.ui.design.rememberArtworkColors
 import com.rcmiku.music.ui.navigation.NavGraph
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
 import com.rcmiku.music.utils.rememberPreference
+import com.rcmiku.music.utils.setPreference
+import com.rcmiku.ncmapi.model.AccountVipTier
 import android.util.Log
 import androidx.compose.runtime.derivedStateOf
 import com.rcmiku.ncmapi.api.account.AccountApi
@@ -162,14 +165,18 @@ fun MainScreen() {
             try {
                 if (ncmCookie.isNotEmpty()) {
                     CookieProvider.init(json.decodeFromString(ncmCookie))
-                    AccountApi.account().getOrNull()?.profile?.userId?.let {
+                    val accountInfo = AccountApi.account().getOrNull()
+                    accountInfo?.profile?.userId?.let {
                         userId = it
                         AccountApi.getLikelist(it).getOrNull()?.ids?.let { songIds ->
                             FavoriteSongIdsUtil.mergeSongIds(context, songIds)
                         }
                     }
+                    val tier = accountInfo?.account?.effectiveVipTier ?: AccountVipTier.NONE
+                    context.setPreference(accountVipTierKey, tier.name)
                 } else {
                     userId = 0L
+                    context.setPreference(accountVipTierKey, AccountVipTier.NONE.name)
                 }
             } catch (e: Exception) {
                 Log.e("MainScreen", "Failed to restore ncmCookie", e)

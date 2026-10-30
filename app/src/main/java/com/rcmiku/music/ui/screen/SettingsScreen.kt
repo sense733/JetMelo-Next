@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,7 @@ import com.rcmiku.music.R
 import com.rcmiku.music.constants.SettingItemCorner
 import com.rcmiku.music.constants.SettingItemHeight
 import com.rcmiku.music.constants.SettingItemSubCorner
+import com.rcmiku.music.constants.accountVipTierKey
 import com.rcmiku.music.constants.audioQualityKey
 import com.rcmiku.music.constants.autoSkipNextOnErrorKey
 import com.rcmiku.music.constants.dynamicColorKey
@@ -66,9 +68,13 @@ import com.rcmiku.music.constants.use40DpIconKey
 import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.utils.clearDeviceId
+import com.rcmiku.ncmapi.api.account.AccountApi
+import com.rcmiku.ncmapi.model.AccountVipTier
 import com.rcmiku.ncmapi.utils.CookieProvider
 import android.webkit.CookieManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.rcmiku.music.ui.components.Dialog
 import com.rcmiku.music.ui.components.SongQualityDialog
 import com.rcmiku.music.ui.icons.DarkMode
@@ -101,6 +107,7 @@ fun SettingsScreen(
 
     var use40DpIcon by rememberPreference(use40DpIconKey, false)
     var audioQuality by rememberEnumPreference(audioQualityKey, defaultValue = SongLevel.STANDARD)
+    var accountVipTier by rememberEnumPreference(accountVipTierKey, defaultValue = AccountVipTier.NONE)
     var showQualityDialog by remember { mutableStateOf(false) }
     var autoSkipNextOnError by rememberPreference(autoSkipNextOnErrorKey, false)
     var logout by rememberSaveable { mutableStateOf(false) }
@@ -111,6 +118,46 @@ fun SettingsScreen(
 
     val isLoggedIn = remember(ncmCookie) {
         CookieProvider.hasValidSession(ncmCookie)
+    }
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            withContext(Dispatchers.IO) {
+                AccountApi.accountInfo().getOrNull()?.let { info ->
+                    accountVipTier = info.account.effectiveVipTier
+                }
+            }
+        } else {
+            accountVipTier = AccountVipTier.NONE
+        }
+    }
+
+    val availableQualityLevels = remember(accountVipTier, isLoggedIn) {
+        if (!isLoggedIn || accountVipTier == AccountVipTier.NONE) {
+            setOf(SongLevel.STANDARD, SongLevel.HIGHER, SongLevel.EXHIGH)
+        } else if (accountVipTier == AccountVipTier.VIP) {
+            setOf(
+                SongLevel.STANDARD,
+                SongLevel.HIGHER,
+                SongLevel.EXHIGH,
+                SongLevel.LOSSLESS,
+                SongLevel.HIRES
+            )
+        } else {
+            SongLevel.entries.toSet()
+        }
+    }
+
+    LaunchedEffect(availableQualityLevels, audioQuality) {
+        if (audioQuality !in availableQualityLevels) {
+            val fallback = when {
+                SongLevel.HIRES in availableQualityLevels -> SongLevel.HIRES
+                SongLevel.LOSSLESS in availableQualityLevels -> SongLevel.LOSSLESS
+                SongLevel.EXHIGH in availableQualityLevels -> SongLevel.EXHIGH
+                else -> SongLevel.STANDARD
+            }
+            audioQuality = fallback
+        }
     }
 
     val appearanceSettingItems = buildList {
@@ -369,6 +416,7 @@ fun SettingsScreen(
     if (showQualityDialog) {
         SongQualityDialog(
             currentLevel = audioQuality,
+            availableLevels = availableQualityLevels,
             onDismiss = { showQualityDialog = false },
             onQualitySelected = {
                 audioQuality = it
@@ -382,6 +430,7 @@ fun SettingsScreen(
             onConfirmation = {
                 ncmCookie = ""
                 userId = 0L
+                accountVipTier = AccountVipTier.NONE
                 CookieProvider.clear()
                 CookieManager.getInstance().removeAllCookies(null)
                 CookieManager.getInstance().flush()
