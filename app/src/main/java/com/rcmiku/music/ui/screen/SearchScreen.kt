@@ -53,6 +53,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -110,6 +112,7 @@ import com.rcmiku.ncmapi.model.Song
 import com.rcmiku.ncmapi.model.toAlbumList
 import com.rcmiku.ncmapi.model.toPlaylist
 import com.rcmiku.ncmapi.model.toSearchArtist
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -135,6 +138,15 @@ fun SearchScreen(
     val isHotLoading by searchViewModel.isHotLoading.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(150)
+        try {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        } catch (_: Exception) {}
+    }
     val context = LocalContext.current
     val songIds by remember(context) {
         context.favoriteSongIdsDatastore.data.map { it.songIdsList.toSet() }
@@ -206,6 +218,7 @@ fun SearchScreen(
                 .semantics { traversalIndex = 0f },
             inputField = {
                 SearchBarDefaults.InputField(
+                    modifier = Modifier.focusRequester(focusRequester),
                     query = searchValue,
                     onQueryChange = {
                         searchValue = it
