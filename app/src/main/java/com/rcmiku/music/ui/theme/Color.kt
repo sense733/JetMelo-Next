@@ -68,3 +68,5 @@ val EmberAccent = Color(0xFFE67E22)
 val EmberAccentContainer = Color(0xFFFDEBD0)
 val OnEmberAccent = Color(0xFFFFFFFF)
 val OnEmberAccentContainer = Color(0xFF431B00)
+
+val MiniPlayerProgressColor = Color(0xFF1D6873)

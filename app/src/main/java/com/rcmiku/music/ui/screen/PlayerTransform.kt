@@ -109,6 +109,7 @@ import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.ui.theme.MiniPlayerProgressColor
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
 import kotlin.math.roundToInt
 
@@ -400,7 +401,7 @@ fun PlayerTransform(
                             val sharedImageModifier = Modifier.sharedElement(
                                 sharedContentState = rememberSharedContentState(key = coverKey),
                                 animatedVisibilityScope = this,
-                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
+                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
                                 boundsTransform = AlbumArtBoundsTransform
                             )
 
@@ -578,7 +579,7 @@ fun PlayerTransform(
                     }
 
                     MiniPlayerProgressBar(
-                        accentColor = artworkColors.accentColor,
+                        accentColor = MiniPlayerProgressColor,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(start = 60.dp, end = 12.dp)

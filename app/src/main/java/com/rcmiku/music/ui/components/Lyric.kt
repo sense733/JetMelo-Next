@@ -75,6 +75,7 @@ import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.parseLrc
 import com.rcmiku.music.viewModel.LyricViewModel
 
@@ -166,10 +167,18 @@ fun Lyric(
                     val context = LocalContext.current
                     val artworkUri = mediaMetadata.artworkUri
                     val imageRequest = remember(context, artworkUri) {
+                        val key = artworkUri?.toString()
                         ImageRequest.Builder(context)
                             .data(artworkUri)
-                            .size(Size(132, 132))
-                            .crossfade(true)
+                            .size(ImagePreloadUtil.ThumbnailRequestSizePx)
+                            .apply {
+                                if (key != null) {
+                                    memoryCacheKey(key)
+                                    diskCacheKey(key)
+                                    placeholderMemoryCacheKey(key)
+                                }
+                            }
+                            .crossfade(false)
                             .build()
                     }
                     AsyncImage(

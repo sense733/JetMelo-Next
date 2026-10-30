@@ -528,7 +528,7 @@ fun PlayerQueue(
                                     ) {
                                         Box(
                                             contentAlignment = Alignment.Center,
-                                            modifier = (if (isCurrent) imageModifier else Modifier)
+                                            modifier = Modifier
                                                 .size(44.dp)
                                                 .clip(AdaptiveArtworkShape)
                                         ) {
@@ -539,8 +539,13 @@ fun PlayerQueue(
                                                 ImageRequest.Builder(context)
                                                     .data(artworkUri)
                                                     .size(ImagePreloadUtil.ThumbnailRequestSizePx)
-                                                    .memoryCacheKey(key)
-                                                    .diskCacheKey(key)
+                                                    .apply {
+                                                        if (key != null) {
+                                                            memoryCacheKey(key)
+                                                            diskCacheKey(key)
+                                                            placeholderMemoryCacheKey(key)
+                                                        }
+                                                    }
                                                     .crossfade(false)
                                                     .build()
                                             }
@@ -548,7 +553,9 @@ fun PlayerQueue(
                                                 model = imageRequest,
                                                 contentDescription = null,
                                                 contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize()
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .then(if (isCurrent) imageModifier else Modifier)
                                             )
 
                                             PlayingIndicatorBox(

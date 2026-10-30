@@ -117,7 +117,7 @@ val Typography = Typography(
 val TitleHeroLarge = TextStyle(
     fontFamily = FontFamily.Default,
     fontWeight = FontWeight.Bold,
-    fontSize = 30.sp,
-    lineHeight = 36.sp,
+    fontSize = 26.sp,
+    lineHeight = 32.sp,
     letterSpacing = (-0.5).sp
 )

@@ -62,6 +62,7 @@ import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.ui.theme.MiniPlayerProgressColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -157,7 +158,7 @@ fun MiniPlayer(
             }
 
             MiniPlayerProgressBar(
-                accentColor = artworkColors.accentColor,
+                accentColor = MiniPlayerProgressColor,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 60.dp, end = 12.dp)
@@ -254,7 +255,7 @@ fun MiniMediaInfo(
 
 @Composable
 fun MiniPlayerProgressBar(
-    accentColor: Color,
+    accentColor: Color = MiniPlayerProgressColor,
     modifier: Modifier = Modifier
 ) {
     val playerState = LocalPlayerState.current
@@ -263,14 +264,14 @@ fun MiniPlayerProgressBar(
     val currentMediaId = playerState?.currentMediaItem?.mediaId
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var position by remember(playerState?.player) {
+    var position by remember(currentMediaId) {
         mutableLongStateOf(playerState?.player?.currentPosition ?: 0L)
     }
-    var duration by remember(playerState?.player) {
+    var duration by remember(currentMediaId) {
         mutableLongStateOf(playerState?.player?.duration?.coerceAtLeast(0L) ?: 0L)
     }
 
-    LaunchedEffect(playbackState, isPlaying) {
+    LaunchedEffect(playbackState, isPlaying, currentMediaId) {
         if (playbackState == STATE_READY && isPlaying) {
             while (isActive) {
                 if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
@@ -287,11 +288,6 @@ fun MiniPlayerProgressBar(
             val dur = playerState?.player?.duration ?: 0L
             duration = if (dur > 0) dur else 0L
         }
-    }
-
-    LaunchedEffect(currentMediaId) {
-        position = 0L
-        duration = 0L
     }
 
     val progressTarget = if (duration > 0L) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f

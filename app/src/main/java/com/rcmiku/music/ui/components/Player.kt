@@ -125,6 +125,7 @@ import com.rcmiku.ncmapi.model.Song
 import com.rcmiku.ncmapi.model.SongAlbum
 import com.rcmiku.ncmapi.utils.json
 import kotlinx.coroutines.flow.map
+import kotlin.coroutines.cancellation.CancellationException
 
 internal fun MediaController.sendCommandWithFeedback(context: Context, command: SessionCommand) {
     if (!isConnected) return
@@ -330,9 +331,14 @@ fun Player(
                             ImageRequest.Builder(context)
                                 .data(uri)
                                 .size(Size(1080, 1080))
-                                .memoryCacheKey(key)
-                                .diskCacheKey(key)
-                                .crossfade(true)
+                                .apply {
+                                    if (key != null) {
+                                        memoryCacheKey(key)
+                                        diskCacheKey(key)
+                                        placeholderMemoryCacheKey(key)
+                                    }
+                                }
+                                .crossfade(false)
                                 .build()
                         }
                         AsyncImage(
@@ -699,21 +705,22 @@ private fun PlayerProgressSlider(
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
 
-    val initialPosition = remember(playerState) {
+    val initialPosition = remember(currentMediaId) {
         (playerState?.player?.currentPosition ?: 0L).toFloat()
     }
-    val animatablePosition = remember { Animatable(initialPosition) }
+    val animatablePosition = remember(currentMediaId) { Animatable(initialPosition) }
 
-    var duration by rememberSaveable(playerState) {
-        mutableLongStateOf(playerState?.player?.duration ?: 0L)
+    var duration by remember(currentMediaId) {
+        val initialDur = playerState?.player?.duration ?: 0L
+        mutableLongStateOf(if (initialDur > 0 && initialDur != C.TIME_UNSET) initialDur else 0L)
     }
-    var sliderPosition by rememberSaveable {
+    var sliderPosition by remember {
         mutableStateOf<Long?>(null)
     }
     val isDragging = sliderPosition != null
 
-    var pendingSeekTarget by remember { mutableStateOf<Long?>(null) }
-    var seekLockUntilMs by remember { mutableLongStateOf(0L) }
+    var pendingSeekTarget by remember(currentMediaId) { mutableStateOf<Long?>(null) }
+    var seekLockUntilMs by remember(currentMediaId) { mutableLongStateOf(0L) }
 
     val pollIntervalMs = 100L
 
@@ -749,26 +756,24 @@ private fun PlayerProgressSlider(
                 } else if (isPlaying && playbackState == STATE_READY) {
                     val maxTarget = if (duration > 0) duration.toFloat() else Float.MAX_VALUE
                     val targetPos = (rawPos + pollIntervalMs).toFloat().coerceAtMost(maxTarget)
-                    animatablePosition.animateTo(
-                        targetValue = targetPos,
-                        animationSpec = tween(
-                            durationMillis = pollIntervalMs.toInt(),
-                            easing = LinearEasing
+                    try {
+                        animatablePosition.animateTo(
+                            targetValue = targetPos,
+                            animationSpec = tween(
+                                durationMillis = pollIntervalMs.toInt(),
+                                easing = LinearEasing
+                            )
                         )
-                    )
-                    continue
+                        continue
+                    } catch (e: CancellationException) {
+                        if (!isActive) throw e
+                    }
                 } else {
                     animatablePosition.snapTo(rawPos.toFloat())
                 }
             }
             delay(pollIntervalMs)
         }
-    }
-
-    LaunchedEffect(currentMediaId) {
-        animatablePosition.snapTo(0f)
-        duration = 0L
-        pendingSeekTarget = null
     }
 
     Column(modifier = modifier) {
@@ -802,11 +807,16 @@ private fun PlayerProgressSlider(
                 disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f)
             ),
             track = { sliderState ->
-                SliderDefaults.Track(
+                WavySliderTrack(
                     sliderState = sliderState,
+                    activeColor = accentColor,
+                    inactiveColor = Color.White.copy(alpha = 0.25f),
+                    isPlaying = isPlaying,
+                    isDragging = isDragging,
                     enabled = seekEnabled,
-                    thumbTrackGapSize = 2.dp,
-                    modifier = Modifier.height(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(20.dp)
                 )
             },
             thumb = {
