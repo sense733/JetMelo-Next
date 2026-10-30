@@ -199,6 +199,7 @@ fun ListScreen(
                             )
 
                             Text(
+                                modifier = Modifier.padding(bottom = 8.dp),
                                 text = chart.description ?: stringResource(R.string.song_size, chart.trackCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

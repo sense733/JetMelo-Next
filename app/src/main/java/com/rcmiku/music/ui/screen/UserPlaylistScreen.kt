@@ -242,6 +242,7 @@ fun UserPlaylistScreen(
                                 )
 
                                 Text(
+                                    modifier = Modifier.padding(bottom = 8.dp),
                                     text = stringResource(R.string.song_size, playlist.trackCount),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
