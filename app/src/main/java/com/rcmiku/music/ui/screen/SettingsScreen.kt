@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -24,9 +25,11 @@ import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
@@ -88,6 +92,8 @@ import com.rcmiku.music.ui.icons.SkipNext
 import com.rcmiku.music.ui.icons.UserRound
 import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.ThemeMode
+import com.rcmiku.music.update.AppUpdateManager
+import com.rcmiku.music.update.UpdateState
 import com.rcmiku.music.utils.getItemShape
 import com.rcmiku.music.utils.rememberEnumPreference
 import com.rcmiku.music.utils.rememberPreference
@@ -100,6 +106,7 @@ fun SettingsScreen(
     bottomContentPadding: Dp = 0.dp
 ) {
     val uriHandler = LocalUriHandler.current
+    val updateState by AppUpdateManager.state.collectAsStateWithLifecycle()
 
     var themeMode by rememberEnumPreference(themeModeKey, defaultValue = ThemeMode.SYSTEM)
     var dynamicColor by rememberPreference(dynamicColorKey, true)
@@ -254,12 +261,34 @@ fun SettingsScreen(
     )
 
     val appVersion = remember(context) { context.appVersionName() }
+    val checkUpdateSubtitle = when (val state = updateState) {
+        is UpdateState.Checking -> stringResource(R.string.checking_update)
+        is UpdateState.UpToDate -> stringResource(R.string.already_latest_version)
+        is UpdateState.Available -> stringResource(R.string.new_version_found, state.info.versionName)
+        is UpdateState.Downloading -> stringResource(R.string.downloading_update)
+        is UpdateState.ReadyToInstall -> stringResource(R.string.install_now)
+        else -> stringResource(R.string.check_update_subtitle)
+    }
 
     val settingsItems = listOf(
         SettingItemData(
             title = stringResource(R.string.version),
             subtitle = appVersion,
             imageVector = Icons.Outlined.Info,
+        ),
+        SettingItemData(
+            title = stringResource(R.string.check_update),
+            subtitle = checkUpdateSubtitle,
+            imageVector = Icons.Outlined.Refresh,
+            trailingContent = {
+                if (updateState is UpdateState.Checking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            },
+            onClick = { AppUpdateManager.showDialogIfPending(context) }
         ),
         SettingItemData(
             title = stringResource(R.string.original_author),
@@ -396,6 +425,7 @@ fun SettingsScreen(
                             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
                         )
                     },
+                    trailingContent = item.trailingContent,
                     onClick = item.onClick,
                 )
             }

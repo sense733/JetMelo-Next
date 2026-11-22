@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import com.rcmiku.music.constants.dynamicColorKey
 import com.rcmiku.music.constants.themeModeKey
@@ -21,9 +22,11 @@ import com.rcmiku.music.extensions.init
 import com.rcmiku.music.playback.PlayerController
 import com.rcmiku.music.playback.PlayerState
 import com.rcmiku.music.playback.state
+import com.rcmiku.music.ui.components.UpdateDialog
 import com.rcmiku.music.ui.screen.MainScreen
 import com.rcmiku.music.ui.theme.JetMeloTheme
 import com.rcmiku.music.ui.theme.ThemeMode
+import com.rcmiku.music.update.AppUpdateManager
 import com.rcmiku.music.utils.rememberEnumPreference
 import com.rcmiku.music.utils.rememberPreference
 import dagger.hilt.android.AndroidEntryPoint
@@ -43,9 +46,15 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
         }
         playerController = PlayerController
+        AppUpdateManager.init(applicationContext)
         setContent {
             val themeMode by rememberEnumPreference(themeModeKey, ThemeMode.SYSTEM)
             val dynamicColor by rememberPreference(dynamicColorKey, true)
+            val updateState by AppUpdateManager.state.collectAsStateWithLifecycle()
+
+            LaunchedEffect(Unit) {
+                AppUpdateManager.checkForUpdate(isManual = false)
+            }
 
             val controller = playerController.controller
             var retryTrigger by remember { mutableIntStateOf(0) }
@@ -80,6 +89,12 @@ class MainActivity : ComponentActivity() {
                     LocalPlayerState provides playerState
                 ) {
                     MainScreen()
+                    UpdateDialog(
+                        state = updateState,
+                        onStartDownload = AppUpdateManager::startDownload,
+                        onInstallNow = AppUpdateManager::installPendingApk,
+                        onDismiss = AppUpdateManager::dismissDialog
+                    )
                 }
             }
         }
