@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
@@ -95,7 +95,7 @@ fun PlayerMenuBottomSheet(
             ) {
                 item {
                     Card(
-                        shape = RoundedCornerShape(
+                        shape = ContinuousRoundedRectangle(
                             topStart = 16.dp,
                             topEnd = 16.dp,
                             bottomStart = 8.dp,
@@ -138,7 +138,7 @@ fun PlayerMenuBottomSheet(
 
                 item {
                     Card(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = ContinuousRoundedRectangle(8.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Row(
@@ -169,7 +169,7 @@ fun PlayerMenuBottomSheet(
 
                 item {
                     Card(
-                        shape = RoundedCornerShape(
+                        shape = ContinuousRoundedRectangle(
                             topStart = 8.dp,
                             topEnd = 8.dp,
                             bottomStart = 16.dp,

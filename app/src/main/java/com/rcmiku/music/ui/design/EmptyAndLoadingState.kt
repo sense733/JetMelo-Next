@@ -26,7 +26,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.shape.CornerBasedShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -301,7 +301,7 @@ fun DailySongsGridSkeleton(
                     modifier = Modifier
                         .padding(6.dp)
                         .size(ListThumbnailSize)
-                        .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                        .clip(ContinuousRoundedRectangle(ThumbnailCornerRadius))
                         .background(brush)
                 )
                 Column(

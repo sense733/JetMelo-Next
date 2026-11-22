@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Info
@@ -504,7 +504,7 @@ fun SettingCard(
     modifier: Modifier = Modifier,
     title: String,
     description: String? = null,
-    shape: Shape = RoundedCornerShape(SettingItemCorner),
+    shape: Shape = ContinuousRoundedRectangle(SettingItemCorner),
     leadingContent: @Composable () -> Unit = {},
     trailingContent: @Composable () -> Unit = {},
     onClick: () -> Unit = {},

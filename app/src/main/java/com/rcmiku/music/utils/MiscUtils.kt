@@ -1,6 +1,6 @@
 package com.rcmiku.music.utils
 
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.ui.unit.Dp
 import com.rcmiku.ncmapi.utils.base64Encode
 import kotlinx.datetime.Instant
@@ -58,16 +58,16 @@ fun <T> getItemShape(
     nextItem: T?,
     corner: Dp,
     subCorner: Dp,
-): RoundedCornerShape {
+): ContinuousRoundedRectangle {
     val shape = when {
-        prevItem != null && nextItem != null -> RoundedCornerShape(subCorner)
-        prevItem == null && nextItem == null -> RoundedCornerShape(corner)
-        prevItem == null -> RoundedCornerShape(
+        prevItem != null && nextItem != null -> ContinuousRoundedRectangle(subCorner)
+        prevItem == null && nextItem == null -> ContinuousRoundedRectangle(corner)
+        prevItem == null -> ContinuousRoundedRectangle(
             topStart = corner, topEnd = corner,
             bottomStart = subCorner, bottomEnd = subCorner
         )
 
-        else -> RoundedCornerShape(
+        else -> ContinuousRoundedRectangle(
             topStart = subCorner, topEnd = subCorner,
             bottomStart = corner, bottomEnd = corner
         )

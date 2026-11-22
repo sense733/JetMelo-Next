@@ -47,7 +47,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -279,7 +279,7 @@ fun PlayerTransform(
 
         if (!isFull) {
             val borderAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
-            val containerShape = RoundedCornerShape(containerCornerRadius)
+            val containerShape = ContinuousRoundedRectangle(containerCornerRadius)
             val shadowElevation = containerElevation.coerceAtLeast(0.dp)
             val shadowModifier = if (shadowElevation > 0.dp && borderAlpha > 0f) {
                 Modifier.shadow(
@@ -611,8 +611,8 @@ fun PlayerTransform(
                         width = with(density) { currentArtworkRect.width.toDp() },
                         height = with(density) { currentArtworkRect.height.toDp() }
                     )
-                    .shadow(currentArtworkElevation, shape = RoundedCornerShape(currentArtworkCorner))
-                    .clip(RoundedCornerShape(currentArtworkCorner))
+                    .shadow(currentArtworkElevation, shape = ContinuousRoundedRectangle(currentArtworkCorner))
+                    .clip(ContinuousRoundedRectangle(currentArtworkCorner))
                     .clickable(
                         role = Role.Button,
                         onClickLabel = "展开播放器",

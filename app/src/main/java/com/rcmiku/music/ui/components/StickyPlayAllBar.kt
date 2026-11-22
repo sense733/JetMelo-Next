@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -78,7 +78,7 @@ fun StickyPlayAllBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
-                .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
+                .clip(ContinuousRoundedRectangle(topStart = cornerRadius, topEnd = cornerRadius))
                 .background(baseColor)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },

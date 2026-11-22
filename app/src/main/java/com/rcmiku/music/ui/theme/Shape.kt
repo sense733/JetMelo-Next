@@ -3,8 +3,6 @@ package com.rcmiku.music.ui.theme
 import android.os.Build
 import android.view.RoundedCorner
 import android.view.View
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -12,10 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
@@ -25,22 +19,25 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.kyant.capsule.Continuity
+import com.kyant.capsule.ContinuousCapsule
+import com.kyant.capsule.ContinuousRoundedRectangle
 
 val JetMeloM3Shapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    extraSmall = ContinuousRoundedRectangle(4.dp),
+    small = ContinuousRoundedRectangle(8.dp),
+    medium = ContinuousRoundedRectangle(16.dp),
+    large = ContinuousRoundedRectangle(24.dp),
+    extraLarge = ContinuousRoundedRectangle(28.dp)
 )
 
 object JetMeloShapes {
-    val extraSmall = RoundedCornerShape(4.dp)
-    val small = RoundedCornerShape(8.dp)
-    val medium = RoundedCornerShape(16.dp)
-    val large = RoundedCornerShape(24.dp)
-    val extraLarge = RoundedCornerShape(28.dp)
-    val full = CircleShape
+    val extraSmall = ContinuousRoundedRectangle(4.dp)
+    val small = ContinuousRoundedRectangle(8.dp)
+    val medium = ContinuousRoundedRectangle(16.dp)
+    val large = ContinuousRoundedRectangle(24.dp)
+    val extraLarge = ContinuousRoundedRectangle(28.dp)
+    val full = ContinuousCapsule
 }
 
 val AdaptiveArtworkShape: Shape = object : Shape {
@@ -55,11 +52,12 @@ val AdaptiveArtworkShape: Shape = object : Shape {
         val cornerRadiusPx = with(density) {
             (8.dp.toPx() + (24.dp.toPx() - 8.dp.toPx()) * fraction)
         }
-        return Outline.Rounded(
-            RoundRect(
-                rect = Rect(Offset.Zero, size),
-                cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
-            )
+        return Continuity.Default.createRoundedRectangleOutline(
+            size = size,
+            topLeft = cornerRadiusPx,
+            topRight = cornerRadiusPx,
+            bottomRight = cornerRadiusPx,
+            bottomLeft = cornerRadiusPx
         )
     }
 }

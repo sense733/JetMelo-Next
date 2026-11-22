@@ -2,7 +2,7 @@ package com.rcmiku.music.ui.components
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -24,7 +24,7 @@ import com.rcmiku.music.utils.ImagePreloadUtil
 fun ListThumbnailImage(
     url: Any?,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
+    shape: Shape = ContinuousRoundedRectangle(ThumbnailCornerRadius),
     contentDescription: String? = null
 ) {
     val context = LocalContext.current
@@ -60,7 +60,7 @@ fun GridThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier
-            .clip(RoundedCornerShape(ThumbnailCornerRadius))
+            .clip(ContinuousRoundedRectangle(ThumbnailCornerRadius))
             .size(GridThumbnailHeight)
     )
 }
@@ -80,7 +80,7 @@ fun PlaylistThumbnailImage(url: Any?, modifier: Modifier = Modifier) {
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier
-            .clip(RoundedCornerShape(ThumbnailCornerRadius))
+            .clip(ContinuousRoundedRectangle(ThumbnailCornerRadius))
             .size(PlaylistThumbnailSize)
     )
 }

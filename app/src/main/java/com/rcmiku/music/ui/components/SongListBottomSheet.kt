@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -142,7 +142,7 @@ fun SongListBottomSheet(
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(ContinuousRoundedRectangle(12.dp))
                                         .clickable {
                                             if (item.containsTracks) {
                                                 selectedRemovePlaylistId.value = item.id
@@ -152,7 +152,7 @@ fun SongListBottomSheet(
                                                 selectedPlaylistId.value = if (isSelected) null else item.id
                                             }
                                         },
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = ContinuousRoundedRectangle(12.dp),
                                     colors = CardDefaults.cardColors(
                                         containerColor = if (isSelected)
                                             MaterialTheme.colorScheme.primaryContainer
