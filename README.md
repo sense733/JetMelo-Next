@@ -8,19 +8,15 @@ A Material 3 NetEase Cloud Music client for Android.
 [![GitHub License](https://img.shields.io/github/license/sense733/JetMelo-Next)](https://www.gnu.org/licenses/gpl-3.0)
 [![Downloads](https://img.shields.io/github/downloads/sense733/JetMelo-Next/total)](https://github.com/sense733/JetMelo-Next/releases)
 
-> **This repository is a fork of [rcmiku/JetMelo](https://github.com/rcmiku/JetMelo) and is not an official release of the original project.**
->
-> Since August 2026, [sense733](https://github.com/sense733) has continued development based on the original project. Major changes include: refactoring transition animations between the player, mini-player, and lists, introducing shared-element navigation, adjusting playlist loading and home data workflows, and renaming the application to `JetMelo-Next` with package name `com.jetmelo.next` (can be installed alongside the original project without conflict).
->
-> All rights to the original project belong to its author. This project continues to be licensed under GPL-3.0.
+> Forked from [rcmiku/JetMelo](https://github.com/rcmiku/JetMelo), licensed under GPL-3.0. Uses package name `com.jetmelo.next` (can be installed alongside the original app).
 
 ## Features
 
-- **Material 3 Design**: Light/Dark theme support and Android 12+ dynamic color (Material You)
-- **Fluid Interactions & Motion**: Physical container transform for the player, shared-element navigation, and interruptible gestures
-- **Immersive Playback Experience**: Dynamic background adaptive to album art and synchronized bilingual lyrics
-- **Discovery & Library**: Personalized recommendations, daily picks, charts, and new releases
-- **User Library**: Account login, playlist/album collection, and cloud drive music
+- **Material 3 Design**: Light/Dark theme support, Android 12+ dynamic color (Material You), and global G2 continuous curvature corners (Capsule)
+- **Fluid Interactions & Motion**: Physical container transform for the player, shared-element navigation, shimmer loading skeletons, and smooth page transitions
+- **Immersive Playback Experience**: Soft dynamic background adaptive to album art, Android 13-style wavy progress bar, and synchronized bilingual / word-by-word (YRC) lyrics
+- **Playback & Caching**: Audio focus & external recording pause policy, playback state restoration, VIP-aware audio quality selection, and configurable LRU disk cache for audio & lyrics
+- **Discovery & Library**: Personalized recommendations, daily picks, charts, new releases, account login, playlist/album collection, and cloud drive music
 
 ## Screenshot
 
@@ -37,9 +33,6 @@ A Material 3 NetEase Cloud Music client for Android.
     <td><img src="screenshot/07.jpg" width="200" /></td>
     <td><img src="screenshot/08.jpg" width="200" /></td>
   </tr>
-  <tr>
-    <td><img src="screenshot/09.jpg" width="200" /></td>
-  </tr>
 </table>
 
 ## Credit
@@ -49,6 +42,7 @@ A Material 3 NetEase Cloud Music client for Android.
 - [AndroidX Media3](https://github.com/androidx/media)
 - [Ktor](https://github.com/ktorio/ktor)
 - [Coil](https://github.com/coil-kt/coil)
+- [Capsule](https://github.com/Kyant0/Capsule)
 - [Reorderable](https://github.com/Calvin-LL/Reorderable)
 - [Protobuf](https://github.com/protocolbuffers/protobuf)
 
