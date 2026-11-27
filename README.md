@@ -37,6 +37,9 @@ A Material 3 NetEase Cloud Music client for Android.
     <td><img src="screenshot/07.jpg" width="200" /></td>
     <td><img src="screenshot/08.jpg" width="200" /></td>
   </tr>
+  <tr>
+    <td><img src="screenshot/09.jpg" width="200" /></td>
+  </tr>
 </table>
 
 ## Credit
