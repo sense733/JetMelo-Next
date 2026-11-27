@@ -17,6 +17,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
@@ -30,10 +33,23 @@ import coil3.request.bitmapConfig
 import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.roundToInt
+
+internal fun computeWashVerticalFeatherAlpha(yFraction: Float): Float {
+    val y = yFraction.coerceIn(0f, 1f)
+    return when {
+        y <= 0.26f -> 1f - (y / 0.26f) * 0.15f
+        y <= 0.46f -> 0.85f - ((y - 0.26f) / 0.20f) * 0.49f
+        y <= 0.64f -> 0.36f * (1f - (y - 0.46f) / 0.18f)
+        else -> 0f
+    }.coerceIn(0f, 1f)
+}
 
 @Immutable
 data class ArtworkColors(
@@ -41,6 +57,7 @@ data class ArtworkColors(
     val onDominantColor: Color = Color(0xFFE4E2E4),
     val accentColor: Color = Color(0xFFB6C7EA),
     val onAccentColor: Color = Color(0xFF1F314C),
+    val ambientColor: Color = dominantColor,
     val surfaceScrim: Color = Color(0xDE100E14),
     val blurredBitmap: Bitmap? = null,
     val isDark: Boolean = true
@@ -50,8 +67,11 @@ val LocalArtworkColors = compositionLocalOf { ArtworkColors() }
 
 object PaletteExtractor {
     private const val MAX_CACHE_SIZE = 120
+    private const val MAX_WASH_CACHE_SIZE = 16
     private const val SAMPLE_SIZE = 48
+    private const val WASH_SAMPLE_SIZE = 64
     private const val BLUR_RADIUS = 16
+    private const val WASH_BLUR_RADIUS = 10
 
     private const val MIN_BACKGROUND_CONTRAST = 4.5f
     private const val MIN_ACCENT_CONTRAST = 3.0f
@@ -66,6 +86,106 @@ object PaletteExtractor {
     }
 
     private val cache = LruCache<String, ArtworkColors>(MAX_CACHE_SIZE)
+    private val blurredWashCache = LruCache<String, ImageBitmap>(MAX_WASH_CACHE_SIZE)
+    private val preloadSemaphore = Semaphore(2)
+
+    private fun washCacheKey(artworkUri: Any?, songId: String?): String? {
+        return artworkUri?.toString()?.takeIf { it.isNotEmpty() }
+            ?: songId?.takeIf { it.isNotEmpty() }
+    }
+
+    fun getCachedBlurredWash(artworkUri: Any?, songId: String?): ImageBitmap? {
+        val key = washCacheKey(artworkUri, songId) ?: return null
+        return blurredWashCache.get(key)
+    }
+
+    suspend fun getOrCreateBlurredWash(
+        context: Context,
+        artworkUri: Any?,
+        songId: String?
+    ): ImageBitmap? = withContext(Dispatchers.IO) {
+        val key = washCacheKey(artworkUri, songId) ?: return@withContext null
+        blurredWashCache.get(key)?.let { return@withContext it }
+        if (artworkUri == null) return@withContext null
+
+        try {
+            val imageLoader = SingletonImageLoader.get(context)
+            val coverKey = songId?.let { "cover_$it" }
+            val request = ImageRequest.Builder(context)
+                .data(artworkUri)
+                .size(WASH_SAMPLE_SIZE, WASH_SAMPLE_SIZE)
+                .apply {
+                    if (coverKey != null) {
+                        placeholderMemoryCacheKey(coverKey)
+                    }
+                }
+                .allowHardware(false)
+                .bitmapConfig(Bitmap.Config.ARGB_8888)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .build()
+
+            val result = imageLoader.execute(request)
+            if (result is SuccessResult) {
+                val bitmap = try {
+                    result.image.toBitmap()
+                } catch (_: Exception) {
+                    val drawable = result.image.asDrawable(context.resources)
+                    (drawable as? BitmapDrawable)?.bitmap
+                }
+
+                if (bitmap != null && !bitmap.isRecycled && bitmap.width > 0 && bitmap.height > 0) {
+                    val washImage = withContext(Dispatchers.Default) {
+                        val cropped = if (bitmap.width >= 20 && bitmap.height >= 20) {
+                            val insetX = bitmap.width / 10
+                            val insetY = bitmap.height / 10
+                            Bitmap.createBitmap(
+                                bitmap,
+                                insetX,
+                                insetY,
+                                bitmap.width - insetX * 2,
+                                bitmap.height - insetY * 2
+                            )
+                        } else {
+                            bitmap
+                        }
+                        val blurred = fastBlur(cropped, WASH_BLUR_RADIUS)
+                        if (cropped !== bitmap) {
+                            cropped.recycle()
+                        }
+                        bakeVerticalFeatherAlpha(blurred).asImageBitmap()
+                    }
+                    blurredWashCache.put(key, washImage)
+                    return@withContext washImage
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("PaletteExtractor", "Failed to create blurred wash for $key", e)
+        }
+        null
+    }
+
+    private fun bakeVerticalFeatherAlpha(bitmap: Bitmap): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+        val pixels = IntArray(w * h)
+        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        for (y in 0 until h) {
+            val yFraction = if (h > 1) y.toFloat() / (h - 1) else 0f
+            val feather = computeWashVerticalFeatherAlpha(yFraction)
+            val rowStart = y * w
+            for (x in 0 until w) {
+                val idx = rowStart + x
+                val px = pixels[idx]
+                val origAlpha = (px ushr 24) and 0xFF
+                val outAlpha = (origAlpha * feather).roundToInt().coerceIn(0, 255)
+                pixels[idx] = (outAlpha shl 24) or (px and 0x00FFFFFF)
+            }
+        }
+        bitmap.setPixels(pixels, 0, w, 0, 0, w, h)
+        return bitmap
+    }
 
     fun getCached(
         artworkUri: Any?,
@@ -99,7 +219,9 @@ object PaletteExtractor {
         items.forEach { (artworkUri, songId) ->
             if (artworkUri != null) {
                 launch {
-                    preload(context, artworkUri, songId, fallbackDominant, fallbackAccent)
+                    preloadSemaphore.withPermit {
+                        preload(context, artworkUri, songId, fallbackDominant, fallbackAccent)
+                    }
                 }
             }
         }
@@ -185,11 +307,14 @@ object PaletteExtractor {
                         null
                     }
 
+                    val ambient = extractAmbientColor(palette, adjustedDominant)
+
                     val colors = ArtworkColors(
                         dominantColor = adjustedDominant,
                         onDominantColor = onDominant,
                         accentColor = adjustedAccent,
                         onAccentColor = onAccent,
+                        ambientColor = ambient,
                         surfaceScrim = Color(0xDE100E14),
                         blurredBitmap = null,
                         isDark = calculateLuminance(adjustedDominant) < 0.5f
@@ -210,7 +335,8 @@ object PaletteExtractor {
             dominantColor = fallbackDominant,
             onDominantColor = getAccessibleTextColor(fallbackDominant),
             accentColor = fallbackAccent,
-            onAccentColor = getAccessibleTextColor(fallbackAccent)
+            onAccentColor = getAccessibleTextColor(fallbackAccent),
+            ambientColor = fallbackDominant
         )
     }
 
@@ -235,6 +361,72 @@ object PaletteExtractor {
         val whiteContrast = calculateContrastRatio(Color.White, bg)
         val blackContrast = calculateContrastRatio(Color.Black, bg)
         return if (whiteContrast >= blackContrast) Color.White else Color.Black
+    }
+
+    /**
+     * Resolves an accent color guaranteed to meet minimum graphical contrast against [background],
+     * falling back to [fallback] if no candidate satisfies contrast within drift bounds.
+     */
+    fun ensureAccessibleAccent(
+        candidate: Color,
+        background: Color,
+        fallback: Color
+    ): Color = findAccessibleAccent(listOf(candidate), background, fallback)
+
+    /**
+     * Refines a raw extracted accent into a restrained, clean tonal accent paired with
+     * crisp icon contrast on both light and dark ambient surfaces.
+     */
+    fun refinePlayerAccent(
+        candidate: Color,
+        ambientFallback: Color,
+        background: Color,
+        isDarkTheme: Boolean,
+        fallback: Color
+    ): Color {
+        val source = when {
+            candidate.alpha > 0f -> candidate
+            ambientFallback.alpha > 0f -> ambientFallback
+            else -> return fallback
+        }
+        val candidateHsl = rgbToHsl(source)
+        val ambientHsl = if (ambientFallback.alpha > 0f) rgbToHsl(ambientFallback) else candidateHsl
+        val baseHsl = if (candidateHsl[1] < 0.06f && ambientHsl[1] >= 0.06f) {
+            ambientHsl
+        } else {
+            candidateHsl
+        }
+        val h = baseHsl[0]
+        val s = baseHsl[1]
+        val l = baseHsl[2]
+
+        if (s < 0.06f) {
+            return if (isDarkTheme) Color(0xFFE6E6EA) else Color(0xFF2C2C30)
+        }
+
+        if (isDarkTheme) {
+            val targetS = s.coerceIn(0.30f, 0.48f)
+            var targetL = l.coerceIn(0.74f, 0.82f)
+            var refined = hslToColor(h, targetS, targetL)
+            while (calculateContrastRatio(refined, background) < 3.0f && targetL < 0.88f) {
+                targetL = min(0.88f, targetL + 0.02f)
+                refined = hslToColor(h, targetS, targetL)
+            }
+            return refined
+        } else {
+            val targetS = s.coerceIn(0.28f, 0.46f)
+            var targetL = l.coerceIn(0.34f, 0.43f)
+            var refined = hslToColor(h, targetS, targetL)
+            // Keep light-mode accent low-glare while ensuring white play/pause glyphs remain crisp.
+            while ((calculateContrastRatio(Color.White, refined) < 4.6f ||
+                        calculateContrastRatio(refined, background) < 3.0f) &&
+                targetL > 0.26f
+            ) {
+                targetL = max(0.26f, targetL - 0.02f)
+                refined = hslToColor(h, targetS, targetL)
+            }
+            return if (refined.alpha > 0f) refined else fallback
+        }
     }
 
     private fun findAccessibleBackground(
@@ -301,6 +493,123 @@ object PaletteExtractor {
             }
         }
         return pool.firstOrNull() ?: fallback
+    }
+
+    private fun extractAmbientColor(palette: Palette, fallback: Color): Color {
+        val candidates = palette.swatches.filter { it.population > 0 }
+        if (candidates.isNotEmpty()) {
+            val totalPopulation = candidates.sumOf { it.population }.toFloat().coerceAtLeast(1f)
+            var weightedAvgS = 0f
+            var weightedAvgL = 0f
+            var vividPopulation = 0
+            for (swatch in candidates) {
+                val hsl = rgbToHsl(Color(swatch.rgb))
+                val share = swatch.population / totalPopulation
+                weightedAvgS += hsl[1] * share
+                weightedAvgL += hsl[2] * share
+                if (hsl[1] >= 0.20f) {
+                    vividPopulation += swatch.population
+                }
+            }
+            val vividShare = vividPopulation / totalPopulation
+            if (weightedAvgS < 0.07f && vividShare < 0.08f) {
+                return hslToColor(h = 0f, s = 0f, l = weightedAvgL.coerceIn(0.42f, 0.56f))
+            }
+
+            val substantial = candidates.filter { it.population / totalPopulation >= 0.02f }
+                .ifEmpty { candidates }
+            val chosen = substantial.maxByOrNull { swatch ->
+                val hsl = rgbToHsl(Color(swatch.rgb))
+                val s = hsl[1]
+                val l = hsl[2]
+                val popShare = (swatch.population / totalPopulation).coerceAtLeast(1e-4f)
+                val lightnessWeight = (1f - kotlin.math.abs(l - 0.5f) * 1.4f).coerceAtLeast(0.15f)
+                (s.coerceAtMost(0.75f) + 0.12f) * popShare.pow(0.65f) * lightnessWeight
+            }?.let { Color(it.rgb) } ?: fallback
+
+            val hsl = rgbToHsl(chosen)
+            val h = hsl[0]
+            val s = hsl[1]
+            val l = hsl[2]
+            return if (s >= 0.06f) {
+                val normalizedS = if (s < 0.45f) {
+                    (s * 1.2f).coerceIn(0.42f, 0.62f)
+                } else {
+                    s.coerceAtMost(0.68f)
+                }
+                hslToColor(
+                    h = h,
+                    s = normalizedS,
+                    l = l.coerceIn(0.48f, 0.66f)
+                )
+            } else {
+                hslToColor(
+                    h = h,
+                    s = s,
+                    l = l.coerceIn(0.42f, 0.56f)
+                )
+            }
+        }
+
+        val fallbackPicked = (palette.vibrantSwatch ?: palette.mutedSwatch ?: palette.dominantSwatch)
+            ?.let { Color(it.rgb) } ?: fallback
+        val hsl = rgbToHsl(fallbackPicked)
+        return if (hsl[1] >= 0.06f) {
+            hslToColor(
+                h = hsl[0],
+                s = hsl[1].coerceIn(0.42f, 0.68f),
+                l = hsl[2].coerceIn(0.48f, 0.66f)
+            )
+        } else {
+            hslToColor(h = hsl[0], s = hsl[1], l = hsl[2].coerceIn(0.42f, 0.56f))
+        }
+    }
+
+    private fun rgbToHsl(color: Color): FloatArray {
+        val r = color.red
+        val g = color.green
+        val b = color.blue
+        val maxC = max(r, max(g, b))
+        val minC = min(r, min(g, b))
+        val d = maxC - minC
+        val l = (maxC + minC) * 0.5f
+        if (d <= 1e-6f) {
+            return floatArrayOf(0f, 0f, l)
+        }
+        val s = if (l > 0.5f) d / (2f - maxC - minC) else d / (maxC + minC)
+        val hRaw = when (maxC) {
+            r -> (g - b) / d + (if (g < b) 6f else 0f)
+            g -> (b - r) / d + 2f
+            else -> (r - g) / d + 4f
+        }
+        return floatArrayOf((hRaw * 60f) % 360f, s.coerceIn(0f, 1f), l.coerceIn(0f, 1f))
+    }
+
+    private fun hslToColor(h: Float, s: Float, l: Float): Color {
+        if (s <= 1e-6f) {
+            val v = l.coerceIn(0f, 1f)
+            return Color(red = v, green = v, blue = v, alpha = 1f)
+        }
+        val q = if (l < 0.5f) l * (1f + s) else l + s - l * s
+        val p = 2f * l - q
+        val hk = ((h % 360f) + 360f) % 360f / 360f
+        fun hue2rgb(tRaw: Float): Float {
+            var t = tRaw
+            if (t < 0f) t += 1f
+            if (t > 1f) t -= 1f
+            return when {
+                t < 1f / 6f -> p + (q - p) * 6f * t
+                t < 1f / 2f -> q
+                t < 2f / 3f -> p + (q - p) * (2f / 3f - t) * 6f
+                else -> p
+            }
+        }
+        return Color(
+            red = hue2rgb(hk + 1f / 3f).coerceIn(0f, 1f),
+            green = hue2rgb(hk).coerceIn(0f, 1f),
+            blue = hue2rgb(hk - 1f / 3f).coerceIn(0f, 1f),
+            alpha = 1f
+        )
     }
 
     private fun fastBlur(sentBitmap: Bitmap, radius: Int): Bitmap {
@@ -558,4 +867,63 @@ fun rememberArtworkColors(
     }
 
     return colors
+}
+
+@Immutable
+data class PlayerContentColors(
+    val primaryContent: Color,
+    val secondaryContent: Color,
+    val mutedContent: Color,
+    val trackInactive: Color,
+    val accent: Color,
+    val onAccent: Color,
+    val activeItemContainer: Color
+)
+
+/**
+ * Derives theme-adaptive foreground and accent colors for player surfaces based on the current
+ * Material theme luminance and [artworkColors].
+ */
+@Composable
+fun rememberPlayerContentColors(
+    artworkColors: ArtworkColors = LocalArtworkColors.current
+): PlayerContentColors {
+    val colorScheme = MaterialTheme.colorScheme
+    val isDarkTheme = colorScheme.background.luminance() < 0.5f
+    val surfaceRef = if (isDarkTheme) colorScheme.background else colorScheme.surface
+    val primary = if (isDarkTheme) Color.White else Color(0xFF1A1A1E)
+    val accent = remember(
+        artworkColors.ambientColor,
+        surfaceRef,
+        isDarkTheme,
+        colorScheme.primary
+    ) {
+        PaletteExtractor.refinePlayerAccent(
+            candidate = artworkColors.ambientColor,
+            ambientFallback = artworkColors.ambientColor,
+            background = surfaceRef,
+            isDarkTheme = isDarkTheme,
+            fallback = colorScheme.primary
+        )
+    }
+    val onAccent = remember(accent, isDarkTheme) {
+        if (isDarkTheme) {
+            Color(0xFF18181C)
+        } else if (accent.luminance() < 0.50f) {
+            Color.White
+        } else {
+            PaletteExtractor.getAccessibleTextColor(accent)
+        }
+    }
+    return remember(isDarkTheme, primary, accent, onAccent) {
+        PlayerContentColors(
+            primaryContent = primary,
+            secondaryContent = primary.copy(alpha = if (isDarkTheme) 0.72f else 0.68f),
+            mutedContent = primary.copy(alpha = if (isDarkTheme) 0.45f else 0.42f),
+            trackInactive = primary.copy(alpha = if (isDarkTheme) 0.22f else 0.14f),
+            accent = accent,
+            onAccent = onAccent,
+            activeItemContainer = accent.copy(alpha = if (isDarkTheme) 0.20f else 0.14f)
+        )
+    }
 }

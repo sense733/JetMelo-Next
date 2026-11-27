@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -66,9 +67,11 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -96,16 +99,13 @@ import com.rcmiku.music.constants.MediaSessionConstants
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
+import com.rcmiku.music.ui.design.rememberPlayerContentColors
 import com.rcmiku.music.ui.icons.Album
 import com.rcmiku.music.ui.icons.Artist
-import com.rcmiku.music.ui.icons.AudioLines
 import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.icons.Favorite
 import com.rcmiku.music.ui.icons.FavoriteFill
 import com.rcmiku.music.ui.icons.PauseFill
-import com.rcmiku.music.ui.icons.Repeat
-import com.rcmiku.music.ui.icons.RepeatOne
-import com.rcmiku.music.ui.icons.Shuffle
 import com.rcmiku.music.ui.icons.SkipNextFill
 import com.rcmiku.music.ui.icons.SkipPreviousFill
 import com.rcmiku.music.ui.navigation.AlbumNav
@@ -164,12 +164,14 @@ fun Player(
     titleModifier: Modifier = Modifier,
     artistModifier: Modifier = Modifier,
     artworkElevation: Dp = 16.dp,
+    artworkElevationProvider: (() -> Dp)? = null,
     onBackPressed: () -> Unit = {},
     onClick: () -> Unit = {},
     onContainerClick: () -> Unit = {},
     navController: NavHostController,
     controlsAlpha: Float = 1f,
     controlsOffsetY: Dp = 0.dp,
+    controlsOffsetYProvider: (() -> Float)? = null,
     showArtwork: Boolean = true,
     showBackground: Boolean = true,
     onArtworkPositioned: ((Rect) -> Unit)? = null,
@@ -181,11 +183,6 @@ fun Player(
     val mediaController = LocalPlayerController.current.controller
     val isPlaying = playerState?.isPlaying == true
     val repeatMode = playerState?.repeatMode ?: 0
-    val repeatIcon = when (repeatMode) {
-        0 -> Repeat
-        1 -> RepeatOne
-        else -> Repeat
-    }
     val context = LocalContext.current.applicationContext
     val mediaId = playerState?.currentMediaItem?.mediaId
     val songIds by remember(context) {
@@ -195,14 +192,16 @@ fun Player(
     var openBottomSheet by rememberSaveable { mutableStateOf(false) }
     var openPlayerBottomSheet by rememberSaveable { mutableStateOf(false) }
     val shuffleMode = playerState?.shuffleModeEnabled == true
+    val playMode = resolvePlayMode(repeatMode, shuffleMode)
     val artworkColors = LocalArtworkColors.current
+    val contentColors = rememberPlayerContentColors(artworkColors)
     val animatedAccentColor by animateColorAsState(
-        targetValue = artworkColors.accentColor,
+        targetValue = contentColors.accent,
         animationSpec = tween(durationMillis = 350),
         label = "player_accent_color"
     )
     val animatedOnAccentColor by animateColorAsState(
-        targetValue = artworkColors.onAccentColor,
+        targetValue = contentColors.onAccent,
         animationSpec = tween(durationMillis = 350),
         label = "player_on_accent_color"
     )
@@ -222,7 +221,9 @@ fun Player(
     LaunchedEffect(mediaId) {
         val songJson = playerState?.currentMediaItem?.mediaMetadata?.extras?.getString("song")
         currentSong = if (songJson != null) {
-            runCatching { json.decodeFromString<Song>(songJson) }.getOrNull()
+            withContext(Dispatchers.Default) {
+                runCatching { json.decodeFromString<Song>(songJson) }.getOrNull()
+            }
         } else {
             null
         }
@@ -233,14 +234,14 @@ fun Player(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp),
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
+                    .padding(horizontal = 16.dp)
                     .graphicsLayer {
                         alpha = controlsAlpha
                         translationY = (-10.dp * (1f - controlsAlpha)).toPx()
@@ -248,38 +249,25 @@ fun Player(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBackPressed) {
+                IconButton(
+                    onClick = onBackPressed,
+                    modifier = Modifier.size(width = 56.dp, height = 56.dp)
+                ) {
                     Icon(
                         imageVector = ChevronDown,
                         contentDescription = null,
-                        tint = Color.White
+                        tint = contentColors.primaryContent
                     )
                 }
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                IconButton(
+                    onClick = { openPlayerBottomSheet = true },
+                    modifier = Modifier.size(width = 56.dp, height = 56.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.now_playing),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.65f),
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = mediaMetadata.albumTitle?.toString() ?: "JetMelo",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                IconButton(onClick = { openPlayerBottomSheet = true }) {
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,
                         contentDescription = null,
-                        tint = Color.White
+                        tint = contentColors.primaryContent
                     )
                 }
             }
@@ -289,7 +277,7 @@ fun Player(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
-                    .padding(vertical = 12.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 val availableWidth = maxWidth * 0.88f
                 val availableHeight = maxHeight
@@ -317,12 +305,11 @@ fun Player(
                             .fillMaxSize()
                             .graphicsLayer {
                                 alpha = if (showArtwork) 1f else 0f
-                            }
-                            .shadow(
-                                elevation = if (showArtwork) artworkElevation else 0.dp,
+                                val effectiveElevation = artworkElevationProvider?.invoke() ?: artworkElevation
+                                shadowElevation = if (showArtwork) effectiveElevation.toPx() else 0f
                                 shape = AdaptiveArtworkShape
-                            )
-                            .clip(AdaptiveArtworkShape)
+                                clip = true
+                            }
                             .clickable(enabled = controlsAlpha > 0.1f && showArtwork, onClick = onClick)
                     ) { uri ->
                         val context = LocalContext.current
@@ -354,10 +341,11 @@ fun Player(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
                     .padding(bottom = 12.dp)
                     .graphicsLayer {
                         alpha = controlsAlpha
-                        translationY = controlsOffsetY.toPx()
+                        translationY = controlsOffsetYProvider?.invoke() ?: controlsOffsetY.toPx()
                     },
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -370,17 +358,19 @@ fun Player(
                         modifier = Modifier
                             .weight(1f)
                             .padding(end = 12.dp)
+                            .clip(JetMeloShapes.medium)
+                            .clickable(enabled = controlsAlpha > 0.1f) { openBottomSheet = true }
+                            .padding(vertical = 4.dp)
                     ) {
                         mediaMetadata.title?.let {
                             Text(
                                 text = it.toString(),
                                 maxLines = 1,
                                 style = TitleHeroLarge,
-                                color = Color.White,
+                                color = contentColors.primaryContent,
                                 modifier = Modifier
                                     .then(titleModifier)
                                     .basicMarquee()
-                                    .clickable(enabled = controlsAlpha > 0.1f) { openBottomSheet = true }
                             )
                         }
                         mediaMetadata.artist?.let {
@@ -388,11 +378,10 @@ fun Player(
                                 text = it.toString(),
                                 maxLines = 1,
                                 style = MaterialTheme.typography.titleMedium,
-                                color = Color.White.copy(alpha = 0.75f),
+                                color = contentColors.secondaryContent,
                                 modifier = Modifier
                                     .then(artistModifier)
                                     .basicMarquee()
-                                    .clickable(enabled = controlsAlpha > 0.1f) { openBottomSheet = true }
                             )
                         }
                     }
@@ -410,7 +399,7 @@ fun Player(
                         Icon(
                             imageVector = if (isFav) FavoriteFill else Favorite,
                             contentDescription = null,
-                            tint = if (isFav) MaterialTheme.colorScheme.error else Color.White.copy(alpha = 0.8f),
+                            tint = if (isFav) MaterialTheme.colorScheme.error else contentColors.secondaryContent,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -420,38 +409,24 @@ fun Player(
 
                 PlayerProgressSlider(
                     accentColor = animatedAccentColor,
+                    inactiveTrackColor = contentColors.trackInactive,
+                    timeTextColor = contentColors.secondaryContent,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     IconButton(
-                        onClick = {
-                            mediaController?.sendCommandWithFeedback(
-                                context,
-                                MediaSessionConstants.CommandToggleShuffle
-                            )
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Shuffle,
-                            contentDescription = null,
-                            tint = if (shuffleMode) animatedAccentColor else Color.White.copy(alpha = 0.5f),
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-
-                    IconButton(
                         onClick = { mediaController?.seekToPrevious() },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
                             imageVector = SkipPreviousFill,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = contentColors.primaryContent,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -459,8 +434,13 @@ fun Player(
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(72.dp)
-                            .shadow(8.dp, shape = JetMeloShapes.full)
+                            .size(64.dp)
+                            .shadow(
+                                elevation = 3.dp,
+                                shape = JetMeloShapes.full,
+                                ambientColor = animatedAccentColor.copy(alpha = 0.22f),
+                                spotColor = animatedAccentColor.copy(alpha = 0.24f)
+                            )
                             .clip(JetMeloShapes.full)
                             .background(animatedAccentColor)
                             .clickable(enabled = controlsAlpha > 0.1f) {
@@ -471,38 +451,19 @@ fun Player(
                             imageVector = if (isPlaying) PauseFill else com.rcmiku.music.ui.icons.PlayArrowFill,
                             contentDescription = null,
                             tint = animatedOnAccentColor,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(34.dp)
                         )
                     }
 
                     IconButton(
                         onClick = { mediaController?.seekToNext() },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
                             imageVector = SkipNextFill,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = contentColors.primaryContent,
                             modifier = Modifier.size(36.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            val newMode = when (repeatMode) {
-                                0 -> 2
-                                1 -> 0
-                                2 -> 1
-                                else -> 0
-                            }
-                            mediaController?.repeatMode = newMode
-                        }
-                    ) {
-                        Icon(
-                            imageVector = repeatIcon,
-                            contentDescription = null,
-                            tint = if (repeatMode != 0) animatedAccentColor else Color.White.copy(alpha = 0.5f),
-                            modifier = Modifier.size(26.dp)
                         )
                     }
                 }
@@ -510,24 +471,24 @@ fun Player(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    IconButton(onClick = onClick) {
-                        Icon(
-                            imageVector = AudioLines,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.75f),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    PlayModeToggleButton(
+                        playMode = playMode,
+                        tint = contentColors.secondaryContent,
+                        rippleColor = animatedAccentColor,
+                        onToggle = { applyPlayMode(mediaController, it) },
+                        modifier = Modifier.size(width = 64.dp, height = 56.dp)
+                    )
 
-                    IconButton(onClick = onContainerClick) {
+                    IconButton(
+                        onClick = onContainerClick,
+                        modifier = Modifier.size(width = 64.dp, height = 56.dp)
+                    ) {
                         Icon(
                             imageVector = PlaylistInsert,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.75f),
+                            tint = contentColors.secondaryContent,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -695,7 +656,9 @@ fun ArtistBottomSheet(
 @Composable
 private fun PlayerProgressSlider(
     accentColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    inactiveTrackColor: Color = Color.White.copy(alpha = 0.25f),
+    timeTextColor: Color = Color.White.copy(alpha = 0.7f)
 ) {
     val playerController = LocalPlayerController.current.controller
     val playerState = LocalPlayerState.current
@@ -717,7 +680,9 @@ private fun PlayerProgressSlider(
     var sliderPosition by remember {
         mutableStateOf<Long?>(null)
     }
-    val isDragging = sliderPosition != null
+    val isDragging by remember {
+        derivedStateOf { sliderPosition != null }
+    }
 
     var pendingSeekTarget by remember(currentMediaId) { mutableStateOf<Long?>(null) }
     var seekLockUntilMs by remember(currentMediaId) { mutableLongStateOf(0L) }
@@ -778,23 +743,34 @@ private fun PlayerProgressSlider(
 
     Column(modifier = modifier) {
         val interactionSource = remember { MutableInteractionSource() }
-        val currentPos = sliderPosition ?: animatablePosition.value.toLong()
         val safeDuration = if (duration > 0 && duration != C.TIME_UNSET) duration else 0L
         val seekEnabled = safeDuration > 0 && playbackState != STATE_IDLE
 
         val sliderColors = SliderDefaults.colors(
             thumbColor = accentColor,
             activeTrackColor = accentColor,
-            inactiveTrackColor = Color.White.copy(alpha = 0.25f),
+            inactiveTrackColor = inactiveTrackColor,
             disabledThumbColor = accentColor.copy(alpha = 0.38f),
             disabledActiveTrackColor = accentColor.copy(alpha = 0.38f),
-            disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f)
+            disabledInactiveTrackColor = inactiveTrackColor.copy(alpha = 0.5f)
         )
+        val positionProvider = remember(animatablePosition) {
+            { sliderPosition?.toFloat() ?: animatablePosition.value }
+        }
+        val positionMsProvider = remember(animatablePosition) {
+            { sliderPosition ?: animatablePosition.value.toLong() }
+        }
 
-        Slider(
-            enabled = seekEnabled,
-            value = currentPos.toFloat().coerceIn(0f, maxOf(1f, safeDuration.toFloat())),
-            valueRange = 0f..maxOf(1f, safeDuration.toFloat()),
+        PlayerSliderBar(
+            positionProvider = positionProvider,
+            safeDuration = safeDuration,
+            seekEnabled = seekEnabled,
+            isPlaying = isPlaying,
+            isDragging = isDragging,
+            accentColor = accentColor,
+            inactiveTrackColor = inactiveTrackColor,
+            sliderColors = sliderColors,
+            interactionSource = interactionSource,
             onValueChange = { sliderPosition = it.toLong() },
             onValueChangeFinished = {
                 sliderPosition?.let { newPos ->
@@ -806,28 +782,6 @@ private fun PlayerProgressSlider(
                     playerController?.seekTo(newPos)
                 }
                 sliderPosition = null
-            },
-            colors = sliderColors,
-            track = { sliderState ->
-                WavySliderTrack(
-                    sliderState = sliderState,
-                    activeColor = accentColor,
-                    inactiveColor = Color.White.copy(alpha = 0.25f),
-                    isPlaying = isPlaying,
-                    isDragging = isDragging,
-                    enabled = seekEnabled,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(20.dp)
-                )
-            },
-            thumb = {
-                SliderDefaults.Thumb(
-                    interactionSource = interactionSource,
-                    colors = sliderColors,
-                    enabled = seekEnabled,
-                    thumbSize = DpSize(6.dp, 18.dp)
-                )
             }
         )
 
@@ -836,22 +790,71 @@ private fun PlayerProgressSlider(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             PlayerTimeText(
-                positionMsProvider = { sliderPosition ?: animatablePosition.value.toLong() }
+                positionMsProvider = positionMsProvider,
+                color = timeTextColor
             )
             Text(
                 text = makeTimeString(safeDuration),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White.copy(alpha = 0.7f)
+                color = timeTextColor
             )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayerSliderBar(
+    positionProvider: () -> Float,
+    safeDuration: Long,
+    seekEnabled: Boolean,
+    isPlaying: Boolean,
+    isDragging: Boolean,
+    accentColor: Color,
+    inactiveTrackColor: Color,
+    sliderColors: SliderColors,
+    interactionSource: MutableInteractionSource,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+) {
+    val maxVal = maxOf(1f, safeDuration.toFloat())
+    Slider(
+        enabled = seekEnabled,
+        value = positionProvider().coerceIn(0f, maxVal),
+        valueRange = 0f..maxVal,
+        onValueChange = onValueChange,
+        onValueChangeFinished = onValueChangeFinished,
+        colors = sliderColors,
+        track = { sliderState ->
+            WavySliderTrack(
+                sliderState = sliderState,
+                activeColor = accentColor,
+                inactiveColor = inactiveTrackColor,
+                isPlaying = isPlaying,
+                isDragging = isDragging,
+                enabled = seekEnabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp)
+            )
+        },
+        thumb = {
+            SliderDefaults.Thumb(
+                interactionSource = interactionSource,
+                colors = sliderColors,
+                enabled = seekEnabled,
+                thumbSize = DpSize(6.dp, 18.dp)
+            )
+        }
+    )
+}
+
 @Composable
 private fun PlayerTimeText(
     positionMsProvider: () -> Long,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    color: Color = Color.White.copy(alpha = 0.7f)
 ) {
     val currentSecond by remember {
         derivedStateOf { (positionMsProvider() / 1000L).coerceAtLeast(0L) }
@@ -860,7 +863,7 @@ private fun PlayerTimeText(
         text = makeTimeString(currentSecond * 1000L),
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.SemiBold,
-        color = Color.White.copy(alpha = 0.7f),
+        color = color,
         modifier = modifier
     )
 }

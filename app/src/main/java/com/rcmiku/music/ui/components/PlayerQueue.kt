@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -76,23 +77,21 @@ import coil3.size.Size
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
-import com.rcmiku.music.constants.MediaSessionConstants
 import com.rcmiku.music.extensions.playMediaAt
 import com.rcmiku.music.extensions.playMediaAtMediaId
 import com.rcmiku.music.extensions.removeSong
 import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.ui.design.ImmersiveBackground
 import com.rcmiku.music.ui.design.LocalArtworkColors
+import com.rcmiku.music.ui.design.rememberPlayerContentColors
 import com.rcmiku.music.ui.icons.ChevronDown
 import com.rcmiku.music.ui.icons.DragHandle
-import com.rcmiku.music.ui.icons.Repeat
-import com.rcmiku.music.ui.icons.RepeatOne
 import com.rcmiku.music.ui.icons.Remove
-import com.rcmiku.music.ui.icons.Shuffle
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.SongListUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -103,6 +102,8 @@ fun PlayerQueue(
     imageModifier: Modifier = Modifier,
     titleModifier: Modifier = Modifier,
     artistModifier: Modifier = Modifier,
+    indicatorAlpha: Float = 1f,
+    indicatorAlphaProvider: (() -> Float)? = null,
     mediaMetadata: MediaMetadata,
     onBackPressed: () -> Unit = {},
     showBackground: Boolean = true,
@@ -133,12 +134,8 @@ fun PlayerQueue(
 
     var cacheMediaItems by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
     val artworkColors = LocalArtworkColors.current
-
-    val repeatIcon = when (repeatMode) {
-        0 -> Repeat
-        1 -> RepeatOne
-        else -> Repeat
-    }
+    val contentColors = rememberPlayerContentColors(artworkColors)
+    val playMode = resolvePlayMode(repeatMode, shuffleMode)
 
     val queueContent: @Composable () -> Unit = {
         Column(
@@ -156,7 +153,7 @@ fun PlayerQueue(
                     Icon(
                         imageVector = ChevronDown,
                         contentDescription = null,
-                        tint = Color.White
+                        tint = contentColors.primaryContent
                     )
                 }
 
@@ -166,50 +163,22 @@ fun PlayerQueue(
                     Text(
                         text = stringResource(R.string.playing_list),
                         style = MaterialTheme.typography.titleLarge,
-                        color = Color.White,
+                        color = contentColors.primaryContent,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = stringResource(R.string.song_size, timelineItems.size),
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = contentColors.secondaryContent
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(
-                        onClick = {
-                            mediaController?.sendCommandWithFeedback(
-                                context,
-                                MediaSessionConstants.CommandToggleShuffle
-                            )
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Shuffle,
-                            contentDescription = null,
-                            tint = if (shuffleMode) artworkColors.accentColor else Color.White.copy(alpha = 0.5f)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            val newMode = when (repeatMode) {
-                                0 -> 2
-                                1 -> 0
-                                2 -> 1
-                                else -> 0
-                            }
-                            mediaController?.repeatMode = newMode
-                        }
-                    ) {
-                        Icon(
-                            imageVector = repeatIcon,
-                            contentDescription = null,
-                            tint = if (repeatMode != 0) artworkColors.accentColor else Color.White.copy(alpha = 0.5f)
-                        )
-                    }
-                }
+                PlayModeToggleButton(
+                    playMode = playMode,
+                    tint = contentColors.secondaryContent,
+                    rippleColor = contentColors.accent,
+                    onToggle = { applyPlayMode(mediaController, it) }
+                )
             }
 
             val view = LocalView.current
@@ -277,8 +246,20 @@ fun PlayerQueue(
                 if (!reorderableLazyListState.isAnyItemDragging) {
                     cacheMediaItems = timelineItems
                 }
+            }
+
+            LaunchedEffect(timelineItems, currentIndex) {
                 if (timelineItems.isNotEmpty()) {
-                    ImagePreloadUtil.preloadMediaItems(context, timelineItems)
+                    delay(350L)
+                    val center = (currentIndex ?: 0).coerceIn(0, timelineItems.lastIndex)
+                    val start = (center - 12).coerceAtLeast(0)
+                    val end = (start + 24).coerceAtMost(timelineItems.size)
+                    val windowStart = (end - 24).coerceAtLeast(0)
+                    ImagePreloadUtil.preloadMediaItems(
+                        context = context,
+                        items = timelineItems.subList(windowStart, end),
+                        limit = 24
+                    )
                 }
             }
 
@@ -317,7 +298,7 @@ fun PlayerQueue(
                     Text(
                         text = emptyText,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = contentColors.secondaryContent
                     )
                 }
             } else {
@@ -513,14 +494,14 @@ fun PlayerQueue(
                                         .clip(JetMeloShapes.medium)
                                         .background(
                                             if (isCurrent)
-                                                artworkColors.accentColor.copy(alpha = 0.22f)
+                                                contentColors.activeItemContainer
                                             else
                                                 Color.Transparent
                                         )
                                         .clickable(enabled = !isDeleting && offsetX.value == 0f) {
                                             mediaController?.playMediaAt(index)
                                         }
-                                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                                        .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -529,7 +510,9 @@ fun PlayerQueue(
                                         Box(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier
+                                                .padding(vertical = 4.dp)
                                                 .size(44.dp)
+                                                .then(if (isCurrent) imageModifier else Modifier)
                                                 .clip(AdaptiveArtworkShape)
                                         ) {
                                             val context = LocalContext.current
@@ -553,9 +536,7 @@ fun PlayerQueue(
                                                 model = imageRequest,
                                                 contentDescription = null,
                                                 contentScale = ContentScale.Crop,
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .then(if (isCurrent) imageModifier else Modifier)
+                                                modifier = Modifier.fillMaxSize()
                                             )
 
                                             PlayingIndicatorBox(
@@ -564,6 +545,13 @@ fun PlayerQueue(
                                                 color = Color.White,
                                                 modifier = Modifier
                                                     .fillMaxSize()
+                                                    .graphicsLayer {
+                                                        alpha = if (isCurrent) {
+                                                            indicatorAlphaProvider?.invoke() ?: indicatorAlpha
+                                                        } else {
+                                                            1f
+                                                        }
+                                                    }
                                                     .background(
                                                         color = Color.Black.copy(alpha = ActiveBoxAlpha),
                                                         shape = AdaptiveArtworkShape
@@ -579,7 +567,7 @@ fun PlayerQueue(
                                             Text(
                                                 text = mediaItem.mediaMetadata.title?.toString() ?: "",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = if (isCurrent) artworkColors.accentColor else Color.White,
+                                                color = if (isCurrent) contentColors.accent else contentColors.primaryContent,
                                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
@@ -589,9 +577,9 @@ fun PlayerQueue(
                                                 text = mediaItem.mediaMetadata.artist?.toString() ?: "",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = if (isCurrent)
-                                                    artworkColors.accentColor.copy(alpha = 0.75f)
+                                                    contentColors.accent.copy(alpha = 0.78f)
                                                 else
-                                                    Color.White.copy(alpha = 0.65f),
+                                                    contentColors.secondaryContent,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                                 modifier = if (isCurrent) artistModifier else Modifier
@@ -614,13 +602,13 @@ fun PlayerQueue(
                                                         )
                                                     }
                                                 )
-                                                .size(36.dp),
+                                                .defaultMinSize(minWidth = 48.dp, minHeight = 52.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = DragHandle,
                                                 contentDescription = null,
-                                                tint = Color.White.copy(alpha = 0.5f)
+                                                tint = contentColors.mutedContent
                                             )
                                         }
                                     }
