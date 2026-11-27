@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -529,20 +530,16 @@ fun SearchScreen(
                                     } else {
                                         FlowRow(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy((-4).dp),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             hotSearches.forEachIndexed { index, tag ->
                                                 key(tag) {
                                                     val showTrending = index < 2
-                                                    Surface(
-                                                        shape = JetMeloShapes.full,
-                                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                        border = BorderStroke(
-                                                            width = 1.dp,
-                                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                                                        ),
+                                                    Box(
+                                                        contentAlignment = Alignment.Center,
                                                         modifier = Modifier
+                                                            .defaultMinSize(minHeight = 48.dp)
                                                             .clip(JetMeloShapes.full)
                                                             .clickable(role = Role.Button) {
                                                                 searchValue = tag
@@ -551,26 +548,36 @@ fun SearchScreen(
                                                                 focusManager.clearFocus()
                                                                 keyboardController?.hide()
                                                             }
+                                                            .padding(vertical = 6.dp)
                                                     ) {
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                        Surface(
+                                                            shape = JetMeloShapes.full,
+                                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                            border = BorderStroke(
+                                                                width = 1.dp,
+                                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                                            )
                                                         ) {
-                                                            if (showTrending) {
-                                                                Icon(
-                                                                    imageVector = TrendingUp,
-                                                                    contentDescription = null,
-                                                                    tint = MaterialTheme.colorScheme.error,
-                                                                    modifier = Modifier
-                                                                        .size(16.dp)
-                                                                        .padding(end = 4.dp)
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                                            ) {
+                                                                if (showTrending) {
+                                                                    Icon(
+                                                                        imageVector = TrendingUp,
+                                                                        contentDescription = null,
+                                                                        tint = MaterialTheme.colorScheme.error,
+                                                                        modifier = Modifier
+                                                                            .size(16.dp)
+                                                                            .padding(end = 4.dp)
+                                                                    )
+                                                                }
+                                                                Text(
+                                                                    text = tag,
+                                                                    style = MaterialTheme.typography.labelLarge,
+                                                                    color = MaterialTheme.colorScheme.onSurface
                                                                 )
                                                             }
-                                                            Text(
-                                                                text = tag,
-                                                                style = MaterialTheme.typography.labelLarge,
-                                                                color = MaterialTheme.colorScheme.onSurface
-                                                            )
                                                         }
                                                     }
                                                 }
@@ -924,7 +931,7 @@ fun SongSuggestItem(
             .fillMaxWidth()
             .height(ListItemHeight)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
+            .padding(start = 16.dp, end = 4.dp)
     ) {
         if (!song.coverUrl.isNullOrEmpty()) {
             AsyncImage(
@@ -995,6 +1002,7 @@ fun SongSuggestItem(
             }
         }
 
+        Spacer(Modifier.width(4.dp))
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
@@ -1019,7 +1027,7 @@ fun AlbumSuggestItem(
             .fillMaxWidth()
             .height(ListItemHeight)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
+            .padding(start = 16.dp, end = 4.dp)
     ) {
         Box(
             modifier = Modifier
@@ -1078,6 +1086,7 @@ fun AlbumSuggestItem(
             }
         }
 
+        Spacer(Modifier.width(4.dp))
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
@@ -1102,7 +1111,7 @@ fun ArtistSuggestItem(
             .fillMaxWidth()
             .height(ListItemHeight)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
+            .padding(start = 16.dp, end = 4.dp)
     ) {
         if (!artist.avatarUrl.isNullOrEmpty()) {
             AsyncImage(
@@ -1168,6 +1177,7 @@ fun ArtistSuggestItem(
             )
         }
 
+        Spacer(Modifier.width(4.dp))
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
@@ -1192,7 +1202,7 @@ fun KeywordSuggestItem(
             .fillMaxWidth()
             .height(ListItemHeight)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
+            .padding(start = 16.dp, end = 4.dp)
     ) {
         Box(
             modifier = Modifier
@@ -1228,6 +1238,7 @@ fun KeywordSuggestItem(
             modifier = Modifier.weight(1f)
         )
 
+        Spacer(Modifier.width(4.dp))
         IconButton(onClick = onInsert) {
             Icon(
                 imageVector = ArrowInsert,
@@ -1267,6 +1278,7 @@ fun RecentHistoryItem(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
+        Spacer(Modifier.width(8.dp))
         IconButton(
             onClick = onDelete,
             modifier = Modifier.size(48.dp)

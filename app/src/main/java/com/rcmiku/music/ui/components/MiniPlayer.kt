@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -110,7 +111,11 @@ fun MiniPlayer(
                     .fillMaxSize()
                     .padding(start = 8.dp, end = 4.dp),
             ) {
-                Box(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
                     MiniMediaInfo(
                         mediaMetadata = mediaMetadata,
                         imageModifier = imageModifier,
@@ -123,6 +128,7 @@ fun MiniPlayer(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.graphicsLayer {
                         alpha = controlsAlpha
                         translationY = controlsOffsetY.toPx()
@@ -134,7 +140,8 @@ fun MiniPlayer(
                                 mediaController?.pause()
                             else
                                 mediaController?.play()
-                        }
+                        },
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = if (playerState?.isPlaying == true) Pause else PlayArrow,
@@ -146,7 +153,8 @@ fun MiniPlayer(
                     IconButton(
                         onClick = {
                             mediaController?.seekToNext()
-                        }
+                        },
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = SkipNext,

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.List
@@ -131,6 +132,7 @@ fun LibraryScreen(
                         )
                     }
                     if (isLoggedIn) {
+                        Spacer(Modifier.width(8.dp))
                         IconButton(onClick = { logout = true }) {
                             Icon(
                                 imageVector = Logout,
@@ -158,8 +160,7 @@ fun LibraryScreen(
                         avatarUrl = profile.avatarUrl,
                         nickname = profile.nickname,
                         isVip = profile.vipType != 0,
-                        level = level,
-                        onClick = { }
+                        level = level
                     )
                 } else {
                     Card(
