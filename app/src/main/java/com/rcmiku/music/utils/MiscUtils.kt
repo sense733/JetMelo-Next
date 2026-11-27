@@ -110,7 +110,19 @@ fun makeTimeString(duration: Long?): String {
     }
 }
 
-data class LrcLine(val time: Long, val text: String)
+data class YrcWord(
+    val startMs: Long,
+    val durationMs: Long,
+    val startIndex: Int,
+    val endIndex: Int
+)
+
+data class LrcLine(
+    val time: Long,
+    val text: String,
+    val durationMs: Long = 0L,
+    val words: List<YrcWord> = emptyList()
+)
 
 fun String.parseLrc(): List<LrcLine> {
     val regex = """\[(\d+):(\d+)\.(\d{2,3})]\s*(.*)""".toRegex()
@@ -122,4 +134,63 @@ fun String.parseLrc(): List<LrcLine> {
             LrcLine(time, text)
         }
     }
+}
+
+fun String.parseYrc(): List<LrcLine> {
+    val lineRegex = """^\[(\d+),(\d+)](.*)$""".toRegex()
+    val wordRegex = """\((\d+),(\d+),\d+\)([^(]*)""".toRegex()
+    val metaTimeRegex = """"t"\s*:\s*(\d+)""".toRegex()
+    val metaTextRegex = """"tx"\s*:\s*"([^"]*)"""".toRegex()
+
+    val parsed = this.lines().mapNotNull { rawLine ->
+        val trimmed = rawLine.trim()
+        when {
+            trimmed.startsWith("{") -> {
+                val time = metaTimeRegex.find(trimmed)?.groupValues?.getOrNull(1)?.toLongOrNull() ?: return@mapNotNull null
+                val joinedText = metaTextRegex.findAll(trimmed)
+                    .joinToString(separator = "") { it.groupValues[1] }
+                    .trim()
+                if (joinedText.isBlank()) null else LrcLine(time = time, text = joinedText)
+            }
+            else -> {
+                val match = lineRegex.matchEntire(trimmed) ?: return@mapNotNull null
+                val (lineStartStr, lineDurationStr, body) = match.destructured
+                val lineStartMs = lineStartStr.toLongOrNull() ?: return@mapNotNull null
+                val lineDurationMs = lineDurationStr.toLongOrNull() ?: 0L
+
+                val textBuilder = StringBuilder()
+                val words = mutableListOf<YrcWord>()
+                for (wordMatch in wordRegex.findAll(body)) {
+                    val (wordStartStr, wordDurStr, wordText) = wordMatch.destructured
+                    val wordStartMs = wordStartStr.toLongOrNull() ?: continue
+                    val wordDurationMs = wordDurStr.toLongOrNull() ?: 0L
+                    val startIndex = textBuilder.length
+                    textBuilder.append(wordText)
+                    val endIndex = textBuilder.length
+                    if (endIndex > startIndex) {
+                        words.add(
+                            YrcWord(
+                                startMs = wordStartMs,
+                                durationMs = wordDurationMs,
+                                startIndex = startIndex,
+                                endIndex = endIndex
+                            )
+                        )
+                    }
+                }
+                val text = textBuilder.toString()
+                if (text.isBlank() && words.isEmpty()) {
+                    null
+                } else {
+                    LrcLine(
+                        time = lineStartMs,
+                        text = text,
+                        durationMs = lineDurationMs,
+                        words = words
+                    )
+                }
+            }
+        }
+    }
+    return parsed.sortedBy { it.time }
 }

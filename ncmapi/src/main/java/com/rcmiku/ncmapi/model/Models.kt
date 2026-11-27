@@ -669,6 +669,7 @@ data class LyricResponse(
     val klyric: LyricData? = null,
     val tlyric: LyricData? = null,
     val romalrc: LyricData? = null,
+    val yrc: LyricData? = null,
     val ytlrc: LyricData? = null,
     val yromalrc: LyricData? = null
 )
