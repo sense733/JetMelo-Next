@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonElement
 import com.rcmiku.ncmapi.model.LyricResponse
 import com.rcmiku.ncmapi.utils.HttpManager
 import com.rcmiku.ncmapi.utils.json
+import kotlin.coroutines.cancellation.CancellationException
 
 enum class SongLevel(val level: String) {
     STANDARD("standard"),
@@ -110,8 +111,37 @@ object PlayerApi {
     }
 
     suspend fun songLyric(musicId: Long): Result<LyricResponse> {
-        return runCatching {
-            val body = HttpManager.request(
+        return try {
+            val eapiResponse = try {
+                val body = HttpManager.request(
+                    url = "/api/song/lyric/v1",
+                    data = mapOf(
+                        "id" to musicId.toString(),
+                        "cp" to "false",
+                        "tv" to "0",
+                        "lv" to "0",
+                        "rv" to "0",
+                        "kv" to "0",
+                        "yv" to "0",
+                        "ytv" to "0",
+                        "yrv" to "0"
+                    ),
+                    crypto = HttpManager.CryptoType.EAPI
+                )
+                json.decodeFromString(LyricResponse.serializer(), body)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                null
+            }
+
+            if (eapiResponse != null &&
+                (!eapiResponse.yrc?.lyric.isNullOrBlank() || !eapiResponse.lrc?.lyric.isNullOrBlank())
+            ) {
+                return Result.success(eapiResponse)
+            }
+
+            val fallbackBody = HttpManager.request(
                 url = "/weapi/song/lyric",
                 data = mapOf(
                     "id" to musicId.toString(),
@@ -123,7 +153,11 @@ object PlayerApi {
                 ),
                 crypto = HttpManager.CryptoType.WEAPI
             )
-            json.decodeFromString(LyricResponse.serializer(), body)
+            Result.success(json.decodeFromString(LyricResponse.serializer(), fallbackBody))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            Result.failure(t)
         }
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
@@ -29,7 +30,6 @@ import com.rcmiku.music.constants.EmphasizedDecelerateEasing
 import com.rcmiku.music.constants.EmphasizedEasing
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.graphics.Path
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,6 +48,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -65,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
@@ -72,6 +76,8 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -88,6 +94,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.MediaMetadata
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
@@ -107,10 +114,10 @@ import com.rcmiku.music.ui.design.LocalArtworkColors
 import com.rcmiku.music.ui.icons.Pause
 import com.rcmiku.music.ui.icons.PlayArrow
 import com.rcmiku.music.ui.icons.SkipNext
-import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.ui.theme.MiniPlayerProgressColor
 import com.rcmiku.music.ui.theme.rememberDeviceCornerRadius
+import com.rcmiku.music.viewModel.LyricViewModel
 import kotlin.math.roundToInt
 
 const val FULL_PLAYER = 0
@@ -144,12 +151,18 @@ fun PlayerTransform(
     mediaMetadata: MediaMetadata,
     navController: NavHostController,
     isExpanded: Boolean = false,
-    transitionProgress: Float = 0f,
-    dockedBottomPadding: Dp = 0.dp,
+    transitionProgressProvider: () -> Float = { 0f },
+    dockedBottomPaddingProvider: () -> Dp = { 0.dp },
 ) {
-    val progress = transitionProgress.coerceIn(0f, 1f)
-    val isCollapsed = progress <= ProgressEps
-    val isFull = progress >= 1f - ProgressEps
+    val isCollapsed by remember(transitionProgressProvider) {
+        derivedStateOf { transitionProgressProvider().coerceIn(0f, 1f) <= ProgressEps }
+    }
+    val isFull by remember(transitionProgressProvider) {
+        derivedStateOf { transitionProgressProvider().coerceIn(0f, 1f) >= 1f - ProgressEps }
+    }
+    val showMiniLayer by remember(transitionProgressProvider) {
+        derivedStateOf { transitionProgressProvider().coerceIn(0f, 1f) < 0.32f }
+    }
 
     var currentView by rememberSaveable {
         mutableIntStateOf(FULL_PLAYER)
@@ -187,19 +200,13 @@ fun PlayerTransform(
 
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val view = LocalView.current
-    val shouldDarkenBars = isExpanded || progress > 0.5f
 
-    DisposableEffect(shouldDarkenBars, isDarkTheme) {
+    DisposableEffect(isDarkTheme) {
         val window = (view.context as? Activity)?.window
         if (window != null && !view.isInEditMode) {
             val insetsController = WindowCompat.getInsetsController(window, view)
-            if (shouldDarkenBars) {
-                insetsController.isAppearanceLightStatusBars = false
-                insetsController.isAppearanceLightNavigationBars = false
-            } else {
-                insetsController.isAppearanceLightStatusBars = !isDarkTheme
-                insetsController.isAppearanceLightNavigationBars = !isDarkTheme
-            }
+            insetsController.isAppearanceLightStatusBars = !isDarkTheme
+            insetsController.isAppearanceLightNavigationBars = !isDarkTheme
         }
         onDispose {
             if (window != null && !view.isInEditMode) {
@@ -212,9 +219,19 @@ fun PlayerTransform(
 
     val playerState = LocalPlayerState.current
     val effectiveArtworkUri = playerState?.currentMediaItem?.mediaMetadata?.artworkUri ?: mediaMetadata.artworkUri
+    val currentMediaId = playerState?.currentMediaItem?.mediaId
     val mediaController = LocalPlayerController.current.controller
-    val artworkColors = LocalArtworkColors.current
+    val lyricViewModel: LyricViewModel = hiltViewModel()
     var fullArtworkRect by remember { mutableStateOf<Rect?>(null) }
+
+    LaunchedEffect(currentMediaId) {
+        val musicId = currentMediaId?.toLongOrNull()
+        if (musicId != null) {
+            lyricViewModel.fetchLyric(musicId)
+        } else {
+            lyricViewModel.clearLyric()
+        }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -226,21 +243,36 @@ fun PlayerTransform(
         val miniHorizontalPaddingPx = with(density) { 12.dp.toPx() }
         val miniVerticalPaddingPx = with(density) { 8.dp.toPx() }
         val miniHeightPx = with(density) { MiniPlayerHeight.toPx() }
-        val dockedBottomPx = with(density) { dockedBottomPadding.toPx() }
+        val miniArtworkSizePx = with(density) { 44.dp.toPx() }
+        val miniArtworkOffsetLeftPx = with(density) { 8.dp.toPx() }
+        val miniArtworkOffsetTopPx = with(density) { 6.dp.toPx() }
 
         val miniLeftPx = miniHorizontalPaddingPx
         val miniRightPx = screenWidthPx - miniHorizontalPaddingPx
-        val miniBottomPx = screenHeightPx - dockedBottomPx - miniVerticalPaddingPx
-        val miniTopPx = miniBottomPx - miniHeightPx
+        val miniWidthPx = (miniRightPx - miniLeftPx).coerceAtLeast(0f)
 
-        val miniRect = remember(miniLeftPx, miniTopPx, miniRightPx, miniBottomPx) {
-            Rect(miniLeftPx, miniTopPx, miniRightPx, miniBottomPx)
-        }
         val fullRect = remember(screenWidthPx, screenHeightPx) {
             Rect(0f, 0f, screenWidthPx, screenHeightPx)
         }
 
-        val defaultFullArtworkRect = remember(screenWidthPx, screenHeightPx, statusBarInsetPx, navBarInsetPx) {
+        fun miniRectFor(dockedBottomPx: Float): Rect {
+            val miniBottomPx = screenHeightPx - dockedBottomPx - miniVerticalPaddingPx
+            val miniTopPx = miniBottomPx - miniHeightPx
+            return Rect(miniLeftPx, miniTopPx, miniRightPx, miniBottomPx)
+        }
+
+        fun containerRectFor(p: Float, dockedBottomPx: Float): Rect =
+            lerpRect(miniRectFor(dockedBottomPx), fullRect, p)
+
+        fun miniArtworkRectFor(dockedBottomPx: Float): Rect {
+            val miniBottomPx = screenHeightPx - dockedBottomPx - miniVerticalPaddingPx
+            val miniTopPx = miniBottomPx - miniHeightPx
+            val leftPx = miniLeftPx + miniArtworkOffsetLeftPx
+            val topPx = miniTopPx + miniArtworkOffsetTopPx
+            return Rect(leftPx, topPx, leftPx + miniArtworkSizePx, topPx + miniArtworkSizePx)
+        }
+
+        val defaultFullArtworkRect = remember(screenWidthPx, screenHeightPx, statusBarInsetPx, navBarInsetPx, density) {
             val horizontalPaddingPx = with(density) { 40.dp.toPx() }
             val availableWidthPx = screenWidthPx - horizontalPaddingPx
             val fullWidthPx = availableWidthPx * 0.88f
@@ -258,76 +290,99 @@ fun PlayerTransform(
             val fullTopPx = statusBarInsetPx + topBarHeightPx + with(density) { 12.dp.toPx() } + gapPx
             Rect(fullLeftPx, fullTopPx, fullLeftPx + artSizePx, fullTopPx + artSizePx)
         }
-        val miniArtworkRect = remember(miniLeftPx, miniTopPx) {
-            val sizePx = with(density) { 44.dp.toPx() }
-            val leftPx = miniLeftPx + with(density) { 8.dp.toPx() }
-            val topPx = miniTopPx + with(density) { 6.dp.toPx() }
-            Rect(leftPx, topPx, leftPx + sizePx, topPx + sizePx)
-        }
 
-        val containerRect = lerpRect(miniRect, fullRect, progress)
         val deviceCornerRadius = rememberDeviceCornerRadius()
-        val baseCornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, progress)
-        val containerCornerRadius = baseCornerRadius.coerceAtMost(36.dp)
-        val containerElevation = androidx.compose.ui.unit.lerp(6.dp, 0.dp, progress)
-
         val targetArtworkRect = fullArtworkRect ?: defaultFullArtworkRect
-        val artworkProgress = progress
-        val currentArtworkRect = lerpRect(miniArtworkRect, targetArtworkRect, artworkProgress)
-        val currentArtworkCorner = androidx.compose.ui.unit.lerp(8.dp, 24.dp, artworkProgress)
-        val currentArtworkElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, artworkProgress)
+        val surfaceContainerHighColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        val outlineVariantColor = MaterialTheme.colorScheme.outlineVariant
+        val scrimColor = MaterialTheme.colorScheme.scrim
 
         if (!isFull) {
-            val borderAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
-            val containerShape = ContinuousRoundedRectangle(containerCornerRadius)
-            val shadowElevation = containerElevation.coerceAtLeast(0.dp)
-            val shadowModifier = if (shadowElevation > 0.dp && borderAlpha > 0f) {
-                Modifier.shadow(
-                    elevation = shadowElevation,
-                    shape = containerShape,
-                    clip = false,
-                    ambientColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f * borderAlpha),
-                    spotColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f * borderAlpha)
+            if (isCollapsed) {
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            val dockedPx = with(density) { dockedBottomPaddingProvider().toPx() }
+                            val rect = miniRectFor(dockedPx)
+                            IntOffset(rect.left.roundToInt(), rect.top.roundToInt())
+                        }
+                        .size(
+                            width = with(density) { miniWidthPx.toDp() },
+                            height = MiniPlayerHeight
+                        )
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = JetMeloShapes.medium,
+                            clip = false,
+                            ambientColor = scrimColor.copy(alpha = 0.35f),
+                            spotColor = scrimColor.copy(alpha = 0.45f)
+                        )
+                        .background(
+                            color = surfaceContainerHighColor,
+                            shape = JetMeloShapes.medium
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = outlineVariantColor.copy(alpha = 0.5f),
+                            shape = JetMeloShapes.medium
+                        )
                 )
-            } else Modifier
-
-            val borderModifier = if (borderAlpha > 0f) {
-                Modifier.border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(
-                        alpha = 0.5f * borderAlpha
-                    ),
-                    shape = containerShape
+            } else if (showMiniLayer) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawBehind {
+                            val p = transitionProgressProvider().coerceIn(0f, 1f)
+                            val borderAlpha = ((0.32f - p) / 0.32f).coerceIn(0f, 1f)
+                            if (borderAlpha > 0f) {
+                                val dockedPx = dockedBottomPaddingProvider().toPx()
+                                val rect = containerRectFor(p, dockedPx)
+                                val cornerRadiusPx = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, p)
+                                    .coerceAtMost(36.dp)
+                                    .toPx()
+                                val cornerRadius = CornerRadius(cornerRadiusPx)
+                                drawRoundRect(
+                                    color = surfaceContainerHighColor.copy(alpha = borderAlpha),
+                                    topLeft = rect.topLeft,
+                                    size = rect.size,
+                                    cornerRadius = cornerRadius
+                                )
+                                drawRoundRect(
+                                    color = outlineVariantColor.copy(alpha = 0.5f * borderAlpha),
+                                    topLeft = rect.topLeft,
+                                    size = rect.size,
+                                    cornerRadius = cornerRadius,
+                                    style = Stroke(width = 1.dp.toPx())
+                                )
+                            }
+                        }
                 )
-            } else Modifier
-
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
-                    .size(
-                        width = with(density) { containerRect.width.toDp() },
-                        height = with(density) { containerRect.height.toDp() }
-                    )
-                    .then(shadowModifier)
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = borderAlpha),
-                        shape = containerShape
-                    )
-                    .then(borderModifier)
-            )
+            }
         }
 
-        val clipShape = remember(containerRect, containerCornerRadius) {
+        val clipShape = remember(
+            screenWidthPx,
+            screenHeightPx,
+            deviceCornerRadius,
+            density,
+            transitionProgressProvider,
+            dockedBottomPaddingProvider
+        ) {
             object : Shape {
                 override fun createOutline(
                     size: Size,
                     layoutDirection: LayoutDirection,
                     density: Density
                 ): Outline {
+                    val p = transitionProgressProvider().coerceIn(0f, 1f)
+                    val dockedPx = with(density) { dockedBottomPaddingProvider().toPx() }
+                    val rect = containerRectFor(p, dockedPx)
+                    val cornerRadius = androidx.compose.ui.unit.lerp(16.dp, deviceCornerRadius, p)
+                        .coerceAtMost(36.dp)
                     return Outline.Rounded(
                         RoundRect(
-                            rect = containerRect,
-                            cornerRadius = CornerRadius(with(density) { containerCornerRadius.toPx() })
+                            rect = rect,
+                            cornerRadius = CornerRadius(with(density) { cornerRadius.toPx() })
                         )
                     )
                 }
@@ -348,21 +403,24 @@ fun PlayerTransform(
             if (!isCollapsed) {
                 ImmersiveBackground(
                     modifier = Modifier.fillMaxSize(),
-                    artworkUri = effectiveArtworkUri
+                    artworkUri = effectiveArtworkUri,
+                    enableAmbientDrift = currentView == LYRIC_VIEW
                 ) {}
             }
 
-            if (progress < 0.32f) {
-                val surfaceAlpha = if (isCollapsed) 1f else ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
+            if (showMiniLayer) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = surfaceAlpha))
+                        .drawBehind {
+                            val p = transitionProgressProvider().coerceIn(0f, 1f)
+                            val surfaceAlpha = if (p <= ProgressEps) 1f else ((0.32f - p) / 0.32f).coerceIn(0f, 1f)
+                            if (surfaceAlpha > 0f) {
+                                drawRect(color = surfaceContainerHighColor.copy(alpha = surfaceAlpha))
+                            }
+                        }
                 )
             }
-
-            val fullControlsAlpha = ((progress - 0.28f) / 0.52f).coerceIn(0f, 1f)
-            val fullControlsOffsetY = 16.dp * (1f - fullControlsAlpha)
 
             val coverKey = "player_active_cover"
             val titleKey = "player_active_title"
@@ -373,7 +431,8 @@ fun PlayerTransform(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            alpha = fullControlsAlpha
+                            val p = transitionProgressProvider().coerceIn(0f, 1f)
+                            alpha = ((p - 0.28f) / 0.52f).coerceIn(0f, 1f)
                         }
                 ) {
                     val subViewTransition = updateTransition(
@@ -381,7 +440,7 @@ fun PlayerTransform(
                         label = "player_subview_shared_transition"
                     )
 
-                    val artworkElevation by subViewTransition.animateDp(
+                    val artworkElevationState = subViewTransition.animateDp(
                         transitionSpec = {
                             spring(
                                 dampingRatio = Spring.DampingRatioNoBouncy,
@@ -393,28 +452,59 @@ fun PlayerTransform(
                         if (view == FULL_PLAYER) 16.dp else 0.dp
                     }
 
+                    val queueIndicatorAlphaState = subViewTransition.animateFloat(
+                        transitionSpec = {
+                            tween(
+                                durationMillis = DURATION_ENTER,
+                                easing = EmphasizedDecelerateEasing
+                            )
+                        },
+                        label = "player_queue_indicator_alpha"
+                    ) { view ->
+                        if (view == PLAY_QUEUE) 1f else 0f
+                    }
+
                     Box(modifier = Modifier.fillMaxSize()) {
                         subViewTransition.AnimatedContent(
                             transitionSpec = {
-                                fadeIn(
-                                    animationSpec = tween(
-                                        delayMillis = DURATION_EXIT_SHORT,
-                                        durationMillis = DURATION_ENTER,
-                                        easing = EmphasizedDecelerateEasing
+                                if (targetState == LYRIC_VIEW) {
+                                    fadeIn(
+                                        animationSpec = tween(
+                                            delayMillis = 30,
+                                            durationMillis = 220,
+                                            easing = EmphasizedDecelerateEasing
+                                        )
+                                    ) togetherWith fadeOut(
+                                        animationSpec = tween(
+                                            durationMillis = 90,
+                                            easing = EmphasizedDecelerateEasing
+                                        )
                                     )
-                                ) togetherWith fadeOut(
-                                    animationSpec = tween(
-                                        durationMillis = DURATION_EXIT_SHORT,
-                                        easing = EmphasizedAccelerateEasing
+                                } else {
+                                    fadeIn(
+                                        animationSpec = tween(
+                                            delayMillis = DURATION_EXIT_SHORT,
+                                            durationMillis = DURATION_ENTER,
+                                            easing = EmphasizedDecelerateEasing
+                                        )
+                                    ) togetherWith fadeOut(
+                                        animationSpec = tween(
+                                            durationMillis = DURATION_EXIT_SHORT,
+                                            easing = EmphasizedAccelerateEasing
+                                        )
                                     )
-                                )
+                                }
                             },
                             modifier = Modifier.fillMaxSize()
                         ) { targetView ->
                             val sharedImageModifier = Modifier.sharedElement(
                                 sharedContentState = rememberSharedContentState(key = coverKey),
                                 animatedVisibilityScope = this,
-                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.animatedSize,
+                                placeholderSize = if (targetView == LYRIC_VIEW) {
+                                    SharedTransitionScope.PlaceholderSize.AnimatedSize
+                                } else {
+                                    SharedTransitionScope.PlaceholderSize.ContentSize
+                                },
                                 boundsTransform = AlbumArtBoundsTransform
                             )
 
@@ -438,12 +528,16 @@ fun PlayerTransform(
                                         imageModifier = sharedImageModifier,
                                         titleModifier = sharedTitleModifier,
                                         artistModifier = sharedArtistModifier,
-                                        artworkElevation = artworkElevation,
+                                        artworkElevationProvider = { artworkElevationState.value },
                                         onBackPressed = onBackPressed,
                                         onClick = { safeSwitchView(LYRIC_VIEW) },
                                         onContainerClick = { safeSwitchView(PLAY_QUEUE) },
                                         controlsAlpha = 1f,
-                                        controlsOffsetY = fullControlsOffsetY,
+                                        controlsOffsetYProvider = {
+                                            val p = transitionProgressProvider().coerceIn(0f, 1f)
+                                            val fullControlsAlpha = ((p - 0.28f) / 0.52f).coerceIn(0f, 1f)
+                                            with(density) { (16.dp * (1f - fullControlsAlpha)).toPx() }
+                                        },
                                         showArtwork = isFull,
                                         showBackground = false,
                                         onArtworkPositioned = { rect ->
@@ -463,6 +557,7 @@ fun PlayerTransform(
                                         imageModifier = sharedImageModifier,
                                         titleModifier = sharedTitleModifier,
                                         artistModifier = sharedArtistModifier,
+                                        indicatorAlphaProvider = { queueIndicatorAlphaState.value },
                                         onBackPressed = { safeSwitchView(FULL_PLAYER) },
                                         showBackground = false,
                                         modifier = Modifier.fillMaxSize()
@@ -476,6 +571,8 @@ fun PlayerTransform(
                                         artistModifier = sharedArtistModifier,
                                         onBackPressed = { safeSwitchView(FULL_PLAYER) },
                                         showBackground = false,
+                                        isLyricActive = isExpanded && !isCollapsed && currentView == LYRIC_VIEW,
+                                        lyricViewModel = lyricViewModel,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -508,19 +605,22 @@ fun PlayerTransform(
                 }
             }
 
-            val miniAlpha = ((0.32f - progress) / 0.32f).coerceIn(0f, 1f)
-            if (miniAlpha > 0f) {
-                val miniTranslationY = (-10.dp * (1f - miniAlpha))
+            if (showMiniLayer) {
                 Box(
                     modifier = Modifier
-                        .offset { IntOffset(containerRect.left.roundToInt(), containerRect.top.roundToInt()) }
                         .size(
-                            width = with(density) { containerRect.width.toDp() },
-                            height = with(density) { miniHeightPx.toDp() }
+                            width = with(density) { miniWidthPx.toDp() },
+                            height = MiniPlayerHeight
                         )
                         .graphicsLayer {
+                            val p = transitionProgressProvider().coerceIn(0f, 1f)
+                            val miniAlpha = ((0.32f - p) / 0.32f).coerceIn(0f, 1f)
+                            val dockedPx = dockedBottomPaddingProvider().toPx()
+                            val rect = containerRectFor(p, dockedPx)
+                            val miniTranslationYPx = (-10.dp * (1f - miniAlpha)).toPx()
                             alpha = miniAlpha
-                            translationY = with(density) { miniTranslationY.toPx() }
+                            translationX = (screenWidthPx - miniWidthPx) * 0.5f
+                            translationY = rect.top + miniTranslationYPx
                         }
                         .clickable(
                             role = Role.Button,
@@ -540,7 +640,7 @@ fun PlayerTransform(
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(end = 4.dp)
+                                .padding(end = 8.dp)
                         ) {
                             mediaMetadata.title?.let {
                                 Text(
@@ -579,6 +679,8 @@ fun PlayerTransform(
                             )
                         }
 
+                        Spacer(modifier = Modifier.width(4.dp))
+
                         IconButton(
                             onClick = { mediaController?.seekToNext() },
                             modifier = Modifier.size(48.dp)
@@ -604,15 +706,67 @@ fun PlayerTransform(
         }
 
         if (!isFull) {
+            val targetArtWidthPx = targetArtworkRect.width.coerceAtLeast(1f)
+            val targetArtHeightPx = targetArtworkRect.height.coerceAtLeast(1f)
+            val artworkClipShape = remember(
+                screenWidthPx,
+                screenHeightPx,
+                density,
+                targetArtworkRect,
+                transitionProgressProvider,
+                dockedBottomPaddingProvider
+            ) {
+                object : Shape {
+                    override fun createOutline(
+                        size: Size,
+                        layoutDirection: LayoutDirection,
+                        density: Density
+                    ): Outline {
+                        val p = transitionProgressProvider().coerceIn(0f, 1f)
+                        val dockedPx = with(density) { dockedBottomPaddingProvider().toPx() }
+                        val miniArt = miniArtworkRectFor(dockedPx)
+                        val currentArt = lerpRect(miniArt, targetArtworkRect, p)
+                        val scale = (currentArt.width / size.width.coerceAtLeast(1f)).coerceAtLeast(0.01f)
+                        val targetCornerPx = with(density) {
+                            androidx.compose.ui.unit.lerp(8.dp, 24.dp, p).toPx()
+                        }
+                        val compensatedCornerPx = (targetCornerPx / scale)
+                            .coerceAtMost(size.minDimension * 0.5f)
+                        return Outline.Rounded(
+                            RoundRect(
+                                left = 0f,
+                                top = 0f,
+                                right = size.width,
+                                bottom = size.height,
+                                cornerRadius = CornerRadius(compensatedCornerPx)
+                            )
+                        )
+                    }
+                }
+            }
+
             Box(
                 modifier = Modifier
-                    .offset { IntOffset(currentArtworkRect.left.roundToInt(), currentArtworkRect.top.roundToInt()) }
                     .size(
-                        width = with(density) { currentArtworkRect.width.toDp() },
-                        height = with(density) { currentArtworkRect.height.toDp() }
+                        width = with(density) { targetArtWidthPx.toDp() },
+                        height = with(density) { targetArtHeightPx.toDp() }
                     )
-                    .shadow(currentArtworkElevation, shape = ContinuousRoundedRectangle(currentArtworkCorner))
-                    .clip(ContinuousRoundedRectangle(currentArtworkCorner))
+                    .graphicsLayer {
+                        val p = transitionProgressProvider().coerceIn(0f, 1f)
+                        val dockedPx = dockedBottomPaddingProvider().toPx()
+                        val miniArt = miniArtworkRectFor(dockedPx)
+                        val currentArt = lerpRect(miniArt, targetArtworkRect, p)
+                        val sx = (currentArt.width / targetArtWidthPx).coerceAtLeast(0.01f)
+                        val sy = (currentArt.height / targetArtHeightPx).coerceAtLeast(0.01f)
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        translationX = currentArt.left
+                        translationY = currentArt.top
+                        scaleX = sx
+                        scaleY = sy
+                        shadowElevation = androidx.compose.ui.unit.lerp(0.dp, 16.dp, p).toPx()
+                        shape = artworkClipShape
+                        clip = true
+                    }
                     .clickable(
                         role = Role.Button,
                         onClickLabel = "展开播放器",
@@ -628,9 +782,14 @@ fun PlayerTransform(
                     ImageRequest.Builder(context)
                         .data(effectiveArtworkUri)
                         .size(CoilSize(1080, 1080))
-                        .memoryCacheKey(key)
-                        .diskCacheKey(key)
-                        .crossfade(true)
+                        .apply {
+                            if (key != null) {
+                                memoryCacheKey(key)
+                                diskCacheKey(key)
+                                placeholderMemoryCacheKey(key)
+                            }
+                        }
+                        .crossfade(false)
                         .build()
                 }
                 AsyncImage(
