@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +26,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import com.kyant.capsule.ContinuousRoundedRectangle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
@@ -42,6 +45,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,18 +59,25 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import android.text.format.Formatter
 import com.rcmiku.music.R
+import com.rcmiku.music.cache.LyricDiskCache
+import com.rcmiku.music.cache.SongCacheLimit
+import com.rcmiku.music.cache.SongCacheManager
 import com.rcmiku.music.constants.SettingItemCorner
 import com.rcmiku.music.constants.SettingItemHeight
 import com.rcmiku.music.constants.SettingItemSubCorner
 import com.rcmiku.music.constants.accountVipTierKey
+import com.rcmiku.music.constants.allowMixWithOtherAppsKey
 import com.rcmiku.music.constants.audioQualityKey
 import com.rcmiku.music.constants.autoSkipNextOnErrorKey
 import com.rcmiku.music.constants.dynamicColorKey
 import com.rcmiku.music.constants.ncmCookieKey
+import com.rcmiku.music.constants.songCacheLimitKey
 import com.rcmiku.music.constants.themeModeKey
 import com.rcmiku.music.constants.use40DpIconKey
 import com.rcmiku.music.constants.userIdKey
@@ -81,6 +92,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.rcmiku.music.ui.components.Dialog
 import com.rcmiku.music.ui.components.SongQualityDialog
+import com.rcmiku.music.ui.icons.AudioLines
 import com.rcmiku.music.ui.icons.DarkMode
 
 import com.rcmiku.music.ui.icons.GraphicEq
@@ -99,6 +111,10 @@ import com.rcmiku.music.utils.rememberEnumPreference
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.ncmapi.api.player.SongLevel
 
+import androidx.annotation.OptIn as AndroidOptIn
+import androidx.media3.common.util.UnstableApi
+
+@AndroidOptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -117,11 +133,22 @@ fun SettingsScreen(
     var accountVipTier by rememberEnumPreference(accountVipTierKey, defaultValue = AccountVipTier.NONE)
     var showQualityDialog by remember { mutableStateOf(false) }
     var autoSkipNextOnError by rememberPreference(autoSkipNextOnErrorKey, false)
+    var allowMixWithOtherApps by rememberPreference(allowMixWithOtherAppsKey, false)
+    var songCacheLimit by rememberEnumPreference(songCacheLimitKey, defaultValue = SongCacheLimit.GB_1)
+    var showCacheLimitDialog by remember { mutableStateOf(false) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
+    var cachedBytes by remember { mutableLongStateOf(0L) }
     var logout by rememberSaveable { mutableStateOf(false) }
     var ncmCookie by rememberPreference(ncmCookieKey, "")
     var userId by rememberPreference(userIdKey, 0L)
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(songCacheLimit) {
+        cachedBytes = withContext(Dispatchers.IO) {
+            SongCacheManager.getUsedBytes(context)
+        }
+    }
 
     val isLoggedIn = remember(ncmCookie) {
         CookieProvider.hasValidSession(ncmCookie)
@@ -257,6 +284,42 @@ fun SettingsScreen(
             onClick = {
                 autoSkipNextOnError = !autoSkipNextOnError
             }
+        ),
+        SettingItemData(
+            title = stringResource(R.string.allow_mix_with_other_apps),
+            subtitle = stringResource(R.string.allow_mix_with_other_apps_subtitle),
+            imageVector = AudioLines,
+            trailingContent = {
+                Switch(
+                    checked = allowMixWithOtherApps,
+                    onCheckedChange = {
+                        allowMixWithOtherApps = it
+                    }
+                )
+                Spacer(Modifier.width(12.dp))
+            },
+            onClick = {
+                allowMixWithOtherApps = !allowMixWithOtherApps
+            }
+        ),
+        SettingItemData(
+            title = stringResource(R.string.song_cache_limit),
+            subtitle = stringResource(
+                R.string.song_cache_limit_subtitle,
+                songCacheLimit.label,
+                Formatter.formatShortFileSize(context, cachedBytes)
+            ),
+            imageVector = GraphicEq,
+            onClick = { showCacheLimitDialog = true }
+        ),
+        SettingItemData(
+            title = stringResource(R.string.clear_song_cache),
+            subtitle = stringResource(
+                R.string.clear_song_cache_subtitle,
+                Formatter.formatShortFileSize(context, cachedBytes)
+            ),
+            imageVector = Icons.Outlined.Delete,
+            onClick = { showClearCacheDialog = true }
         )
     )
 
@@ -455,6 +518,43 @@ fun SettingsScreen(
         )
     }
 
+    if (showCacheLimitDialog) {
+        SongCacheLimitDialog(
+            currentLimit = songCacheLimit,
+            onLimitSelected = { limit ->
+                songCacheLimit = limit
+                showCacheLimitDialog = false
+                coroutineScope.launch(Dispatchers.IO) {
+                    SongCacheManager.updateLimit(context, limit)
+                    val used = SongCacheManager.getUsedBytes(context)
+                    withContext(Dispatchers.Main) {
+                        cachedBytes = used
+                    }
+                }
+            },
+            onDismissRequest = { showCacheLimitDialog = false }
+        )
+    }
+
+    if (showClearCacheDialog) {
+        Dialog(
+            onConfirmation = {
+                showClearCacheDialog = false
+                coroutineScope.launch(Dispatchers.IO) {
+                    SongCacheManager.clearAll(context)
+                    LyricDiskCache.clear()
+                    val used = SongCacheManager.getUsedBytes(context)
+                    withContext(Dispatchers.Main) {
+                        cachedBytes = used
+                    }
+                }
+            },
+            onDismissRequest = { showClearCacheDialog = false },
+            dialogTitle = stringResource(R.string.clear_song_cache),
+            dialogText = stringResource(R.string.clear_song_cache_confirm)
+        )
+    }
+
     if (logout) {
         Dialog(
             onConfirmation = {
@@ -498,22 +598,72 @@ fun ThemeSelectionDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(stringResource(R.string.theme_mode)) },
         text = {
-            Column {
+            Column(modifier = Modifier.selectableGroup()) {
                 modes.forEach { (mode, label) ->
+                    val selected = currentMode == mode
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onModeSelect(mode) }
+                            .selectable(
+                                selected = selected,
+                                onClick = { onModeSelect(mode) },
+                                role = Role.RadioButton
+                            )
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = currentMode == mode,
-                            onClick = { onModeSelect(mode) }
+                            selected = selected,
+                            onClick = null
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
                             text = label,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+fun SongCacheLimitDialog(
+    currentLimit: SongCacheLimit,
+    onLimitSelected: (SongCacheLimit) -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text(stringResource(R.string.song_cache_limit)) },
+        text = {
+            Column(modifier = Modifier.selectableGroup()) {
+                SongCacheLimit.entries.forEach { limit ->
+                    val selected = currentLimit == limit
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = selected,
+                                onClick = { onLimitSelected(limit) },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selected,
+                            onClick = null
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = limit.label,
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }

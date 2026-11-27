@@ -2,17 +2,24 @@ package com.rcmiku.music.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.media.AudioManager
+import android.media.AudioRecordingConfiguration
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.RenderersFactory
@@ -35,23 +42,32 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.rcmiku.music.MainActivity
 import com.rcmiku.music.R
+import com.rcmiku.music.cache.LyricDiskCache
+import com.rcmiku.music.cache.SongCacheLimit
+import com.rcmiku.music.cache.SongCacheManager
 import com.rcmiku.music.constants.MediaSessionConstants
+import com.rcmiku.music.constants.allowMixWithOtherAppsKey
 import com.rcmiku.music.constants.audioQualityKey
+import com.rcmiku.music.constants.songCacheLimitKey
 import com.rcmiku.music.constants.use40DpIconKey
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.updateMediaItemUri
 import com.rcmiku.music.utils.FavoriteSongIdsUtil
+import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.utils.dataStore
 import com.rcmiku.music.utils.enumPreference
 import com.rcmiku.music.utils.preference
 import com.rcmiku.music.utils.toEnum
 import com.rcmiku.ncmapi.api.account.AccountApi
+import com.rcmiku.ncmapi.api.player.PlayerApi
 import com.rcmiku.ncmapi.api.player.SongLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
@@ -70,6 +86,16 @@ class PlaybackService : MediaSessionService() {
     private var favoriteSongIds: List<Long> by mutableStateOf(emptyList())
     private var use40DpIcon by mutableStateOf(false)
     private var audioQuality by mutableStateOf(SongLevel.STANDARD)
+    private var audioManager: AudioManager? = null
+    private var allowMixWithOtherApps = false
+    private var wasRecordingActive = false
+    private var isRecordingCallbackRegistered = false
+
+    private val recordingCallback = object : AudioManager.AudioRecordingCallback() {
+        override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>) {
+            handleRecordingConfigsChanged(configs)
+        }
+    }
 
     private val favoriteButton: CommandButton
         get() = CommandButton.Builder(ICON_UNDEFINED)
@@ -136,9 +162,30 @@ class PlaybackService : MediaSessionService() {
                 )
             }
 
+        audioManager = getSystemService(AudioManager::class.java)
+        val (initialAllowMix, initialCacheLimit) = runBlocking(Dispatchers.IO) {
+            runCatching {
+                withTimeout(1_000L) {
+                    val prefs = applicationContext.dataStore.data
+                        .catch { emit(emptyPreferences()) }
+                        .first()
+                    val allowMix = prefs[allowMixWithOtherAppsKey] ?: false
+                    val cacheLimit = prefs[songCacheLimitKey].toEnum(SongCacheLimit.GB_1)
+                    allowMix to cacheLimit
+                }
+            }.getOrDefault(false to SongCacheLimit.GB_1)
+        }
+
+        LyricDiskCache.init(applicationContext)
+        val songCache = SongCacheManager.getCache(applicationContext, initialCacheLimit)
+
         val player = ExoPlayer.Builder(this, audioOnlyRenderersFactory)
             .apply {
-                val dataSourceFactory: ResolvingDataSource.Factory = ResolvingDataSource.Factory(
+                setAudioAttributes(
+                    PlaybackFocusPolicy.musicAudioAttributes,
+                    PlaybackFocusPolicy.shouldHandleAudioFocus(initialAllowMix)
+                )
+                val resolvingDataSourceFactory = ResolvingDataSource.Factory(
                     DefaultHttpDataSource.Factory()
                 ) { dataSpec ->
                     runBlocking {
@@ -170,10 +217,22 @@ class PlaybackService : MediaSessionService() {
                         dataSpec.withUri(resolvedUri)
                     }
                 }
-                setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+                val cacheDataSourceFactory = CacheDataSource.Factory()
+                    .setCache(songCache)
+                    .setUpstreamDataSourceFactory(resolvingDataSourceFactory)
+                    .setCacheKeyFactory { dataSpec ->
+                        dataSpec.key ?: SongCacheManager.buildCacheKey(dataSpec.uri.toString(), audioQuality)
+                    }
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
             }.build()
 
         player.repeatMode = REPEAT_MODE_ALL
+        player.addListener(object : Player.Listener {
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                prefetchOfflineAssets(mediaItem)
+            }
+        })
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(
                 PendingIntent.getActivity(
@@ -186,9 +245,13 @@ class PlaybackService : MediaSessionService() {
             .setCustomLayout(ImmutableList.of(favoriteButton, shuffleButton)).build()
         observeIconPreference()
         observeFavoriteSongIds()
+        applyMixPlaybackPolicy(initialAllowMix)
+        observeAllowMixPreference()
+        observeSongCacheLimitPreference()
     }
 
     override fun onDestroy() {
+        unregisterRecordingCallback()
         scope.cancel()
         mediaSession?.run {
             player.release()
@@ -280,6 +343,90 @@ class PlaybackService : MediaSessionService() {
                     updateCustomLayout()
                 }
         }
+    }
+
+    private fun observeAllowMixPreference() {
+        scope.launch(Dispatchers.IO) {
+            applicationContext.dataStore.data
+                .catch { emit(emptyPreferences()) }
+                .map { it[allowMixWithOtherAppsKey] ?: false }
+                .distinctUntilChanged()
+                .collect { allowMix ->
+                    withContext(Dispatchers.Main) {
+                        applyMixPlaybackPolicy(allowMix)
+                    }
+                }
+        }
+    }
+
+    private fun observeSongCacheLimitPreference() {
+        scope.launch(Dispatchers.IO) {
+            applicationContext.dataStore.data
+                .catch { emit(emptyPreferences()) }
+                .map { it[songCacheLimitKey].toEnum(SongCacheLimit.GB_1) }
+                .distinctUntilChanged()
+                .collect { limit ->
+                    SongCacheManager.updateLimit(applicationContext, limit)
+                }
+        }
+    }
+
+    private fun prefetchOfflineAssets(mediaItem: MediaItem?) {
+        mediaItem ?: return
+        ImagePreloadUtil.preloadMediaItems(applicationContext, listOf(mediaItem), limit = 1)
+        val songId = mediaItem.mediaId.substringBefore("_").toLongOrNull() ?: return
+        scope.launch(Dispatchers.IO) {
+            if (LyricDiskCache.get(songId) != null) return@launch
+            PlayerApi.songLyric(songId).getOrNull()?.let { response ->
+                LyricDiskCache.put(songId, response)
+            }
+        }
+    }
+
+    private fun applyMixPlaybackPolicy(allowMix: Boolean) {
+        allowMixWithOtherApps = allowMix
+        mediaSession?.player?.setAudioAttributes(
+            PlaybackFocusPolicy.musicAudioAttributes,
+            PlaybackFocusPolicy.shouldHandleAudioFocus(allowMix)
+        )
+        if (allowMix) {
+            unregisterRecordingCallback()
+        } else {
+            registerRecordingCallback()
+        }
+    }
+
+    private fun registerRecordingCallback() {
+        val manager = audioManager ?: return
+        if (!isRecordingCallbackRegistered) {
+            manager.registerAudioRecordingCallback(recordingCallback, Handler(Looper.getMainLooper()))
+            isRecordingCallbackRegistered = true
+        }
+        handleRecordingConfigsChanged(manager.activeRecordingConfigurations)
+    }
+
+    private fun unregisterRecordingCallback() {
+        if (isRecordingCallbackRegistered) {
+            audioManager?.unregisterAudioRecordingCallback(recordingCallback)
+            isRecordingCallbackRegistered = false
+        }
+        wasRecordingActive = false
+    }
+
+    private fun handleRecordingConfigsChanged(configs: List<AudioRecordingConfiguration>) {
+        val isRecordingActive = PlaybackFocusPolicy.hasActiveExternalRecording(configs)
+        val player = mediaSession?.player
+        if (player != null && PlaybackFocusPolicy.shouldPauseOnRecordingChange(
+                allowMixWithOtherApps = allowMixWithOtherApps,
+                playWhenReady = player.playWhenReady,
+                playbackSuppressionReason = player.playbackSuppressionReason,
+                wasRecordingActive = wasRecordingActive,
+                isRecordingActive = isRecordingActive
+            )
+        ) {
+            player.pause()
+        }
+        wasRecordingActive = isRecordingActive
     }
 
     private inner class MediaSessionCallback : MediaSession.Callback {

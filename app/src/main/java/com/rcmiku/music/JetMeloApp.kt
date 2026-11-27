@@ -12,6 +12,7 @@ import coil3.memory.MemoryCache
 import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.rcmiku.music.constants.ncmCookieKey
+import com.rcmiku.music.cache.LyricDiskCache
 import com.rcmiku.music.playback.PlayerController
 import com.rcmiku.music.utils.SongListUtil
 import com.rcmiku.music.utils.UserAgentUtil
@@ -43,6 +44,8 @@ class JetMeloApp : Application(), SingletonImageLoader.Factory {
             .onFailure { Log.e("JetMeloApp", "FileProvider init failed", it) }
         runCatching { SongListUtil.init(filesDir.resolve("playlist")) }
             .onFailure { Log.e("JetMeloApp", "SongListUtil init failed", it) }
+        runCatching { LyricDiskCache.init(this) }
+            .onFailure { Log.e("JetMeloApp", "LyricDiskCache init failed", it) }
         UserAgentProvider.init(UserAgentUtil.DEFAULT_USER_AGENT)
 
         applicationScope.launch {

@@ -77,6 +77,8 @@
     <string name="higher">高</string>
     <string name="standard">标准</string>
     <string name="auto_skip">跳过加载失败歌曲</string>
+    <string name="allow_mix_with_other_apps">允许与其他应用同时播放</string>
+    <string name="allow_mix_with_other_apps_subtitle">开启后，其他应用播放或录音时不会自动暂停播放</string>
     <string name="logout">退出登录</string>
     <string name="like">喜爱</string>
     <string name="view_artist">查看歌手</string>
@@ -131,6 +133,13 @@
     <string name="update_check_failed">检查更新失败：%s</string>
     <string name="update_download_failed">下载安装包失败：%s</string>
     <string name="retry">重试</string>
+    <string name="no_lyrics">暂无歌词</string>
+    <string name="lyrics_load_failed">歌词加载失败</string>
+    <string name="song_cache_limit">歌曲缓存上限</string>
+    <string name="song_cache_limit_subtitle">上限 %1$s · 已用 %2$s</string>
+    <string name="clear_song_cache">清除歌曲缓存</string>
+    <string name="clear_song_cache_subtitle">已占用 %s</string>
+    <string name="clear_song_cache_confirm">确定清除所有已缓存的歌曲音频与歌词吗？</string>
 
     <plurals name="songs_count">
         <item quantity="one">%d 首歌曲</item>
