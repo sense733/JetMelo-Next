@@ -40,7 +40,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaMetadata
-import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.rcmiku.music.R
@@ -48,6 +47,7 @@ import com.rcmiku.music.constants.GridThumbnailHeight
 import com.rcmiku.music.constants.ListItemHeight
 import com.rcmiku.music.constants.ListThumbnailSize
 import com.rcmiku.music.constants.ThumbnailCornerRadius
+import com.rcmiku.music.ui.design.ShimmerAsyncImage
 import com.rcmiku.music.ui.icons.FavoriteFill
 import com.rcmiku.music.ui.icons.Payment
 import com.rcmiku.music.ui.icons.Vip
@@ -109,6 +109,7 @@ inline fun ListItem(
             }
         }
 
+        Spacer(Modifier.width(4.dp))
         trailingContent()
     }
 }
@@ -564,13 +565,12 @@ fun ItemThumbnail(
                     .diskCacheKey(cacheKey)
                     .build()
             }
-            AsyncImage(
+            ShimmerAsyncImage(
                 model = imageRequest,
                 contentDescription = null,
+                shape = shape,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(shape)
+                modifier = Modifier.fillMaxSize()
             )
         }
 

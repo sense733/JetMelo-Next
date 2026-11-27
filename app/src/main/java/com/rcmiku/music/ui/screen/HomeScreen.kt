@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -29,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -68,14 +68,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
 import com.rcmiku.music.constants.DURATION_ENTER
 import com.rcmiku.music.constants.DURATION_EXIT_SHORT
 import com.rcmiku.music.constants.ListItemHeight
+import com.rcmiku.music.constants.NAV_TRANSITION_DURATION
 import com.rcmiku.music.constants.ncmCookieKey
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.playMediaAtId
@@ -85,6 +86,7 @@ import com.rcmiku.music.ui.components.SongMenuBottomSheet
 import com.rcmiku.music.ui.design.DailySongsGridSkeleton
 import com.rcmiku.music.ui.design.PlaylistsRowSkeleton
 import com.rcmiku.music.ui.design.SectionHeader
+import com.rcmiku.music.ui.design.ShimmerAsyncImage
 import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.navigation.Screen
@@ -188,6 +190,7 @@ fun HomeScreen(
                 LaunchedEffect(dailyData) {
                     dailyData?.data?.dailySongs?.let { songs ->
                         if (songs.isNotEmpty()) {
+                            delay(NAV_TRANSITION_DURATION.toLong())
                             ImagePreloadUtil.preloadSongThumbnails(context, songs)
                         }
                     }
@@ -196,6 +199,7 @@ fun HomeScreen(
                 LaunchedEffect(recommendData) {
                     recommendData?.recommend?.let { playlists ->
                         if (playlists.isNotEmpty()) {
+                            delay(NAV_TRANSITION_DURATION.toLong())
                             ImagePreloadUtil.preloadPlaylistCovers(context, playlists)
                         }
                     }
@@ -204,10 +208,13 @@ fun HomeScreen(
                 LaunchedEffect(personalizedData) {
                     personalizedData?.result?.let { playlists ->
                         if (playlists.isNotEmpty()) {
+                            delay(NAV_TRANSITION_DURATION.toLong())
                             ImagePreloadUtil.preloadPlaylistCovers(context, playlists)
                         }
                     }
                 }
+
+                val playlistOverlayShape = remember { RoundedCornerShape(24.dp) }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -221,6 +228,7 @@ fun HomeScreen(
 
                         LaunchedEffect(playlistTarget, fallbackDominant, fallbackAccent) {
                             val playlists = playlistTarget ?: return@LaunchedEffect
+                            delay(NAV_TRANSITION_DURATION.toLong())
                             PaletteExtractor.preloadBatch(
                                 context = context,
                                 items = playlists.take(10).map { it.cover to it.id.toString() },
@@ -268,40 +276,36 @@ fun HomeScreen(
                                                     )
                                                 }
                                         ) {
-                                            Box(
+                                            val context = LocalContext.current
+                                            val coverKey = remember(playlist.id) { "cover_${playlist.id}" }
+                                            val imageRequest = remember(context, playlist.cover, coverKey) {
+                                                ImageRequest.Builder(context)
+                                                    .data(playlist.cover.takeIf { it.isNotEmpty() })
+                                                    .size(ImagePreloadUtil.CoverRequestSizePx)
+                                                    .crossfade(false)
+                                                    .memoryCacheKey(coverKey)
+                                                    .placeholderMemoryCacheKey(coverKey)
+                                                    .build()
+                                            }
+                                            ShimmerAsyncImage(
+                                                model = imageRequest,
+                                                contentDescription = playlist.name,
+                                                shape = JetMeloShapes.large,
+                                                contentScale = ContentScale.Crop,
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(160.dp)
-                                                    .clip(JetMeloShapes.large)
-                                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                                            ) {
-                                                val context = LocalContext.current
-                                                val coverKey = remember(playlist.id) { "cover_${playlist.id}" }
-                                                val imageRequest = remember(context, playlist.cover, coverKey) {
-                                                    ImageRequest.Builder(context)
-                                                        .data(playlist.cover.takeIf { it.isNotEmpty() })
-                                                        .memoryCacheKey(coverKey)
-                                                        .placeholderMemoryCacheKey(coverKey)
-                                                        .build()
-                                                }
-                                                AsyncImage(
-                                                    model = imageRequest,
-                                                    contentDescription = playlist.name,
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .clip(JetMeloShapes.large)
-                                                        .sharedElement(
-                                                            sharedTransitionScope.rememberSharedContentState(
-                                                                key = coverKey
-                                                            ),
-                                                            animatedVisibilityScope = animatedContentScope,
-                                                            boundsTransform = JetMeloBoundsTransform,
-                                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.large)
-                                                        )
-                                                )
-                                            }
+                                                    .height(160.dp),
+                                                imageModifier = Modifier
+                                                    .sharedElement(
+                                                        sharedTransitionScope.rememberSharedContentState(
+                                                            key = coverKey
+                                                        ),
+                                                        animatedVisibilityScope = animatedContentScope,
+                                                        boundsTransform = JetMeloBoundsTransform,
+                                                        placeholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+                                                        clipInOverlayDuringTransition = OverlayClip(playlistOverlayShape)
+                                                    )
+                                            )
 
                                             Spacer(Modifier.height(8.dp))
 

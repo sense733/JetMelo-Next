@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,16 +47,19 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
-import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.rcmiku.music.R
+import com.rcmiku.music.constants.NAV_TRANSITION_DURATION
 import com.rcmiku.music.ui.design.PaletteExtractor
+import com.rcmiku.music.ui.design.ShimmerAsyncImage
 import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.viewModel.UserPlaylistScreenViewModel
 import com.rcmiku.ncmapi.api.account.UserPlaylistType
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -110,6 +114,7 @@ fun UserPlaylistScreen(
                 val playlists = playlistResponse?.data?.playlist ?: return@LaunchedEffect
                 val items = playlists.take(15).map { it.cover to it.id.toString() }
                 if (items.isNotEmpty()) {
+                    delay(NAV_TRANSITION_DURATION.toLong())
                     PaletteExtractor.preloadBatch(
                         context = context,
                         items = items,
@@ -122,10 +127,13 @@ fun UserPlaylistScreen(
             LaunchedEffect(playlistResponse) {
                 playlistResponse?.data?.playlist?.let { playlists ->
                     if (playlists.isNotEmpty()) {
+                        delay(NAV_TRANSITION_DURATION.toLong())
                         ImagePreloadUtil.preloadPlaylistCovers(context, playlists)
                     }
                 }
             }
+
+            val cardOverlayShape = remember { RoundedCornerShape(16.dp) }
 
             when {
                 playlistResponse == null && isLoading -> {
@@ -196,39 +204,36 @@ fun UserPlaylistScreen(
                                         )
                                     }
                             ) {
-                                Box(
+                                val context = LocalContext.current
+                                val coverKey = remember(playlist.id) { "cover_${playlist.id}" }
+                                val imageRequest = remember(context, playlist.cover, coverKey) {
+                                    ImageRequest.Builder(context)
+                                        .data(playlist.cover.takeIf { it.isNotEmpty() })
+                                        .size(ImagePreloadUtil.CoverRequestSizePx)
+                                        .crossfade(false)
+                                        .memoryCacheKey(coverKey)
+                                        .placeholderMemoryCacheKey(coverKey)
+                                        .build()
+                                }
+                                ShimmerAsyncImage(
+                                    model = imageRequest,
+                                    contentDescription = playlist.name,
+                                    shape = JetMeloShapes.medium,
+                                    contentScale = ContentScale.Crop,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .aspectRatio(1f)
-                                        .clip(JetMeloShapes.medium)
-                                ) {
-                                    val context = LocalContext.current
-                                    val coverKey = remember(playlist.id) { "cover_${playlist.id}" }
-                                    val imageRequest = remember(context, playlist.cover, coverKey) {
-                                        ImageRequest.Builder(context)
-                                            .data(playlist.cover.takeIf { it.isNotEmpty() })
-                                            .memoryCacheKey(coverKey)
-                                            .placeholderMemoryCacheKey(coverKey)
-                                            .build()
-                                    }
-                                    AsyncImage(
-                                        model = imageRequest,
-                                        contentDescription = playlist.name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(JetMeloShapes.medium)
-                                            .sharedElement(
-                                                sharedTransitionScope.rememberSharedContentState(
-                                                    key = coverKey
-                                                ),
-                                                animatedVisibilityScope = animatedContentScope,
-                                                boundsTransform = JetMeloBoundsTransform,
-                                                placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
-                                            )
-                                    )
-                                }
+                                        .aspectRatio(1f),
+                                    imageModifier = Modifier
+                                        .sharedElement(
+                                            sharedTransitionScope.rememberSharedContentState(
+                                                key = coverKey
+                                            ),
+                                            animatedVisibilityScope = animatedContentScope,
+                                            boundsTransform = JetMeloBoundsTransform,
+                                            placeholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+                                            clipInOverlayDuringTransition = OverlayClip(cardOverlayShape)
+                                        )
+                                )
 
                                 Spacer(Modifier.height(8.dp))
 

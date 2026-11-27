@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Settings
@@ -52,11 +53,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
-import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.rcmiku.music.R
+import com.rcmiku.music.constants.NAV_TRANSITION_DURATION
 import com.rcmiku.music.ui.design.HeroBannerCard
 import com.rcmiku.music.ui.design.SectionHeader
+import com.rcmiku.music.ui.design.ShimmerAsyncImage
 import com.rcmiku.music.ui.navigation.AlbumNav
 import com.rcmiku.music.ui.navigation.JetMeloBoundsTransform
 import com.rcmiku.music.ui.navigation.PlaylistNav
@@ -64,6 +67,7 @@ import com.rcmiku.music.ui.navigation.Screen
 import com.rcmiku.music.ui.theme.JetMeloShapes
 import com.rcmiku.music.utils.ImagePreloadUtil
 import com.rcmiku.music.viewModel.ExploreScreenViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -115,6 +119,7 @@ fun ExploreScreen(
                 newAlbum?.albums?.take(6)?.forEach { items.add(it.picUrl to it.id.toString()) }
                 allNewAlbum?.albums?.take(6)?.forEach { items.add(it.picUrl to it.id.toString()) }
                 if (items.isNotEmpty()) {
+                    delay(NAV_TRANSITION_DURATION.toLong())
                     PaletteExtractor.preloadBatch(
                         context = context,
                         items = items,
@@ -127,12 +132,18 @@ fun ExploreScreen(
             LaunchedEffect(topList) {
                 topList?.list?.let { charts ->
                     if (charts.isNotEmpty()) {
+                        delay(NAV_TRANSITION_DURATION.toLong())
                         ImagePreloadUtil.preloadPlaylistCovers(context, charts)
                     }
                 }
             }
 
             LaunchedEffect(newAlbum, allNewAlbum) {
+                val hasWeek = !newAlbum?.albums.isNullOrEmpty()
+                val hasMonth = !allNewAlbum?.albums.isNullOrEmpty()
+                if (hasWeek || hasMonth) {
+                    delay(NAV_TRANSITION_DURATION.toLong())
+                }
                 newAlbum?.albums?.let { albums ->
                     if (albums.isNotEmpty()) {
                         ImagePreloadUtil.preloadAlbumCovers(context, albums)
@@ -144,6 +155,8 @@ fun ExploreScreen(
                     }
                 }
             }
+
+            val cardOverlayShape = remember { RoundedCornerShape(16.dp) }
 
             val weekData = newAlbum?.albums
             val weekIds = remember(weekData) { weekData?.map { it.id }?.toSet().orEmpty() }
@@ -216,8 +229,8 @@ fun ExploreScreen(
                                             ),
                                             animatedVisibilityScope = animatedContentScope,
                                             boundsTransform = JetMeloBoundsTransform,
-                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                            placeholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+                                            clipInOverlayDuringTransition = OverlayClip(cardOverlayShape)
                                         ),
                                         onClick = {
                                             coroutineScope.launch {
@@ -281,39 +294,36 @@ fun ExploreScreen(
                                             )
                                         }
                                 ) {
-                                    Box(
+                                    val context = LocalContext.current
+                                    val coverKey = remember(album.id) { "cover_${album.id}" }
+                                    val imageRequest = remember(context, album.picUrl, coverKey) {
+                                        ImageRequest.Builder(context)
+                                            .data(album.picUrl.takeIf { it.isNotEmpty() })
+                                            .size(ImagePreloadUtil.CoverRequestSizePx)
+                                            .crossfade(false)
+                                            .memoryCacheKey(coverKey)
+                                            .placeholderMemoryCacheKey(coverKey)
+                                            .build()
+                                    }
+                                    ShimmerAsyncImage(
+                                        model = imageRequest,
+                                        contentDescription = album.name,
+                                        shape = JetMeloShapes.medium,
+                                        contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(150.dp)
-                                            .clip(JetMeloShapes.medium)
-                                    ) {
-                                        val context = LocalContext.current
-                                        val coverKey = remember(album.id) { "cover_${album.id}" }
-                                        val imageRequest = remember(context, album.picUrl, coverKey) {
-                                            ImageRequest.Builder(context)
-                                                .data(album.picUrl.takeIf { it.isNotEmpty() })
-                                                .memoryCacheKey(coverKey)
-                                                .placeholderMemoryCacheKey(coverKey)
-                                                .build()
-                                        }
-                                        AsyncImage(
-                                            model = imageRequest,
-                                            contentDescription = album.name,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(JetMeloShapes.medium)
-                                                .sharedElement(
-                                                    sharedTransitionScope.rememberSharedContentState(
-                                                        key = coverKey
-                                                    ),
-                                                    animatedVisibilityScope = animatedContentScope,
-                                                    boundsTransform = JetMeloBoundsTransform,
-                                                    placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                    clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
-                                                )
-                                        )
-                                    }
+                                            .height(150.dp),
+                                        imageModifier = Modifier
+                                            .sharedElement(
+                                                sharedTransitionScope.rememberSharedContentState(
+                                                    key = coverKey
+                                                ),
+                                                animatedVisibilityScope = animatedContentScope,
+                                                boundsTransform = JetMeloBoundsTransform,
+                                                placeholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+                                                clipInOverlayDuringTransition = OverlayClip(cardOverlayShape)
+                                            )
+                                    )
 
                                     Spacer(Modifier.height(8.dp))
 
@@ -374,39 +384,36 @@ fun ExploreScreen(
                                             )
                                         }
                                 ) {
-                                    Box(
+                                    val context = LocalContext.current
+                                    val coverKey = remember(album.id) { "cover_${album.id}" }
+                                    val imageRequest = remember(context, album.picUrl, coverKey) {
+                                        ImageRequest.Builder(context)
+                                            .data(album.picUrl.takeIf { it.isNotEmpty() })
+                                            .size(ImagePreloadUtil.CoverRequestSizePx)
+                                            .crossfade(false)
+                                            .memoryCacheKey(coverKey)
+                                            .placeholderMemoryCacheKey(coverKey)
+                                            .build()
+                                    }
+                                    ShimmerAsyncImage(
+                                        model = imageRequest,
+                                        contentDescription = album.name,
+                                        shape = JetMeloShapes.medium,
+                                        contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(150.dp)
-                                            .clip(JetMeloShapes.medium)
-                                    ) {
-                                        val context = LocalContext.current
-                                        val coverKey = remember(album.id) { "cover_${album.id}" }
-                                        val imageRequest = remember(context, album.picUrl, coverKey) {
-                                            ImageRequest.Builder(context)
-                                                .data(album.picUrl.takeIf { it.isNotEmpty() })
-                                                .memoryCacheKey(coverKey)
-                                                .placeholderMemoryCacheKey(coverKey)
-                                                .build()
-                                        }
-                                        AsyncImage(
-                                            model = imageRequest,
-                                            contentDescription = album.name,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(JetMeloShapes.medium)
-                                                .sharedElement(
-                                                    sharedTransitionScope.rememberSharedContentState(
-                                                        key = coverKey
-                                                    ),
-                                                    animatedVisibilityScope = animatedContentScope,
-                                                    boundsTransform = JetMeloBoundsTransform,
-                                                    placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                    clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
-                                                )
-                                        )
-                                    }
+                                            .height(150.dp),
+                                        imageModifier = Modifier
+                                            .sharedElement(
+                                                sharedTransitionScope.rememberSharedContentState(
+                                                    key = coverKey
+                                                ),
+                                                animatedVisibilityScope = animatedContentScope,
+                                                boundsTransform = JetMeloBoundsTransform,
+                                                placeholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+                                                clipInOverlayDuringTransition = OverlayClip(cardOverlayShape)
+                                            )
+                                    )
 
                                     Spacer(Modifier.height(8.dp))
 

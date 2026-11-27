@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,12 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import coil3.size.Size
 import com.rcmiku.music.ui.icons.PlayArrowFill
 import com.rcmiku.music.ui.theme.JetMeloShapes
+import com.rcmiku.music.utils.ImagePreloadUtil
 
 @Composable
 fun HeroBannerCard(
@@ -108,29 +109,28 @@ fun HeroBannerCard(
                         .aspectRatio(1f)
                         .shadow(elevation = 4.dp, shape = JetMeloShapes.medium)
                         .clip(JetMeloShapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 ) {
                     val context = LocalContext.current
                     val imageRequest = remember(context, imageUrl, cacheKey) {
                         ImageRequest.Builder(context)
                             .data(imageUrl)
-                            .size(Size.ORIGINAL)
+                            .size(ImagePreloadUtil.CoverRequestSizePx)
                             .apply {
                                 if (cacheKey != null) {
                                     memoryCacheKey(cacheKey)
                                     placeholderMemoryCacheKey(cacheKey)
                                 }
                             }
-                            .crossfade(true)
+                            .crossfade(false)
                             .build()
                     }
-                    AsyncImage(
+                    ShimmerAsyncImage(
                         model = imageRequest,
                         contentDescription = title,
+                        shape = JetMeloShapes.medium,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(imageModifier)
+                        modifier = Modifier.fillMaxSize(),
+                        imageModifier = imageModifier
                     )
                 }
 
@@ -185,19 +185,32 @@ fun HeroBannerCard(
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            FilledIconButton(
-                                onClick = onPlayClick,
+                            Box(
                                 modifier = Modifier.size(36.dp),
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                )
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = PlayArrowFill,
-                                    contentDescription = "Play",
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .requiredSize(48.dp)
+                                        .clip(CircleShape)
+                                        .clickable(onClick = onPlayClick, role = Role.Button),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    FilledIconButton(
+                                        onClick = onPlayClick,
+                                        modifier = Modifier.size(36.dp),
+                                        colors = IconButtonDefaults.filledIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = PlayArrowFill,
+                                            contentDescription = "Play",
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

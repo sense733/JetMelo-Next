@@ -3,6 +3,7 @@ package com.rcmiku.music.ui.design
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -33,17 +34,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.rcmiku.music.constants.ListItemHeight
 import com.rcmiku.music.constants.ListThumbnailSize
 import com.rcmiku.music.ui.theme.AdaptiveArtworkShape
@@ -151,6 +161,71 @@ fun SkeletonPlaceholder(
             .clip(shape)
             .background(brush, shape = shape)
     )
+}
+
+/**
+ * Renders an [AsyncImage] backed by a matching shimmer skeleton while the image is loading,
+ * falling back to a calm static surface on error or missing data, and fading in smoothly only
+ * when the image transitioned through a loading state without a cached placeholder.
+ */
+@Composable
+fun ShimmerAsyncImage(
+    model: Any?,
+    contentDescription: String?,
+    shape: Shape,
+    modifier: Modifier = Modifier,
+    imageModifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    shimmerBrush: Brush? = null
+) {
+    var painterState by remember(model) {
+        mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
+    }
+    var sawLoading by remember(model) { mutableStateOf(false) }
+
+    val isSuccess = painterState is AsyncImagePainter.State.Success
+    val hasPlaceholderPainter = (painterState as? AsyncImagePainter.State.Loading)?.painter != null
+    val hasDisplayableImage = isSuccess || hasPlaceholderPainter
+    val isError = painterState is AsyncImagePainter.State.Error || model == null
+    val showShimmer = !hasDisplayableImage && !isError
+
+    val targetAlpha = if (hasDisplayableImage) 1f else 0f
+    val imageAlphaState = animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(durationMillis = if (sawLoading) 220 else 0),
+        label = "shimmer_image_alpha"
+    )
+
+    Box(modifier = modifier.clip(shape)) {
+        if (!hasDisplayableImage) {
+            val placeholderBrush = if (showShimmer) {
+                shimmerBrush ?: rememberShimmerBrush(enabled = true)
+            } else {
+                SolidColor(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.35f))
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(brush = placeholderBrush)
+            )
+        }
+
+        AsyncImage(
+            model = model,
+            contentDescription = contentDescription,
+            contentScale = contentScale,
+            onState = { state ->
+                if (state is AsyncImagePainter.State.Loading && state.painter == null) {
+                    sawLoading = true
+                }
+                painterState = state
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .then(imageModifier)
+                .graphicsLayer { alpha = imageAlphaState.value }
+        )
+    }
 }
 
 @Composable
