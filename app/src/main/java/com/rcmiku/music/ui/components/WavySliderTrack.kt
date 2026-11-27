@@ -12,6 +12,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SliderState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -63,22 +65,33 @@ fun WavySliderTrack(
     val strokeWidthPx = with(density) { strokeWidth.toPx() }
 
     val targetAmplitude = if (isPlaying && !isDragging && enabled) amplitudePx else 0f
-    val currentAmplitude by animateFloatAsState(
+    val currentAmplitudeState = animateFloatAsState(
         targetValue = targetAmplitude,
         animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
         label = "wavy_slider_amplitude"
     )
 
-    val infiniteTransition = rememberInfiniteTransition(label = "wavy_slider_phase_transition")
-    val phaseProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "wavy_slider_phase_progress"
-    )
+    val isWaveActive by remember(isPlaying, isDragging, enabled) {
+        derivedStateOf {
+            (isPlaying && !isDragging && enabled) || currentAmplitudeState.value > 0.05f
+        }
+    }
+
+    val phaseProgressState: State<Float>?
+    if (isWaveActive) {
+        val infiniteTransition = rememberInfiniteTransition(label = "wavy_slider_phase_transition")
+        phaseProgressState = infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1200, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "wavy_slider_phase_progress"
+        )
+    } else {
+        phaseProgressState = null
+    }
 
     val effectiveActiveColor = if (enabled) activeColor else activeColor.copy(alpha = 0.38f)
     val effectiveInactiveColor = if (enabled) inactiveColor else inactiveColor.copy(alpha = 0.12f)
@@ -89,6 +102,8 @@ fun WavySliderTrack(
         val width = size.width
         val height = size.height
         val centerY = height / 2f
+        val currentAmplitude = currentAmplitudeState.value
+        val phaseProgress = phaseProgressState?.value ?: 0f
 
         val range = sliderState.valueRange.endInclusive - sliderState.valueRange.start
         val fraction = if (range > 0f) {

@@ -10,6 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
@@ -19,7 +21,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.kyant.capsule.Continuity
 import com.kyant.capsule.ContinuousCapsule
 import com.kyant.capsule.ContinuousRoundedRectangle
 
@@ -50,14 +51,16 @@ val AdaptiveArtworkShape: Shape = object : Shape {
         val maxPx = with(density) { 280.dp.toPx() }
         val fraction = ((size.width - minPx) / (maxPx - minPx)).coerceIn(0f, 1f)
         val cornerRadiusPx = with(density) {
-            (8.dp.toPx() + (24.dp.toPx() - 8.dp.toPx()) * fraction)
+            8.dp.toPx() + (24.dp.toPx() - 8.dp.toPx()) * fraction
         }
-        return Continuity.Default.createRoundedRectangleOutline(
-            size = size,
-            topLeft = cornerRadiusPx,
-            topRight = cornerRadiusPx,
-            bottomRight = cornerRadiusPx,
-            bottomLeft = cornerRadiusPx
+        return Outline.Rounded(
+            RoundRect(
+                left = 0f,
+                top = 0f,
+                right = size.width,
+                bottom = size.height,
+                cornerRadius = CornerRadius(cornerRadiusPx)
+            )
         )
     }
 }

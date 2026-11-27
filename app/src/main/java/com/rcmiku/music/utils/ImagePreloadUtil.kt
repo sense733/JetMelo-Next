@@ -16,6 +16,7 @@ import com.rcmiku.ncmapi.model.Song
  */
 object ImagePreloadUtil {
     val ThumbnailRequestSizePx = Size(176, 176)
+    val CoverRequestSizePx = Size(640, 640)
 
     fun preloadSongThumbnail(context: Context, song: Song) {
         val artworkUrl = song.al.picUrl
@@ -31,7 +32,7 @@ object ImagePreloadUtil {
         SingletonImageLoader.get(context).enqueue(request)
     }
 
-    fun preloadSongThumbnails(context: Context, songs: List<Song>, limit: Int = 80) {
+    fun preloadSongThumbnails(context: Context, songs: List<Song>, limit: Int = 24) {
         if (songs.isEmpty()) return
         val targetSongs = if (limit > 0) songs.take(limit) else songs
         val loader = SingletonImageLoader.get(context)
@@ -51,7 +52,7 @@ object ImagePreloadUtil {
         }
     }
 
-    fun preloadMediaItems(context: Context, items: List<MediaItem>, limit: Int = 80) {
+    fun preloadMediaItems(context: Context, items: List<MediaItem>, limit: Int = 24) {
         if (items.isEmpty()) return
         val targetItems = if (limit > 0) items.take(limit) else items
         val loader = SingletonImageLoader.get(context)
@@ -76,6 +77,8 @@ object ImagePreloadUtil {
         val coverKey = id?.let { "cover_$it" }
         val request = ImageRequest.Builder(context)
             .data(url)
+            .size(CoverRequestSizePx)
+            .crossfade(false)
             .apply {
                 if (coverKey != null) {
                     memoryCacheKey(coverKey)
@@ -86,7 +89,7 @@ object ImagePreloadUtil {
         SingletonImageLoader.get(context).enqueue(request)
     }
 
-    fun preloadPlaylistCovers(context: Context, playlists: List<Playlist>, limit: Int = 30) {
+    fun preloadPlaylistCovers(context: Context, playlists: List<Playlist>, limit: Int = 12) {
         if (playlists.isEmpty()) return
         val targetPlaylists = if (limit > 0) playlists.take(limit) else playlists
         val loader = SingletonImageLoader.get(context)
@@ -96,6 +99,8 @@ object ImagePreloadUtil {
                 val coverKey = "cover_${playlist.id}"
                 val request = ImageRequest.Builder(context)
                     .data(coverUrl)
+                    .size(CoverRequestSizePx)
+                    .crossfade(false)
                     .memoryCacheKey(coverKey)
                     .placeholderMemoryCacheKey(coverKey)
                     .build()
@@ -104,7 +109,7 @@ object ImagePreloadUtil {
         }
     }
 
-    fun preloadAlbumCovers(context: Context, albums: List<Album>, limit: Int = 30) {
+    fun preloadAlbumCovers(context: Context, albums: List<Album>, limit: Int = 12) {
         if (albums.isEmpty()) return
         val targetAlbums = if (limit > 0) albums.take(limit) else albums
         val loader = SingletonImageLoader.get(context)
@@ -114,6 +119,8 @@ object ImagePreloadUtil {
                 val coverKey = "cover_${album.id}"
                 val request = ImageRequest.Builder(context)
                     .data(picUrl)
+                    .size(CoverRequestSizePx)
+                    .crossfade(false)
                     .memoryCacheKey(coverKey)
                     .placeholderMemoryCacheKey(coverKey)
                     .build()

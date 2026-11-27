@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ fun StickyPlayAllBar(
     isSticky: Boolean,
     modifier: Modifier = Modifier,
     collapseFraction: Float = if (isSticky) 1f else 0f,
+    collapseFractionProvider: (() -> Float)? = null,
     accentColor: Color = MaterialTheme.colorScheme.primary,
     onAccentColor: Color = MaterialTheme.colorScheme.onPrimary,
     isLoading: Boolean = false,
@@ -55,7 +57,11 @@ fun StickyPlayAllBar(
         label = "stickyCornerRadius"
     )
 
-    val fogAlpha = if (isSticky) 1f else collapseFraction.coerceIn(0f, 1f)
+    val showFog by remember(isSticky, collapseFractionProvider, collapseFraction) {
+        derivedStateOf {
+            isSticky || (collapseFractionProvider?.invoke() ?: collapseFraction) > 0f
+        }
+    }
     val baseColor = MaterialTheme.colorScheme.background
 
     Box(
@@ -63,14 +69,17 @@ fun StickyPlayAllBar(
             .fillMaxWidth()
             .height(64.dp)
     ) {
-        if (fogAlpha > 0f) {
+        if (showFog) {
             TopFogOverlay(
                 height = 37.dp,
                 baseColor = baseColor,
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(y = 63.dp)
-                    .graphicsLayer { alpha = fogAlpha }
+                    .graphicsLayer {
+                        val fraction = if (isSticky) 1f else (collapseFractionProvider?.invoke() ?: collapseFraction)
+                        alpha = fraction.coerceIn(0f, 1f)
+                    }
             )
         }
 
@@ -97,6 +106,7 @@ fun StickyPlayAllBar(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .weight(1f)
+                    .padding(end = 8.dp)
                     .clip(JetMeloShapes.small)
                     .clickable(enabled = !isLoading && trackCount > 0) {
                         onPlayAllClick()

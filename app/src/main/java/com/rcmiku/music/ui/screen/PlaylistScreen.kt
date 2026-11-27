@@ -17,12 +17,15 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -65,7 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -93,6 +96,7 @@ import coil3.size.Size
 import com.rcmiku.music.LocalPlayerController
 import com.rcmiku.music.LocalPlayerState
 import com.rcmiku.music.R
+import com.rcmiku.music.constants.NAV_TRANSITION_DURATION
 import com.rcmiku.music.constants.userIdKey
 import com.rcmiku.music.data.favoriteSongIdsDatastore
 import com.rcmiku.music.extensions.playMediaAt
@@ -101,6 +105,7 @@ import com.rcmiku.music.extensions.setPlaylist
 import com.rcmiku.music.ui.components.ActiveBoxAlpha
 import com.rcmiku.music.ui.components.PlayingIndicatorBox
 import com.rcmiku.music.ui.components.SongMenuBottomSheet
+import com.rcmiku.music.ui.design.DetailCoverSkeleton
 import com.rcmiku.music.ui.design.DetailPlayBarSkeleton
 import com.rcmiku.music.ui.design.DetailTrackItemSkeleton
 import com.rcmiku.music.ui.design.rememberArtworkColors
@@ -117,6 +122,7 @@ import com.rcmiku.music.utils.formatPlayCount
 import com.rcmiku.music.utils.formatTimestamp
 import com.rcmiku.music.utils.rememberPreference
 import com.rcmiku.music.viewModel.PlaylistScreenViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -188,6 +194,7 @@ fun PlaylistScreen(
 
     LaunchedEffect(tracks) {
         if (tracks.isNotEmpty()) {
+            delay(NAV_TRANSITION_DURATION.toLong())
             ImagePreloadUtil.preloadSongThumbnails(context, tracks)
         }
     }
@@ -203,12 +210,14 @@ fun PlaylistScreen(
         songId = currentPlaylistId?.toString()
     )
     val baseColor = MaterialTheme.colorScheme.background
-    val animatedDominantColor by animateColorAsState(
+    val animatedDominantColorState = animateColorAsState(
         targetValue = pageArtworkColors.dominantColor,
         animationSpec = tween(durationMillis = 350),
         label = "playlist_dominant_color"
     )
-    val dominantTopColor = animatedDominantColor.copy(alpha = 0.65f)
+    val artworkOverlayShape = remember { RoundedCornerShape(16.dp) }
+    val artworkAmbientShadowColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    val artworkSpotShadowColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
 
     with(sharedTransitionScope) {
         Scaffold(
@@ -218,12 +227,12 @@ fun PlaylistScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .height(44.dp)
+                        .height(48.dp)
                 ) {
                     IconButton(
                         onClick = { navController.navigateUp() },
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .align(Alignment.CenterStart)
                     ) {
                         Icon(
@@ -290,7 +299,6 @@ fun PlaylistScreen(
             val detail = playlistDetailState
             val artworkUri = detail?.playlist?.coverImgUrl ?: initialArtworkUri
             val hasArtwork = !artworkUri.isNullOrEmpty()
-            val shimmerBrush = rememberShimmerBrush()
 
             Box(
                 modifier = Modifier
@@ -304,14 +312,14 @@ fun PlaylistScreen(
                         .graphicsLayer {
                             alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
                         }
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    dominantTopColor,
-                                    baseColor
+                        .drawBehind {
+                            val topColor = animatedDominantColorState.value.copy(alpha = 0.65f)
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(topColor, baseColor)
                                 )
                             )
-                        )
+                        }
                 )
 
                 LazyColumn(
@@ -360,6 +368,8 @@ fun PlaylistScreen(
                                         val imageRequest = remember(context, artworkUri, coverKey) {
                                             ImageRequest.Builder(context)
                                                 .data(artworkUri?.takeIf { it.isNotEmpty() })
+                                                .size(ImagePreloadUtil.CoverRequestSizePx)
+                                                .crossfade(false)
                                                 .apply {
                                                     if (coverKey != null) {
                                                         memoryCacheKey(coverKey)
@@ -382,41 +392,27 @@ fun PlaylistScreen(
                                                             ),
                                                             animatedVisibilityScope = animatedContentScope,
                                                             boundsTransform = JetMeloBoundsTransform,
-                                                            placeHolderSize = SharedTransitionScope.PlaceHolderSize.contentSize,
-                                                            clipInOverlayDuringTransition = OverlayClip(JetMeloShapes.medium)
+                                                            placeholderSize = SharedTransitionScope.PlaceholderSize.ContentSize,
+                                                            clipInOverlayDuringTransition = OverlayClip(artworkOverlayShape)
                                                         )
                                                     } else {
                                                         Modifier
                                                     }
                                                 )
-                                                .shadow(
-                                                    elevation = 6.dp,
-                                                    shape = JetMeloShapes.medium,
-                                                    ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                                                    spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                                )
-                                                .clip(JetMeloShapes.medium)
+                                                .graphicsLayer {
+                                                    shadowElevation = if (sharedTransitionScope.isTransitionActive) {
+                                                        0f
+                                                    } else {
+                                                        6.dp.toPx()
+                                                    }
+                                                    shape = JetMeloShapes.medium
+                                                    clip = true
+                                                    ambientShadowColor = artworkAmbientShadowColor
+                                                    spotShadowColor = artworkSpotShadowColor
+                                                }
                                         )
                                     } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .shadow(
-                                                    elevation = 4.dp,
-                                                    shape = JetMeloShapes.medium,
-                                                    ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                                                    spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                                                )
-                                                .clip(JetMeloShapes.medium)
-                                                .background(
-                                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                    shape = JetMeloShapes.medium
-                                                )
-                                                .background(
-                                                    brush = shimmerBrush,
-                                                    shape = JetMeloShapes.medium
-                                                )
-                                        )
+                                        DetailCoverSkeleton()
                                     }
                                 }
 
@@ -430,15 +426,8 @@ fun PlaylistScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (titleText.isNullOrEmpty()) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(180.dp)
-                                                .height(24.dp)
-                                                .clip(JetMeloShapes.small)
-                                                .background(shimmerBrush, shape = JetMeloShapes.small)
-                                                .graphicsLayer {
-                                                    alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                                }
+                                        PlaylistTitleSkeleton(
+                                            collapseFractionProvider = { collapseFraction }
                                         )
                                     } else {
                                         Text(
@@ -506,27 +495,8 @@ fun PlaylistScreen(
                                         )
                                     }
                                 } else if (isLoading) {
-                                    Spacer(Modifier.height(8.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .width(130.dp)
-                                            .height(14.dp)
-                                            .clip(JetMeloShapes.extraSmall)
-                                            .background(shimmerBrush, shape = JetMeloShapes.extraSmall)
-                                            .graphicsLayer {
-                                                alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                            }
-                                    )
-                                    Spacer(Modifier.height(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .width(200.dp)
-                                            .height(12.dp)
-                                            .clip(JetMeloShapes.extraSmall)
-                                            .background(shimmerBrush, shape = JetMeloShapes.extraSmall)
-                                            .graphicsLayer {
-                                                alpha = (1f - (collapseFraction / 0.70f)).coerceIn(0f, 1f)
-                                            }
+                                    PlaylistMetaSkeleton(
+                                        collapseFractionProvider = { collapseFraction }
                                     )
                                 }
                             }
@@ -545,28 +515,45 @@ fun PlaylistScreen(
                                         }
                                     },
                                     isSticky = isSticky,
-                                    collapseFraction = collapseFraction,
+                                    collapseFractionProvider = { collapseFraction },
                                     accentColor = pageArtworkColors.accentColor,
                                     onAccentColor = pageArtworkColors.onAccentColor,
                                     isLoading = isLoading,
                                     trailingContent = {
-                                        FilledTonalIconButton(
-                                            onClick = {
-                                                playlistInfoState?.subscribed?.let {
-                                                    playlistScreenViewModel.playlistSub(isSub = it)
-                                                }
-                                            },
-                                            modifier = Modifier.size(40.dp)
+                                        val isSubscribed = playlistInfoState?.subscribed
+                                        Box(
+                                            modifier = Modifier
+                                                .offset(x = 4.dp)
+                                                .size(48.dp)
+                                                .clip(CircleShape)
+                                                .clickable(
+                                                    enabled = isSubscribed != null,
+                                                    role = Role.Button
+                                                ) {
+                                                    isSubscribed?.let {
+                                                        playlistScreenViewModel.playlistSub(isSub = it)
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
-                                                imageVector = if (playlistInfoState?.subscribed == true)
-                                                    LibraryAddCheck
-                                                else
-                                                    LibraryAdd,
-                                                contentDescription = stringResource(R.string.favorite),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                            FilledTonalIconButton(
+                                                onClick = {
+                                                    isSubscribed?.let {
+                                                        playlistScreenViewModel.playlistSub(isSub = it)
+                                                    }
+                                                },
+                                                modifier = Modifier.size(40.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isSubscribed == true)
+                                                        LibraryAddCheck
+                                                    else
+                                                        LibraryAdd,
+                                                    contentDescription = stringResource(R.string.favorite),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 )
@@ -593,7 +580,7 @@ fun PlaylistScreen(
                                         mediaController?.setPlaylist(tracks)
                                         mediaController?.playMediaAtId(song.id)
                                     }
-                                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                                    .padding(start = 8.dp, top = 8.dp, bottom = 8.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -697,12 +684,13 @@ fun PlaylistScreen(
                                         }
                                     }
 
+                                    Spacer(modifier = Modifier.width(4.dp))
+
                                     IconButton(
                                         onClick = {
                                             selectedSongId = song.id
                                             openBottomSheet = true
-                                        },
-                                        modifier = Modifier.size(36.dp)
+                                        }
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.MoreVert,
@@ -716,12 +704,14 @@ fun PlaylistScreen(
                         }
                         }
                         isLoading -> {
-                            item(key = "skeleton_play_bar") {
-                                DetailPlayBarSkeleton(brush = shimmerBrush)
-                            }
-
-                            items(count = 8, key = { index -> "skeleton_track_$index" }) {
-                                DetailTrackItemSkeleton(brush = shimmerBrush)
+                            item(key = "skeleton_tracks") {
+                                val shimmerBrush = rememberShimmerBrush()
+                                Column {
+                                    DetailPlayBarSkeleton(brush = shimmerBrush)
+                                    repeat(8) {
+                                        DetailTrackItemSkeleton(brush = shimmerBrush)
+                                    }
+                                }
                             }
                         }
                         else -> {
@@ -758,5 +748,51 @@ fun PlaylistScreen(
         song = selectSong,
         onDismiss = { openBottomSheet = false },
         openBottomSheet = openBottomSheet
+    )
+}
+
+@Composable
+private fun PlaylistTitleSkeleton(
+    collapseFractionProvider: () -> Float
+) {
+    val shimmerBrush = rememberShimmerBrush()
+    Box(
+        modifier = Modifier
+            .width(180.dp)
+            .height(24.dp)
+            .clip(JetMeloShapes.small)
+            .background(shimmerBrush, shape = JetMeloShapes.small)
+            .graphicsLayer {
+                alpha = (1f - (collapseFractionProvider() / 0.70f)).coerceIn(0f, 1f)
+            }
+    )
+}
+
+@Composable
+private fun PlaylistMetaSkeleton(
+    collapseFractionProvider: () -> Float
+) {
+    val shimmerBrush = rememberShimmerBrush()
+    Spacer(Modifier.height(8.dp))
+    Box(
+        modifier = Modifier
+            .width(130.dp)
+            .height(14.dp)
+            .clip(JetMeloShapes.extraSmall)
+            .background(shimmerBrush, shape = JetMeloShapes.extraSmall)
+            .graphicsLayer {
+                alpha = (1f - (collapseFractionProvider() / 0.70f)).coerceIn(0f, 1f)
+            }
+    )
+    Spacer(Modifier.height(6.dp))
+    Box(
+        modifier = Modifier
+            .width(200.dp)
+            .height(12.dp)
+            .clip(JetMeloShapes.extraSmall)
+            .background(shimmerBrush, shape = JetMeloShapes.extraSmall)
+            .graphicsLayer {
+                alpha = (1f - (collapseFractionProvider() / 0.70f)).coerceIn(0f, 1f)
+            }
     )
 }

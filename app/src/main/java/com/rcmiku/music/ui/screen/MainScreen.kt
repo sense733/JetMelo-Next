@@ -39,9 +39,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -80,11 +80,19 @@ import com.rcmiku.ncmapi.utils.CookieProvider
 import com.rcmiku.ncmapi.utils.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 private const val BASE_ENTER_DURATION = 520
 private const val BASE_EXIT_DURATION = 420
 private const val DOCKED_PADDING_ANIM_DURATION = 280
 private val StandardDecelerateEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
+internal const val QUANTIZED_BLUR_LEVELS = 8
+
+internal fun quantizedBlurLevelIndex(progress: Float): Int {
+    if (progress <= 0.05f || progress >= 1f) return -1
+    val normalized = ((progress - 0.05f) / 0.95f).coerceIn(0f, 1f)
+    return (normalized * (QUANTIZED_BLUR_LEVELS - 1)).roundToInt().coerceIn(0, QUANTIZED_BLUR_LEVELS - 1)
+}
 
 @Composable
 fun MainScreen() {
@@ -122,7 +130,14 @@ fun MainScreen() {
 
     val context = LocalContext.current
 
-    LaunchedEffect(currentMediaId, playerState?.timeline) {
+    LaunchedEffect(currentMediaId, artworkUri, playerState?.timeline) {
+        if (artworkUri != null) {
+            com.rcmiku.music.ui.design.PaletteExtractor.getOrCreateBlurredWash(
+                context = context,
+                artworkUri = artworkUri,
+                songId = currentMediaId
+            )
+        }
         val timeline = playerState?.timeline ?: return@LaunchedEffect
         val currentIndex = playerState.mediaItemIndex
         if (timeline.isEmpty || currentIndex < 0) return@LaunchedEffect
@@ -143,6 +158,11 @@ fun MainScreen() {
                         fallbackDominant = fallbackDominant,
                         fallbackAccent = fallbackAccent
                     )
+                    com.rcmiku.music.ui.design.PaletteExtractor.getOrCreateBlurredWash(
+                        context = context,
+                        artworkUri = itemArtwork,
+                        songId = itemId
+                    )
                 }
             }
         }
@@ -150,7 +170,7 @@ fun MainScreen() {
 
     var showPlayer by rememberSaveable { mutableStateOf(false) }
 
-    val transitionProgress by animateFloatAsState(
+    val transitionProgressState = animateFloatAsState(
         targetValue = if (showPlayer) 1f else 0f,
         animationSpec = tween(
             durationMillis = if (showPlayer) BASE_ENTER_DURATION else BASE_EXIT_DURATION,
@@ -199,7 +219,7 @@ fun MainScreen() {
         }
     }
 
-    val dockedBottomPadding by animateDpAsState(
+    val dockedBottomPaddingState = animateDpAsState(
         targetValue = targetDockedBottomPadding,
         animationSpec = tween(
             durationMillis = DOCKED_PADDING_ANIM_DURATION,
@@ -208,14 +228,12 @@ fun MainScreen() {
         label = "docked_bottom_padding"
     )
 
-    val fogBottomPadding by remember(showNavigationBar, showMiniPlayer, dockedBottomPadding) {
-        derivedStateOf {
-            if (showNavigationBar && showMiniPlayer) {
-                dockedBottomPadding + (MiniPlayerHeight / 2)
-            } else {
-                dockedBottomPadding
-            }
-        }
+    val isScrimVisible by remember {
+        derivedStateOf { transitionProgressState.value > 0f }
+    }
+
+    val showPlayerOverlay by remember(showMiniPlayer) {
+        derivedStateOf { showMiniPlayer || transitionProgressState.value > 0f }
     }
 
     val tabBottomContentPadding = remember(navBarInset, showMiniPlayer) {
@@ -226,27 +244,42 @@ fun MainScreen() {
         navBarInset + (if (showMiniPlayer) MiniPlayerHeight + 8.dp else 0.dp)
     }
 
+    val density = LocalDensity.current
+    val quantizedBlurEffects = remember(density) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Array(QUANTIZED_BLUR_LEVELS) { index ->
+                val radiusPx = with(density) { ((index + 1) * 1.5f).dp.toPx() }
+                BlurEffect(
+                    radiusX = radiusPx,
+                    radiusY = radiusPx,
+                    edgeTreatment = TileMode.Decal
+                )
+            }
+        } else {
+            null
+        }
+    }
+
+    val transitionProgressProvider = remember { { transitionProgressState.value } }
+    val dockedBottomPaddingProvider = remember { { dockedBottomPaddingState.value } }
+    val fogBottomPaddingProvider = remember(showNavigationBar, showMiniPlayer) {
+        {
+            if (showNavigationBar && showMiniPlayer) {
+                dockedBottomPaddingState.value + (MiniPlayerHeight / 2)
+            } else {
+                dockedBottomPaddingState.value
+            }
+        }
+    }
+
     CompositionLocalProvider(LocalArtworkColors provides artworkColors) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            val p = transitionProgress
-
             Scaffold(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (p > 0.05f && p < 1f && Build.VERSION.SDK_INT >= 31) {
-                            Modifier.blur(
-                                radius = (p * 12).dp,
-                                edgeTreatment = BlurredEdgeTreatment.Unbounded
-                            )
-                        } else {
-                            Modifier
-                        }
-                    ),
+                modifier = Modifier.fillMaxSize(),
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 content = { padding ->
                     Box(
@@ -254,10 +287,15 @@ fun MainScreen() {
                             .fillMaxSize()
                             .consumeWindowInsets(padding)
                             .graphicsLayer {
+                                val p = transitionProgressState.value
                                 val scale = 1f - 0.05f * p
                                 scaleX = scale
                                 scaleY = scale
                                 transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                if (quantizedBlurEffects != null) {
+                                    val blurIndex = quantizedBlurLevelIndex(p)
+                                    renderEffect = if (blurIndex >= 0) quantizedBlurEffects[blurIndex] else null
+                                }
                             }
                     ) {
                         NavGraph(
@@ -277,9 +315,9 @@ fun MainScreen() {
                             )
                         ) {
                             BottomFogOverlay(
-                                bottomPadding = fogBottomPadding,
+                                bottomPaddingProvider = fogBottomPaddingProvider,
                                 modifier = Modifier.graphicsLayer {
-                                    alpha = (1f - p).coerceIn(0f, 1f)
+                                    alpha = (1f - transitionProgressState.value).coerceIn(0f, 1f)
                                 }
                             )
                         }
@@ -340,14 +378,20 @@ fun MainScreen() {
                 }
             )
 
-            if (p > 0f) {
+            if (isScrimVisible) {
                 val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-                val scrimAlpha = if (isDarkTheme) p * 0.35f else p * 0.12f
+                val scrimColor = MaterialTheme.colorScheme.scrim
+                val maxScrimAlpha = if (isDarkTheme) 0.35f else 0.12f
 
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = scrimAlpha))
+                        .drawBehind {
+                            val alpha = (transitionProgressState.value * maxScrimAlpha).coerceIn(0f, 1f)
+                            if (alpha > 0f) {
+                                drawRect(color = scrimColor.copy(alpha = alpha))
+                            }
+                        }
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {
@@ -359,13 +403,12 @@ fun MainScreen() {
                 )
             }
 
-            val density = LocalDensity.current
             val miniPlayerSlideOffsetPx = remember(density, navBarInset) {
                 with(density) { (navBarBaseHeight + navBarInset + MiniPlayerHeight + 32.dp).roundToPx() }
             }
 
             AnimatedVisibility(
-                visible = showMiniPlayer || transitionProgress > 0f,
+                visible = showPlayerOverlay,
                 modifier = Modifier
                     .zIndex(1f)
                     .fillMaxSize(),
@@ -392,8 +435,8 @@ fun MainScreen() {
                             onClick = { showPlayer = true },
                             navController = navController,
                             isExpanded = showPlayer,
-                            transitionProgress = transitionProgress,
-                            dockedBottomPadding = dockedBottomPadding
+                            transitionProgressProvider = transitionProgressProvider,
+                            dockedBottomPaddingProvider = dockedBottomPaddingProvider
                         )
                     }
                 }

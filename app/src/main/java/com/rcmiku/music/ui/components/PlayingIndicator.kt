@@ -65,12 +65,12 @@ fun PlayingIndicator(
         modifier = modifier
     ) {
         heights.forEach { animHeight ->
-            val heightFraction = animHeight.value
             Canvas(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(barWidth)
             ) {
+                val heightFraction = animHeight.value
                 drawRoundRect(
                     color = color.copy(alpha = 0.2f),
                     topLeft = Offset.Zero,

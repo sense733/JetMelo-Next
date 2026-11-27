@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -18,18 +19,19 @@ fun TopFogOverlay(
     height: Dp = 36.dp,
     baseColor: Color = MaterialTheme.colorScheme.background
 ) {
+    val brush = remember(baseColor) {
+        Brush.verticalGradient(
+            0.0f to baseColor,
+            0.25f to baseColor.copy(alpha = 0.70f),
+            0.50f to baseColor.copy(alpha = 0.35f),
+            0.75f to baseColor.copy(alpha = 0.10f),
+            1.0f to baseColor.copy(alpha = 0f)
+        )
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .background(
-                Brush.verticalGradient(
-                    0.0f to baseColor,
-                    0.25f to baseColor.copy(alpha = 0.70f),
-                    0.50f to baseColor.copy(alpha = 0.35f),
-                    0.75f to baseColor.copy(alpha = 0.10f),
-                    1.0f to baseColor.copy(alpha = 0f)
-                )
-            )
+            .background(brush)
     )
 }
