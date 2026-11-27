@@ -110,3 +110,50 @@ jobs:
           CHANGELOG="$(gh release view "${TAG}" --json body --jq .body)"
           gh release edit "${TAG}" --notes "${NOTES}"$'\n\n'"${CHANGELOG}"
           echo "::notice::Release 已创建，请补充「已知问题」与「暂不支持场景」后再对外说明"
+
+      - name: 同步 APK 与 version.json 至更新服务器
+        if: ${{ secrets.UPDATE_SERVER_SSH_KEY != '' && secrets.UPDATE_SERVER_HOST != '' }}
+        env:
+          SSH_KEY: ${{ secrets.UPDATE_SERVER_SSH_KEY }}
+          SERVER_HOST: ${{ secrets.UPDATE_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.UPDATE_SERVER_USER }}
+        run: |
+          set -euo pipefail
+          SERVER_USER="${SERVER_USER:-root}"
+          TAG="${GITHUB_REF_NAME}"
+          VERSION_NAME="${TAG#v}"
+          VERSION_CODE="$(git rev-list --count HEAD)"
+          APK_NAME="JetMelo-Next-${TAG}.apk"
+          SHA256="$(awk '{print $1}' "dist/${APK_NAME}.sha256")"
+          PREV_TAG="$(git tag --sort=-v:refname | grep -v "^${TAG}$" | head -n 1 || true)"
+          if [ -n "${PREV_TAG}" ]; then
+            RAW_LOG="$(git log --no-merges --pretty=format:'- %s' "${PREV_TAG}..HEAD" | head -n 15)"
+          else
+            RAW_LOG="$(git log --no-merges --pretty=format:'- %s' -n 10 HEAD)"
+          fi
+
+          jq -n \
+            --argjson versionCode "${VERSION_CODE}" \
+            --arg versionName "${VERSION_NAME}" \
+            --arg apkUrl "http://${SERVER_HOST}:8080/update/apk/${APK_NAME}" \
+            --arg changelog "${RAW_LOG}" \
+            --arg sha256 "${SHA256}" \
+            '{
+              versionCode: $versionCode,
+              versionName: $versionName,
+              apkUrl: $apkUrl,
+              changelog: $changelog,
+              forceUpdate: false,
+              sha256: $sha256
+            }' > dist/version.json
+
+          install -m 700 -d "${RUNNER_TEMP}/.ssh"
+          printf '%s\n' "${SSH_KEY}" > "${RUNNER_TEMP}/.ssh/id_key"
+          chmod 600 "${RUNNER_TEMP}/.ssh/id_key"
+          ssh-keyscan -H "${SERVER_HOST}" >> "${RUNNER_TEMP}/.ssh/known_hosts" 2>/dev/null
+
+          SSH_OPTS="-i ${RUNNER_TEMP}/.ssh/id_key -o UserKnownHostsFile=${RUNNER_TEMP}/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+          scp ${SSH_OPTS} "dist/${APK_NAME}" "${SERVER_USER}@${SERVER_HOST}:/var/www/jetmelo-update/apk/${APK_NAME}"
+          scp ${SSH_OPTS} "dist/version.json" "${SERVER_USER}@${SERVER_HOST}:/var/www/jetmelo-update/version.json.tmp"
+          ssh ${SSH_OPTS} "${SERVER_USER}@${SERVER_HOST}" "mv /var/www/jetmelo-update/version.json.tmp /var/www/jetmelo-update/version.json"
+          rm -rf "${RUNNER_TEMP}/.ssh"
